@@ -3,6 +3,7 @@ using OCAP.Core.Entities;
 using OCAP.Intelligence.Domain;
 using OCAP.Security.Domain.Entities;
 using OCAP.Workflow.Domain.Entities;
+using OCAP.Knowledge.Domain.Entities;
 
 namespace OCAP.Infrastructure.Persistence.Context;
 
@@ -35,6 +36,11 @@ public class OCAPDbContext : DbContext
     public DbSet<WorkflowExecution> WorkflowExecutions => Set<WorkflowExecution>();
     public DbSet<WorkflowExecutionHistory> WorkflowExecutionHistories => Set<WorkflowExecutionHistory>();
     public DbSet<WorkflowVariable> WorkflowVariables => Set<WorkflowVariable>();
+    public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
+    public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
+    public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+    public DbSet<DocumentProcessingJob> DocumentProcessingJobs => Set<DocumentProcessingJob>();
+    public DbSet<DocumentPermission> DocumentPermissions => Set<DocumentPermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

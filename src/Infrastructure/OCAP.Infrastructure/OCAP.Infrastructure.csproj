@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
@@ -6,6 +6,7 @@
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Domain\OCAP.Workflow.Domain.csproj" />
+    <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Domain\OCAP.Knowledge.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
