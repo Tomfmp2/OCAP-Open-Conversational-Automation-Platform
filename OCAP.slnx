@@ -29,6 +29,9 @@
     <Project Path="src/Infrastructure/OCAP.Infrastructure/OCAP.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/OCAP.Agents.Abstractions/OCAP.Agents.Abstractions.csproj" />
+    <Project Path="src/Modules/OCAP.Agents.Application/OCAP.Agents.Application.csproj" />
+    <Project Path="src/Modules/OCAP.Agents.Domain/OCAP.Agents.Domain.csproj" />
     <Project Path="src/Modules/OCAP.Modules.Administration/OCAP.Modules.Administration.csproj" />
     <Project Path="src/Modules/OCAP.Modules.Automation/OCAP.Modules.Automation.csproj" />
     <Project Path="src/Modules/OCAP.Modules.Calendar/OCAP.Modules.Calendar.csproj" />
@@ -53,7 +56,11 @@
     <Project Path="src/Providers/OCAP.Providers.OpenAI/OCAP.Providers.OpenAI.csproj" />
     <Project Path="src/Providers/OCAP.Providers.S3/OCAP.Providers.S3.csproj" />
   </Folder>
+  <Folder Name="/src/Tools/">
+    <Project Path="src/Tools/OCAP.Tools.Abstractions/OCAP.Tools.Abstractions.csproj" />
+  </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/OCAP.Agents.Tests/OCAP.Agents.Tests.csproj" />
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
     <Project Path="tests/OCAP.Channels.Tests/OCAP.Channels.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
