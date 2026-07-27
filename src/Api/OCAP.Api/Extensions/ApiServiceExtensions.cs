@@ -41,6 +41,9 @@ public static class ApiServiceExtensions
         services.AddSingleton<IApiKeyService, ApiKeyService>();
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
 
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, HttpTenantContext>();
+
         services.AddScoped<AuthenticateUserUseCase>();
         services.AddScoped<CreateTenantUseCase>();
         services.AddScoped<CreateApiKeyUseCase>();
