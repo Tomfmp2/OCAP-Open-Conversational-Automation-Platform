@@ -25,5 +25,8 @@ OCAP está estructurado bajo los principios de **Arquitectura Hexagonal (Ports &
 ## Filosofía Open Source
 OCAP está construido "Open Source First". La arquitectura promueve la extensibilidad, permitiendo a cualquier desarrollador del mundo escribir adaptadores (Channels o Providers) sin tener que compilar ni entender todo el núcleo del sistema.
 
+## Release History
+Todas las iteraciones, versiones oficiales y notas de publicación de OCAP están rigurosamente documentadas en el archivo [CHANGELOG.md](CHANGELOG.md) siguiendo las especificaciones de **Keep a Changelog** y **Semantic Versioning**.
+
 ## Cómo crecerá la plataforma
 La evolución está planificada en fases sucesivas: empezando por consolidar una base arquitectónica robusta, siguiendo con la implementación core conversacional y los adaptadores principales, hasta llegar a un completo sistema de plugins con escalabilidad empresarial e instaladores amigables (Deployment Manager).
