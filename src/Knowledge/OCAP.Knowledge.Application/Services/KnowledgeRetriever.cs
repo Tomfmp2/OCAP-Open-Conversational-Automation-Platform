@@ -11,6 +11,7 @@ public class KnowledgeRetriever : IKnowledgeRetriever
     private readonly IEmbeddingGenerator _embeddingGenerator;
     private readonly IKnowledgeChunkRepository _chunkRepository;
     private readonly IKnowledgeDocumentRepository _documentRepository;
+    private readonly IKnowledgeTelemetry? _telemetry;
     private readonly ILogger<KnowledgeRetriever> _logger;
 
     public KnowledgeRetriever(
@@ -18,13 +19,15 @@ public class KnowledgeRetriever : IKnowledgeRetriever
         IEmbeddingGenerator embeddingGenerator,
         IKnowledgeChunkRepository chunkRepository,
         IKnowledgeDocumentRepository documentRepository,
-        ILogger<KnowledgeRetriever> logger)
+        ILogger<KnowledgeRetriever> logger,
+        IKnowledgeTelemetry? telemetry = null)
     {
         _vectorDatabase = vectorDatabase ?? throw new ArgumentNullException(nameof(vectorDatabase));
         _embeddingGenerator = embeddingGenerator ?? throw new ArgumentNullException(nameof(embeddingGenerator));
         _chunkRepository = chunkRepository ?? throw new ArgumentNullException(nameof(chunkRepository));
         _documentRepository = documentRepository ?? throw new ArgumentNullException(nameof(documentRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _telemetry = telemetry;
     }
 
     public Task<List<KnowledgeSearchResult>> SearchAsync(
@@ -51,22 +54,41 @@ public class KnowledgeRetriever : IKnowledgeRetriever
         if (string.IsNullOrWhiteSpace(query)) return new List<KnowledgeSearchResult>();
 
         _logger.LogInformation("Ejecutando Knowledge Retrieval ({Strategy}) para Tenant {TenantId}. Query: {Query}", strategy, tenantId, query);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        switch (strategy)
+        List<KnowledgeSearchResult> results;
+        try
         {
-            case SearchStrategyType.Similarity:
-            case SearchStrategyType.Semantic:
-                return await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+            switch (strategy)
+            {
+                case SearchStrategyType.Similarity:
+                case SearchStrategyType.Semantic:
+                    results = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+                    break;
 
-            case SearchStrategyType.Keyword:
-                return await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                case SearchStrategyType.Keyword:
+                    results = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                    break;
 
-            case SearchStrategyType.Hybrid:
-            default:
-                var vectorResults = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
-                var keywordResults = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                case SearchStrategyType.Hybrid:
+                default:
+                    var vectorResults = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+                    var keywordResults = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                    results = MergeHybridResults(vectorResults, keywordResults, topK);
+                    break;
+            }
 
-                return MergeHybridResults(vectorResults, keywordResults, topK);
+            stopwatch.Stop();
+            double topScore = results.Count > 0 ? results.Max(r => r.Score) : 0.0;
+            _telemetry?.RecordRetrievalExecuted(tenantId, strategy.ToString(), topK, results.Count, topScore, stopwatch.ElapsedMilliseconds);
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _telemetry?.RecordError(tenantId, "SearchAsync", ex.Message);
+            throw;
         }
     }
 

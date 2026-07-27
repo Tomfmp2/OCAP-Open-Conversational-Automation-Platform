@@ -18,6 +18,7 @@ public class KnowledgeService
     private readonly IVectorDatabase _vectorDatabase;
     private readonly IKnowledgeRetriever _retriever;
     private readonly IFileUploadValidator _fileUploadValidator;
+    private readonly IKnowledgeTelemetry? _telemetry;
     private readonly ILogger<KnowledgeService> _logger;
 
     public KnowledgeService(
@@ -31,7 +32,8 @@ public class KnowledgeService
         IVectorDatabase vectorDatabase,
         IKnowledgeRetriever retriever,
         IFileUploadValidator fileUploadValidator,
-        ILogger<KnowledgeService> logger)
+        ILogger<KnowledgeService> logger,
+        IKnowledgeTelemetry? telemetry = null)
     {
         _knowledgeBaseRepository = knowledgeBaseRepository ?? throw new ArgumentNullException(nameof(knowledgeBaseRepository));
         _documentRepository = documentRepository ?? throw new ArgumentNullException(nameof(documentRepository));
@@ -44,6 +46,7 @@ public class KnowledgeService
         _retriever = retriever ?? throw new ArgumentNullException(nameof(retriever));
         _fileUploadValidator = fileUploadValidator ?? throw new ArgumentNullException(nameof(fileUploadValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _telemetry = telemetry;
     }
 
     public async Task<KnowledgeBase> CreateKnowledgeBaseAsync(Guid tenantId, string name, string description, ChunkingStrategy strategy, VectorDbProviderType vectorDbProvider, CancellationToken cancellationToken = default)

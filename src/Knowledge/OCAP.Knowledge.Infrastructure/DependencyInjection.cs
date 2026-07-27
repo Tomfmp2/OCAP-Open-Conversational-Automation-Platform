@@ -7,12 +7,16 @@ using OCAP.Knowledge.Infrastructure.Embeddings;
 using OCAP.Knowledge.Infrastructure.Repositories;
 using OCAP.Knowledge.Infrastructure.VectorDb;
 
+using OCAP.Knowledge.Infrastructure.Telemetry;
+
 namespace OCAP.Knowledge.Infrastructure;
 
 public static class DependencyInjection
 {
     public static IServiceCollection AddKnowledgeModule(this IServiceCollection services)
     {
+        // Telemetry & Observability
+        services.AddSingleton<IKnowledgeTelemetry, KnowledgeTelemetry>();
         // Repositories
         services.AddSingleton<IKnowledgeBaseRepository, InMemoryKnowledgeBaseRepository>();
         services.AddSingleton<IKnowledgeDocumentRepository, InMemoryKnowledgeDocumentRepository>();
