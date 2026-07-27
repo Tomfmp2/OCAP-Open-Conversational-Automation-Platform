@@ -101,24 +101,36 @@ public class KnowledgeRetriever : IKnowledgeRetriever
 
     private async Task<List<KnowledgeSearchResult>> ExecuteKeywordSearchAsync(Guid tenantId, string query, int topK, CancellationToken cancellationToken)
     {
-        // Simple in-memory BM25/keyword scoring fallback over tenant chunks
+        // Optimized in-memory BM25/keyword scoring fallback over tenant chunks
         var results = new List<KnowledgeSearchResult>();
-        var queryTerms = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var queryTerms = new HashSet<string>(query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        if (queryTerms.Count == 0) return results;
 
         // Fetch documents for tenant
         var docs = await _documentRepository.GetByKnowledgeBaseAsync(Guid.Empty, tenantId, cancellationToken);
         foreach (var doc in docs)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var chunks = await _chunkRepository.GetByDocumentAsync(doc.Id, tenantId, cancellationToken);
             foreach (var chunk in chunks)
             {
                 var contentLower = chunk.Content.ToLowerInvariant();
-                int matchCount = queryTerms.Count(term => contentLower.Contains(term));
+                int matchCount = 0;
+                var highlights = new List<string>(queryTerms.Count);
+
+                foreach (var term in queryTerms)
+                {
+                    if (contentLower.Contains(term))
+                    {
+                        matchCount++;
+                        highlights.Add(term);
+                    }
+                }
+
                 if (matchCount > 0)
                 {
-                    double score = (double)matchCount / queryTerms.Length;
-                    var highlights = queryTerms.Where(t => contentLower.Contains(t)).ToList();
-
+                    double score = (double)matchCount / queryTerms.Count;
                     results.Add(new KnowledgeSearchResult(
                         chunk.Id,
                         chunk.DocumentId,
