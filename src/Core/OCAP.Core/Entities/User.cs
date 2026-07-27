@@ -1,5 +1,6 @@
 namespace OCAP.Core.Entities;
 
+// Estado posible de la cuenta de usuario del sistema.
 public enum UserStatus
 {
     Active,
@@ -7,6 +8,7 @@ public enum UserStatus
     Inactive
 }
 
+// Entidad fundamental de Usuario dentro del Dominio puramente DDD.
 public class User
 {
     public Guid Id { get; private set; }
@@ -15,7 +17,11 @@ public class User
     public DateTime? UpdatedAt { get; private set; }
     public UserStatus Status { get; private set; }
 
-    private User() { } // EF/ORM Constructor
+    // Constructor privado para hidratación mediante Entity Framework Core.
+    private User()
+    {
+        DisplayName = string.Empty;
+    }
 
     public User(Guid id, string displayName)
     {

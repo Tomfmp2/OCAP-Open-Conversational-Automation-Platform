@@ -2,6 +2,7 @@ using OCAP.Core.ValueObjects;
 
 namespace OCAP.Core.Entities;
 
+// Tipo de emisor del mensaje conversacional.
 public enum SenderType
 {
     User,
@@ -9,6 +10,7 @@ public enum SenderType
     System
 }
 
+// Entidad Mensaje en el Dominio DDD.
 public class Message
 {
     public Guid Id { get; private set; }
@@ -17,7 +19,11 @@ public class Message
     public SenderType SenderType { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
-    private Message() { } // EF/ORM Constructor
+    // Constructor privado para hidratación mediante Entity Framework Core.
+    private Message()
+    {
+        Content = null!;
+    }
 
     public Message(Guid id, Guid conversationId, MessageContent content, SenderType senderType)
     {

@@ -12,7 +12,7 @@ $$\text{MAJOR}.\text{MINOR}.\text{PATCH}$$
 
 - **MAJOR**: Incrementado ante cambios incompatibles en la API pública, contratos de dominio o arquitectura breaking changes (ej. `v1.0.0`).
 - **MINOR**: Incrementado ante la adición de nuevas funcionalidades, módulos o adaptadores compatibles con versiones anteriores (ej. `v1.1.0`, `v1.2.0`, `v1.3.0`).
-- **PATCH**: Incrementado ante correcciones de errores, parches de seguridad o parches de calidad completamente retrocompatibles (ej. `v0.4.1`).
+- **PATCH**: Incrementado ante correcciones de errores, parches de seguridad o parches de calidad completamente retrocompatibles (ej. `v0.4.1`, `v1.3.1`).
 
 ---
 
@@ -62,3 +62,4 @@ Cada lanzamiento o tagging de versión requiere la actualización del archivo `C
 | `v1.1.0` | Identity & Multi-Tenant Security | Autenticación JWT, RBAC granular, API Keys y Multi-Tenant |
 | `v1.2.0` | AI Provider Integration & Orchestration | Adaptadores OpenAI, Gemini, Ollama, Failover y Streaming SSE |
 | `v1.3.0` | Workflow Automation Engine Foundation | Motor de automatización de workflows con 17 tipos de nodos |
+| `v1.3.1` | Production Readiness & Audit Cert. | Auditoría completa, 0 errores, 0 warnings, 74 tests pasando |

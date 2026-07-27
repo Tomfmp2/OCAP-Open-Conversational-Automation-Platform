@@ -17,14 +17,20 @@ public class WorkflowExecution
     public string OutputJson { get; private set; } = "{}";
     public string? ErrorMessage { get; private set; }
 
-    public WorkflowExecution(Guid id, Guid workflowDefinitionId, Guid tenantId, Guid userId, Guid? agentId = null, string startStepId = "start")
+    // Constructor privado para hidratación mediante Entity Framework Core.
+    private WorkflowExecution()
+    {
+        CurrentStepId = string.Empty;
+    }
+
+    public WorkflowExecution(Guid id, Guid workflowDefinitionId, Guid tenantId, Guid userId, Guid? agentId = null, string currentStepId = "start")
     {
         Id = id;
         WorkflowDefinitionId = workflowDefinitionId;
         TenantId = tenantId;
         UserId = userId;
         AgentId = agentId;
-        CurrentStepId = startStepId;
+        CurrentStepId = string.IsNullOrWhiteSpace(currentStepId) ? "start" : currentStepId;
         Status = WorkflowStatus.Running;
     }
 

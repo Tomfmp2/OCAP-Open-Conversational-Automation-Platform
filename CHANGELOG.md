@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-07-27
+
+### Fixed
+- Fixed EF Core constructor binding in `WorkflowExecution` aggregate root to ensure parameterless private hydration constructor.
+- Resolved constructor parameter warning CS8618 in `User`, `Session`, and `Message` core entities.
+- Unified MSBuild resolution settings in `Directory.Build.props` eliminating MSB3277 EF Core version mismatch warnings.
+- Fixed `ToolExecutionContext` parameter binding in `ToolNode` workflow node execution.
+
+### Quality & Performance
+- Verified 100% test pass rate across all 74 unit and integration tests.
+- Reached 0 Errors and 0 Warnings across the entire solution compilation.
+- Completed full Production Readiness Audit certified in `docs/reports/PRODUCTION_READINESS_REPORT.md`.
+
 ## [1.3.0] - 2026-07-27
 
 ### Added

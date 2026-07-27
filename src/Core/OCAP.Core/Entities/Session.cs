@@ -1,5 +1,6 @@
 namespace OCAP.Core.Entities;
 
+// Entidad de Sesión de usuario para auditoría y contexto.
 public class Session
 {
     public Guid Id { get; private set; }
@@ -8,7 +9,11 @@ public class Session
     public DateTime CreatedAt { get; private set; }
     public DateTime ExpiresAt { get; private set; }
 
-    private Session() { } // EF/ORM Constructor
+    // Constructor privado para hidratación mediante Entity Framework Core.
+    private Session()
+    {
+        ContextData = string.Empty;
+    }
 
     public Session(Guid id, Guid conversationId, TimeSpan duration)
     {
