@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
+    <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Domain\OCAP.Workflow.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

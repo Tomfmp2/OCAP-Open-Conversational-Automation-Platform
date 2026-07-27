@@ -1,0 +1,53 @@
+@page "/workflows/editor"
+
+<PageTitle>Editor de Workflow — OCAP</PageTitle>
+
+<div class="container-fluid py-4 text-white">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 fw-bold mb-0">Editor Declarativo de Workflow (JSON Schema)</h1>
+        <div>
+            <a class="btn btn-outline-secondary me-2" href="workflows">Cancelar</a>
+            <button class="btn btn-success fw-bold" @onclick="SaveWorkflow">Guardar & Publicar</button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-7">
+            <div class="card bg-dark border-secondary p-3">
+                <label class="form-label text-secondary fw-bold mb-2">Definición JSON del Proceso</label>
+                <textarea class="form-control bg-black text-success font-monospace border-secondary" rows="18" @bind="definitionJson"></textarea>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card bg-dark border-secondary p-4">
+                <h5 class="fw-bold mb-3 text-primary">Nodos Disponibles</h5>
+                <ul class="list-group list-group-flush bg-transparent">
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>Start / End:</strong> Control de flujo inicial y final</li>
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>Condition / Switch:</strong> Bifurcación lógica condicional</li>
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>LLM:</strong> Invocación de modelos IA Generativa</li>
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>Tool:</strong> Invocación de herramientas empresariales</li>
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>HumanApproval / Delay:</strong> Pausa y aprobación humana</li>
+                    <li class="list-group-item bg-transparent text-white border-secondary">● <strong>Parallel / Merge:</strong> Tareas concurrentes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string definitionJson = @"{
+  ""name"": ""Automatización de Bienvenida a Clientes"",
+  ""startNode"": ""start_1"",
+  ""nodes"": [
+    { ""id"": ""start_1"", ""type"": ""Start"", ""name"": ""Inicio de Proceso"" },
+    { ""id"": ""tool_1"", ""type"": ""Tool"", ""name"": ""Enviar WhatsApp de Saludo"" },
+    { ""id"": ""llm_1"", ""type"": ""LLM"", ""name"": ""Resumen Personalizado IA"" },
+    { ""id"": ""end_1"", ""type"": ""End"", ""name"": ""Fin de Proceso"" }
+  ]
+}";
+
+    private void SaveWorkflow()
+    {
+    }
+}

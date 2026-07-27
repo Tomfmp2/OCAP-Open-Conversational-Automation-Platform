@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OCAP.Core.Entities;
 using OCAP.Intelligence.Domain;
 using OCAP.Security.Domain.Entities;
+using OCAP.Workflow.Domain.Entities;
 
 namespace OCAP.Infrastructure.Persistence.Context;
 
@@ -29,6 +30,11 @@ public class OCAPDbContext : DbContext
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+    public DbSet<WorkflowVersion> WorkflowVersions => Set<WorkflowVersion>();
+    public DbSet<WorkflowExecution> WorkflowExecutions => Set<WorkflowExecution>();
+    public DbSet<WorkflowExecutionHistory> WorkflowExecutionHistories => Set<WorkflowExecutionHistory>();
+    public DbSet<WorkflowVariable> WorkflowVariables => Set<WorkflowVariable>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -81,6 +81,12 @@
     <Project Path="src/Tools/OCAP.Tools.Abstractions/OCAP.Tools.Abstractions.csproj" />
     <Project Path="src/Tools/OCAP.Tools.Google/OCAP.Tools.Google.csproj" />
   </Folder>
+  <Folder Name="/src/Workflow/">
+    <Project Path="src/Workflow/OCAP.Workflow.Abstractions/OCAP.Workflow.Abstractions.csproj" />
+    <Project Path="src/Workflow/OCAP.Workflow.Application/OCAP.Workflow.Application.csproj" />
+    <Project Path="src/Workflow/OCAP.Workflow.Domain/OCAP.Workflow.Domain.csproj" />
+    <Project Path="src/Workflow/OCAP.Workflow.Infrastructure/OCAP.Workflow.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OCAP.Agents.Tests/OCAP.Agents.Tests.csproj" />
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
@@ -92,5 +98,6 @@
     <Project Path="tests/OCAP.Security.Tests/OCAP.Security.Tests.csproj" />
     <Project Path="tests/OCAP.Tools.Tests/OCAP.Tools.Tests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />
+    <Project Path="tests/OCAP.Workflow.Tests/OCAP.Workflow.Tests.csproj" />
   </Folder>
 </Solution>

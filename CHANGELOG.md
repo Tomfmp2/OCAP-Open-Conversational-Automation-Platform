@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-27
+
+### Added
+- Workflow Automation Engine Foundation (`OCAP.Workflow.Domain`, `OCAP.Workflow.Abstractions`, `OCAP.Workflow.Application`, `OCAP.Workflow.Infrastructure`).
+- Domain Aggregate Root and Entities (`Workflow`, `WorkflowDefinition`, `WorkflowVersion`, `WorkflowExecution`, `WorkflowStep`, `WorkflowTransition`, `WorkflowContext`, `WorkflowVariable`, `WorkflowExecutionHistory`, `WorkflowStatus`, `WorkflowTrigger`, `WorkflowResult`, `WorkflowError`).
+- Node Abstractions and 17 Node implementations (`StartNode`, `EndNode`, `ConditionNode`, `LLMNode`, `ToolNode`, `DelayNode`, `WaitNode`, `HumanApprovalNode`, `LoopNode`, `SwitchNode`, `ParallelNode`, `MergeNode`, `WebhookNode`, `ApiRequestNode`, `ScriptNode`, `SubWorkflowNode`, `ErrorHandlerNode`).
+- Workflow Execution Engine (`WorkflowEngine`) with step-by-step execution, state machine, pause, resume, cancellation, retries, and history logging.
+- Agent & Tool Integration allowing AI Agents to trigger, query, and manage workflows, and executing registered enterprise tools (`IToolRegistry`) within nodes.
+- Persistence integration in `OCAPDbContext` with EF Core Fluent API mappings for Workflow definitions, versions, executions, history, and variables.
+- API Gateway Endpoints (`GET /api/workflows`, `POST /api/workflows`, `PUT /api/workflows/{id}`, `DELETE /api/workflows/{id}`, `POST /api/workflows/{id}/execute`, `POST /api/workflows/{id}/cancel`, `GET /api/workflows/executions`, `GET /api/workflows/executions/{id}`).
+- Dashboard SPA pages in Blazor WebAssembly (`/workflows`, `/workflows/editor`, `/workflows/executions`, `/workflows/history`).
+- Unit and integration tests in `tests/OCAP.Workflow.Tests`.
+
+### Documentation
+- Workflow Architecture, Engine, Nodes, API, and Execution guides in `docs/workflow/ARCHITECTURE.md`, `ENGINE.md`, `NODES.md`, `API.md`, `EXECUTION.md`.
+
 ## [1.2.0] - 2026-07-27
 
 ### Added

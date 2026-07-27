@@ -1,0 +1,54 @@
+@page "/workflows"
+
+<PageTitle>Automatización de Workflows — OCAP</PageTitle>
+
+<div class="container-fluid py-4 text-white">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold mb-1">Automatización de Procesos & Workflows</h1>
+            <p class="text-secondary mb-0">Diseño declarativo y ejecución desacoplada de flujos de trabajo empresariales.</p>
+        </div>
+        <a class="btn btn-primary fw-bold" href="workflows/editor">
+            + Crear Nuevo Workflow
+        </a>
+    </div>
+
+    <div class="card bg-dark border-secondary p-4">
+        <table class="table table-dark table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Nombre del Workflow</th>
+                    <th>Versión</th>
+                    <th>Nodos</th>
+                    <th>Estado</th>
+                    <th>Fecha Creación</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Automatización de Bienvenida a Clientes</strong></td>
+                    <td><span class="badge bg-secondary">v1</span></td>
+                    <td>4 nodos (Start, Tool, LLM, End)</td>
+                    <td><span class="badge bg-success">Activo</span></td>
+                    <td>Hace 10 días</td>
+                    <td>
+                        <a class="btn btn-outline-info btn-sm me-2" href="workflows/executions">Ejecuciones</a>
+                        <a class="btn btn-outline-light btn-sm" href="workflows/editor">Editar</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Generación de Reporte Semanal AI</strong></td>
+                    <td><span class="badge bg-secondary">v2</span></td>
+                    <td>5 nodos (Start, Condition, LLM, Tool, End)</td>
+                    <td><span class="badge bg-success">Activo</span></td>
+                    <td>Hace 5 días</td>
+                    <td>
+                        <a class="btn btn-outline-info btn-sm me-2" href="workflows/executions">Ejecuciones</a>
+                        <a class="btn btn-outline-light btn-sm" href="workflows/editor">Editar</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

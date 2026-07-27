@@ -1,0 +1,39 @@
+@page "/workflows/executions"
+
+<PageTitle>Ejecuciones de Workflow — OCAP</PageTitle>
+
+<div class="container-fluid py-4 text-white">
+    <h1 class="h3 fw-bold mb-3">Historial de Ejecuciones de Workflows</h1>
+    <div class="card bg-dark border-secondary p-4">
+        <table class="table table-dark table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>ID Ejecución</th>
+                    <th>Workflow</th>
+                    <th>Paso Actual</th>
+                    <th>Estado</th>
+                    <th>Fecha Inicio</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>exe-8f92a101</code></td>
+                    <td>Automatización de Bienvenida</td>
+                    <td>Nodo Final (end_1)</td>
+                    <td><span class="badge bg-success">Completado</span></td>
+                    <td>Hace 25 min</td>
+                    <td><a class="btn btn-outline-info btn-sm" href="workflows/history">Ver Bitácora</a></td>
+                </tr>
+                <tr>
+                    <td><code>exe-3c44e98b</code></td>
+                    <td>Reporte Semanal AI</td>
+                    <td>Paso de Acción (tool_1)</td>
+                    <td><span class="badge bg-primary">En Ejecución</span></td>
+                    <td>Hace 2 min</td>
+                    <td><a class="btn btn-outline-info btn-sm" href="workflows/history">Ver Bitácora</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -40,6 +40,8 @@
     <ProjectReference Include="..\..\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Application\OCAP.Security.Application.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Infrastructure\OCAP.Security.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Application\OCAP.Workflow.Application.csproj" />
+    <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Infrastructure\OCAP.Workflow.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

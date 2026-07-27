@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OCAP.Workflow.Application\OCAP.Workflow.Application.csproj" />
+    <ProjectReference Include="..\OCAP.Workflow.Domain\OCAP.Workflow.Domain.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

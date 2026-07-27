@@ -1,0 +1,43 @@
+@page "/workflows/history"
+
+<PageTitle>Bitácora de Pasos de Workflow — OCAP</PageTitle>
+
+<div class="container-fluid py-4 text-white">
+    <h1 class="h3 fw-bold mb-3">Bitácora Paso a Paso (Observabilidad)</h1>
+    <div class="card bg-dark border-secondary p-4">
+        <table class="table table-dark table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Paso</th>
+                    <th>Tipo Nodo</th>
+                    <th>Estado</th>
+                    <th>Duración (ms)</th>
+                    <th>Salida JSON</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>start_1</td>
+                    <td><span class="badge bg-secondary">Start</span></td>
+                    <td><span class="badge bg-success">Success</span></td>
+                    <td>5.0 ms</td>
+                    <td><code>{"started": true}</code></td>
+                </tr>
+                <tr>
+                    <td>tool_step_1</td>
+                    <td><span class="badge bg-info">Tool</span></td>
+                    <td><span class="badge bg-success">Success</span></td>
+                    <td>15.2 ms</td>
+                    <td><code>{"toolOutput": "WhatsApp enviado"}</code></td>
+                </tr>
+                <tr>
+                    <td>end_1</td>
+                    <td><span class="badge bg-secondary">End</span></td>
+                    <td><span class="badge bg-success">Success</span></td>
+                    <td>2.1 ms</td>
+                    <td><code>{"completed": true}</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

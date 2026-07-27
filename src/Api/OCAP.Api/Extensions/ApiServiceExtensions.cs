@@ -14,6 +14,9 @@ using OCAP.Providers.OpenAI;
 using OCAP.Security.Abstractions;
 using OCAP.Security.Application.UseCases;
 using OCAP.Security.Infrastructure.Services;
+using OCAP.Workflow.Abstractions;
+using OCAP.Workflow.Application.Nodes;
+using OCAP.Workflow.Application.Services;
 
 namespace OCAP.Api.Extensions;
 
@@ -78,6 +81,27 @@ public static class ApiServiceExtensions
         services.AddSingleton<IPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<IAgentReasoningService, AgentReasoningService>();
         services.AddSingleton<IAiUsageTracker, AiUsageTracker>();
+
+        // Registrar Nodos y Motor de Workflow
+        services.AddSingleton<IWorkflowNode, StartNode>();
+        services.AddSingleton<IWorkflowNode, EndNode>();
+        services.AddSingleton<IWorkflowNode, ConditionNode>();
+        services.AddSingleton<IWorkflowNode, LLMNode>();
+        services.AddSingleton<IWorkflowNode, ToolNode>();
+        services.AddSingleton<IWorkflowNode, DelayNode>();
+        services.AddSingleton<IWorkflowNode, WaitNode>();
+        services.AddSingleton<IWorkflowNode, HumanApprovalNode>();
+        services.AddSingleton<IWorkflowNode, LoopNode>();
+        services.AddSingleton<IWorkflowNode, SwitchNode>();
+        services.AddSingleton<IWorkflowNode, ParallelNode>();
+        services.AddSingleton<IWorkflowNode, MergeNode>();
+        services.AddSingleton<IWorkflowNode, WebhookNode>();
+        services.AddSingleton<IWorkflowNode, ApiRequestNode>();
+        services.AddSingleton<IWorkflowNode, ScriptNode>();
+        services.AddSingleton<IWorkflowNode, SubWorkflowNode>();
+        services.AddSingleton<IWorkflowNode, ErrorHandlerNode>();
+
+        services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
 
         // Swagger / OpenAPI habilitado únicamente en desarrollo.
         services.AddSwaggerGen(c =>
