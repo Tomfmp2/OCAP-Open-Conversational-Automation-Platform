@@ -68,8 +68,11 @@ public class FileUploadValidator : IFileUploadValidator
     {
         if (string.IsNullOrWhiteSpace(fileName)) return string.Empty;
 
-        // Remover rutas absolutas o relativas (Prevención de Path Traversal)
-        var name = Path.GetFileName(fileName);
+        // Normalizar separadores Windows/Linux para prevención de Path Traversal multiplataforma
+        var normalizedPath = fileName.Replace('\\', '/');
+
+        // Remover rutas absolutas o relativas
+        var name = Path.GetFileName(normalizedPath);
 
         // Remover caracteres inválidos del sistema de archivos
         var invalidChars = Path.GetInvalidFileNameChars();

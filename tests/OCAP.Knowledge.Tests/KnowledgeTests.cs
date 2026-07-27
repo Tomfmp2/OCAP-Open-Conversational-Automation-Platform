@@ -136,4 +136,78 @@ public class KnowledgeTests
         Assert.Equal(DocumentStatus.Indexed, doc.Status);
         Assert.NotEmpty(searchResults);
     }
+
+    [Theory]
+    [InlineData("../../secret.txt")]
+    [InlineData("..\\..\\windows\\system32\\cmd.exe")]
+    [InlineData("/etc/passwd")]
+    public void FileUploadValidator_PathTraversal_SanitizesFileName(string maliciousFileName)
+    {
+        // Arrange
+        var validator = new FileUploadValidator();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Valid content text"));
+
+        // Act
+        var result = validator.ValidateFile(stream, maliciousFileName, "text/plain", 1024);
+
+        // Assert
+        Assert.DoesNotContain("..", result.SanitizedFileName);
+        Assert.DoesNotContain("/", result.SanitizedFileName);
+        Assert.DoesNotContain("\\", result.SanitizedFileName);
+    }
+
+    [Theory]
+    [InlineData("malware.exe")]
+    [InlineData("script.sh")]
+    [InlineData("library.dll")]
+    [InlineData("image.png")]
+    public void FileUploadValidator_DisallowedExtension_ReturnsInvalid(string invalidFileName)
+    {
+        // Arrange
+        var validator = new FileUploadValidator();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Valid content text"));
+
+        // Act
+        var result = validator.ValidateFile(stream, invalidFileName, "application/octet-stream", 1024);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("no está permitida", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void FileUploadValidator_OversizedFile_ReturnsInvalid()
+    {
+        // Arrange
+        var validator = new FileUploadValidator();
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Valid content text"));
+        long smallLimitBytes = 5; // 5 bytes limit
+
+        // Act
+        var result = validator.ValidateFile(stream, "document.txt", "text/plain", smallLimitBytes);
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains("excede el tamaño", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void FileUploadValidator_ValidFile_ReturnsSHA256Checksum()
+    {
+        // Arrange
+        var validator = new FileUploadValidator();
+        byte[] bytes = Encoding.UTF8.GetBytes("OCAP Enterprise RAG Security Validation test content.");
+        using var stream = new MemoryStream(bytes);
+
+        // Act
+        var result = validator.ValidateFile(stream, "report.pdf", "application/pdf", 1024 * 1024);
+        var hash = validator.ComputeSha256Hash(stream);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsValid);
+        Assert.Equal("report.pdf", result.SanitizedFileName);
+        Assert.False(string.IsNullOrWhiteSpace(hash));
+        Assert.Equal(64, hash.Length); // 256 bits = 64 hex chars
+    }
 }
