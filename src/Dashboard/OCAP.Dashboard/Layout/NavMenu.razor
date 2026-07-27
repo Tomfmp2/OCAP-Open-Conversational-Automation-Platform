@@ -1,39 +1,37 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">OCAP.Dashboard</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<div class="sidebar bg-dark border-end border-secondary">
+    <div class="top-row ps-3 navbar navbar-dark bg-black">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold text-primary" href="">OCAP Dashboard</a>
+        </div>
+    </div>
+
+    <div class="nav-scrollable">
+        <nav class="flex-column p-2">
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link text-white rounded p-2" href="" Match="NavLinkMatch.All">
+                    <span class="bi bi-speedometer2 me-2"></span> Resumen Principal
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link text-white rounded p-2" href="conversations">
+                    <span class="bi bi-chat-dots me-2"></span> Monitoreo Conversaciones
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link text-white rounded p-2" href="agents">
+                    <span class="bi bi-robot me-2"></span> Gestión Agentes
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link text-white rounded p-2" href="tools">
+                    <span class="bi bi-tools me-2"></span> Catálogo Tools
+                </NavLink>
+            </div>
+            <div class="nav-item px-3 mb-1">
+                <NavLink class="nav-link text-white rounded p-2" href="integrations">
+                    <span class="bi bi-google me-2"></span> Integración Google
+                </NavLink>
+            </div>
+        </nav>
     </div>
 </div>
-
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
-}

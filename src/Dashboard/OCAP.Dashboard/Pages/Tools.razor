@@ -1,0 +1,59 @@
+@page "/tools"
+@using OCAP.Dashboard.Services
+@using OCAP.Dashboard.Models
+@using OCAP.Dashboard.Components
+@inject IDashboardApiService ApiService
+
+<div class="mb-4">
+    <h2 class="fw-bold text-white mb-1">Catálogo de Herramientas (Tools)</h2>
+    <p class="text-muted">Capacidades y permisos requeridos para la ejecución automatizada.</p>
+</div>
+
+<div class="card border-0 bg-dark text-white rounded-3 p-3 shadow-sm">
+    @if (tools != null && tools.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Versión</th>
+                        <th>Permisos Requeridos</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tool in tools)
+                    {
+                        <tr>
+                            <td class="fw-bold text-primary">@tool.Name</td>
+                            <td>@tool.Description</td>
+                            <td><span class="badge bg-secondary">@tool.Version</span></td>
+                            <td>
+                                @foreach (var perm in tool.RequiredPermissions)
+                                {
+                                    <span class="badge bg-warning text-dark me-1">@perm</span>
+                                }
+                            </td>
+                            <td><ToolStatusBadge Status="@tool.Status" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">Cargando catálogo de herramientas...</p>
+    }
+</div>
+
+@code {
+    private List<ToolModel>? tools;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tools = await ApiService.GetToolsAsync();
+    }
+}

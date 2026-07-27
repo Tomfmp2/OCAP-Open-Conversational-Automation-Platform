@@ -1,0 +1,45 @@
+@page "/integrations"
+@using OCAP.Dashboard.Services
+@using OCAP.Dashboard.Models
+@inject IDashboardApiService ApiService
+
+<div class="mb-4">
+    <h2 class="fw-bold text-white mb-1">Integraciones Empresariales</h2>
+    <p class="text-muted">Monitoreo de conexiones OAuth2 y alcance de permisos en Google Workspace.</p>
+</div>
+
+<div class="card border-0 bg-dark text-white rounded-3 p-4 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center">
+            <span class="bi bi-google fs-2 text-danger me-3"></span>
+            <div>
+                <h4 class="fw-bold mb-0">Google Workspace</h4>
+                <small class="text-muted">Cuenta: @integration?.AccountEmail</small>
+            </div>
+        </div>
+        <span class="badge bg-success fs-6">@integration?.OAuthStatus</span>
+    </div>
+    <hr class="text-secondary" />
+    <div class="mb-3">
+        <h6 class="fw-bold text-warning mb-2">Permisos Concedidos (OAuth Scopes):</h6>
+        @if (integration?.GrantedScopes != null)
+        {
+            @foreach (var scope in integration.GrantedScopes)
+            {
+                <span class="badge bg-secondary me-2 p-2">@scope</span>
+            }
+        }
+    </div>
+    <div class="small text-muted">
+        Última sincronización OAuth UTC: @integration?.LastSyncedAt.ToString("g")
+    </div>
+</div>
+
+@code {
+    private GoogleIntegrationModel? integration;
+
+    protected override async Task OnInitializedAsync()
+    {
+        integration = await ApiService.GetGoogleIntegrationAsync();
+    }
+}

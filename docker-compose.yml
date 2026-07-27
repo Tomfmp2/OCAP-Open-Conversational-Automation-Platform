@@ -2,21 +2,76 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: ocap-postgres
+    restart: always
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-ocap_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ocap_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-OcapSecurePass2026!}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ocap_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ocap_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  ocap-api:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: ocap-api
+    restart: always
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:-OcapSecurePass2026!}"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  ocap-dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard/Dockerfile
+    container_name: ocap-dashboard
+    restart: always
+    ports:
+      - "8081:80"
+    depends_on:
+      - ocap-api
+
+  evolution-api:
+    image: atendai/evolution-api:v1.8.2
+    container_name: ocap-evolution-api
+    restart: always
+    environment:
+      SERVER_URL: http://localhost:8080
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-EvolutionSecretApiKey}
+    ports:
+      - "8080:8080"
+
+  nginx:
+    image: nginx:alpine
+    container_name: ocap-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - ocap-api
+      - ocap-dashboard
 
 volumes:
   postgres_data:

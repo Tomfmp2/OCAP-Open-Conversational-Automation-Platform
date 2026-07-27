@@ -1,0 +1,85 @@
+@page "/"
+@using OCAP.Dashboard.Services
+@using OCAP.Dashboard.Models
+@using OCAP.Dashboard.Components
+@inject IDashboardApiService ApiService
+
+<div class="mb-4">
+    <h2 class="fw-bold text-white mb-1">Panel de Control OCAP</h2>
+    <p class="text-muted">Monitoreo de estado conversacional, ejecuciones y métricas del sistema.</p>
+</div>
+
+<SystemStatusCard Status="status" />
+
+<MetricsOverview Metrics="metrics" />
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 bg-dark text-white rounded-3 p-3 shadow-sm">
+            <h5 class="fw-bold mb-3 text-primary">Agentes Activos</h5>
+            @if (agents != null && agents.Any())
+            {
+                @foreach (var agent in agents)
+                {
+                    <AgentCard Agent="agent" />
+                }
+            }
+            else
+            {
+                <p class="text-muted">Cargando agentes...</p>
+            }
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 bg-dark text-white rounded-3 p-3 shadow-sm">
+            <h5 class="fw-bold mb-3 text-warning">Ejecuciones Recientes</h5>
+            @if (executions != null && executions.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tool</th>
+                                <th>Estado</th>
+                                <th>Fecha UTC</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var exec in executions)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@exec.ToolName</td>
+                                    <td>
+                                        <span class="badge @(exec.Success ? "bg-success" : "bg-danger")">
+                                            @(exec.Success ? "Éxito" : "Error")
+                                        </span>
+                                    </td>
+                                    <td class="small text-muted">@exec.ExecutedAt.ToString("HH:mm:ss")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">No hay ejecuciones registradas.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private DashboardStatusModel? status;
+    private DashboardMetricsModel? metrics;
+    private List<AgentModel>? agents;
+    private List<ExecutionModel>? executions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        status = await ApiService.GetStatusAsync();
+        metrics = await ApiService.GetMetricsAsync();
+        agents = await ApiService.GetAgentsAsync();
+        executions = await ApiService.GetExecutionsAsync();
+    }
+}

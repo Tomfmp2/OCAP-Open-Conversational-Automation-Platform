@@ -1,0 +1,53 @@
+@page "/conversations"
+@using OCAP.Dashboard.Services
+@using OCAP.Dashboard.Models
+@inject IDashboardApiService ApiService
+
+<div class="mb-4">
+    <h2 class="fw-bold text-white mb-1">Monitoreo de Conversaciones</h2>
+    <p class="text-muted">Diálogos en tiempo real procesados por los canales y agentes de OCAP.</p>
+</div>
+
+<div class="card border-0 bg-dark text-white rounded-3 p-3 shadow-sm">
+    @if (conversations != null && conversations.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Canal</th>
+                        <th>Usuario</th>
+                        <th>Último Mensaje</th>
+                        <th>Estado</th>
+                        <th>Última Actividad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var conv in conversations)
+                    {
+                        <tr>
+                            <td><span class="badge bg-primary">@conv.Channel</span></td>
+                            <td class="fw-bold">@conv.UserIdentifier</td>
+                            <td>@conv.LastMessage</td>
+                            <td><span class="badge bg-success">@conv.Status</span></td>
+                            <td class="small text-muted">@conv.LastActivityAt.ToString("HH:mm:ss")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted">Cargando conversaciones...</p>
+    }
+</div>
+
+@code {
+    private List<ConversationModel>? conversations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        conversations = await ApiService.GetConversationsAsync();
+    }
+}

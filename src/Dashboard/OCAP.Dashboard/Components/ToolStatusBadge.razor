@@ -1,0 +1,14 @@
+<span class="badge @BadgeClass">@Status</span>
+
+@code {
+    [Parameter]
+    public string Status { get; set; } = "Active";
+
+    private string BadgeClass => Status switch
+    {
+        "Active" => "bg-success",
+        "Disabled" => "bg-danger",
+        "Deprecated" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+}

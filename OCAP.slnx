@@ -73,6 +73,8 @@
     <Project Path="tests/OCAP.Agents.Tests/OCAP.Agents.Tests.csproj" />
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
     <Project Path="tests/OCAP.Channels.Tests/OCAP.Channels.Tests.csproj" />
+    <Project Path="tests/OCAP.Dashboard.Tests/OCAP.Dashboard.Tests.csproj" />
+    <Project Path="tests/OCAP.DeploymentManager.Tests/OCAP.DeploymentManager.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
     <Project Path="tests/OCAP.Tools.Tests/OCAP.Tools.Tests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />

@@ -1,0 +1,42 @@
+@using OCAP.Dashboard.Models
+
+<div class="card shadow-sm border-0 mb-4 bg-dark text-white p-3 rounded-3">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h6 class="text-uppercase text-muted fw-bold mb-1">Estado del Sistema</h6>
+            <h4 class="mb-0 text-success fw-bold">
+                <span class="spinner-grow spinner-grow-sm me-2" role="status"></span>
+                @Status?.SystemStatus
+            </h4>
+        </div>
+        <div class="text-end">
+            <small class="text-muted d-block">Servidor UTC</small>
+
+            <span class="badge bg-secondary">@Status?.ServerTimeUtc.ToString("HH:mm:ss")</span>
+        </div>
+    </div>
+    <hr class="my-3 text-secondary" />
+    <div class="row text-center">
+        <div class="col-3">
+            <small class="text-muted d-block">Agentes Activos</small>
+            <span class="fs-5 fw-bold text-primary">@Status?.ActiveAgentsCount</span>
+        </div>
+        <div class="col-3">
+            <small class="text-muted d-block">Canales</small>
+            <span class="fs-5 fw-bold text-info">@Status?.ConnectedChannelsCount</span>
+        </div>
+        <div class="col-3">
+            <small class="text-muted d-block">Ejecuciones Tools</small>
+            <span class="fs-5 fw-bold text-warning">@Status?.TotalToolExecutions</span>
+        </div>
+        <div class="col-3">
+            <small class="text-muted d-block">Conversaciones</small>
+            <span class="fs-5 fw-bold text-light">@Status?.TotalConversations</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public DashboardStatusModel? Status { get; set; }
+}

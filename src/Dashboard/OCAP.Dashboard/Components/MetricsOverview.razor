@@ -1,0 +1,33 @@
+@using OCAP.Dashboard.Models
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 bg-dark text-white rounded-3">
+            <small class="text-muted">Tiempo de Respuesta</small>
+            <h3 class="fw-bold text-info mb-0">@Metrics?.AverageResponseTimeMs ms</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 bg-dark text-white rounded-3">
+            <small class="text-muted">Tasa de Éxito</small>
+            <h3 class="fw-bold text-success mb-0">@Metrics?.SuccessRatePercentage%</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 bg-dark text-white rounded-3">
+            <small class="text-muted">Conversaciones Hoy</small>
+            <h3 class="fw-bold text-warning mb-0">@Metrics?.ActiveConversationsToday</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 bg-dark text-white rounded-3">
+            <small class="text-muted">Mensajes Procesados</small>
+            <h3 class="fw-bold text-primary mb-0">@Metrics?.MessagesProcessedToday</h3>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public DashboardMetricsModel? Metrics { get; set; }
+}
