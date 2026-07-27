@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
+    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

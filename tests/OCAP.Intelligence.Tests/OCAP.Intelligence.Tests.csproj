@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Intelligence\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Prompts\OCAP.Prompts\OCAP.Prompts.csproj" />
+    <ProjectReference Include="..\..\src\Intelligence\OCAP.Intelligence.Application\OCAP.Intelligence.Application.csproj" />
+    <ProjectReference Include="..\..\src\Intelligence\OCAP.Intelligence.Mock\OCAP.Intelligence.Mock.csproj" />
+    <ProjectReference Include="..\..\src\Modules\OCAP.Agents.Domain\OCAP.Agents.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\OCAP.Agents.Application\OCAP.Agents.Application.csproj" />
+    <ProjectReference Include="..\..\src\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Tools\OCAP.Tools.Google\OCAP.Tools.Google.csproj" />
+    <ProjectReference Include="..\..\src\Providers\Google\OCAP.Providers.Google.Calendar\OCAP.Providers.Google.Calendar.csproj" />
+  </ItemGroup>
+
+</Project>

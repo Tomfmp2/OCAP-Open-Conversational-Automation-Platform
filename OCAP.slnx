@@ -28,6 +28,12 @@
   <Folder Name="/src/Infrastructure/">
     <Project Path="src/Infrastructure/OCAP.Infrastructure/OCAP.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Intelligence/">
+    <Project Path="src/Intelligence/OCAP.Intelligence.Abstractions/OCAP.Intelligence.Abstractions.csproj" />
+    <Project Path="src/Intelligence/OCAP.Intelligence.Application/OCAP.Intelligence.Application.csproj" />
+    <Project Path="src/Intelligence/OCAP.Intelligence.Domain/OCAP.Intelligence.Domain.csproj" />
+    <Project Path="src/Intelligence/OCAP.Intelligence.Mock/OCAP.Intelligence.Mock.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/OCAP.Agents.Abstractions/OCAP.Agents.Abstractions.csproj" />
     <Project Path="src/Modules/OCAP.Agents.Application/OCAP.Agents.Application.csproj" />
@@ -44,6 +50,9 @@
     <Project Path="src/Modules/OCAP.Modules.Settings/OCAP.Modules.Settings.csproj" />
     <Project Path="src/Modules/OCAP.Modules.Tasks/OCAP.Modules.Tasks.csproj" />
     <Project Path="src/Modules/OCAP.Modules.Users/OCAP.Modules.Users.csproj" />
+  </Folder>
+  <Folder Name="/src/Prompts/">
+    <Project Path="src/Prompts/OCAP.Prompts/OCAP.Prompts.csproj" />
   </Folder>
   <Folder Name="/src/Providers/">
     <Project Path="src/Providers/OCAP.Providers.Claude/OCAP.Providers.Claude.csproj" />
@@ -76,6 +85,7 @@
     <Project Path="tests/OCAP.Dashboard.Tests/OCAP.Dashboard.Tests.csproj" />
     <Project Path="tests/OCAP.DeploymentManager.Tests/OCAP.DeploymentManager.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
+    <Project Path="tests/OCAP.Intelligence.Tests/OCAP.Intelligence.Tests.csproj" />
     <Project Path="tests/OCAP.Tools.Tests/OCAP.Tools.Tests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />
   </Folder>

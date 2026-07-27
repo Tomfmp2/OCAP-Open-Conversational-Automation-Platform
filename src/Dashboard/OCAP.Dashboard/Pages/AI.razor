@@ -1,0 +1,102 @@
+@page "/ai"
+
+<PageTitle>Monitoreo IA Generativa — OCAP</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-white mb-1">Monitoreo de IA Generativa</h1>
+            <p class="text-secondary mb-0">Supervisión en tiempo real de proveedores LLM, consumo de tokens y estado de modelos.</p>
+        </div>
+        <button class="btn btn-outline-primary" @onclick="LoadAiData">
+            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar Metadatos
+        </button>
+    </div>
+
+    <!-- Tarjetas de estado e indicadores -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-white h-100 p-3">
+                <span class="text-secondary small">Proveedor Activo</span>
+                <h4 class="fw-bold text-info mt-2">MockAI / Hybrid</h4>
+                <span class="badge bg-success w-auto align-self-start mt-1">Conectado</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-white h-100 p-3">
+                <span class="text-secondary small">Modelo Principal</span>
+                <h4 class="fw-bold text-white mt-2">mock-gpt-4o</h4>
+                <span class="text-secondary small">Contexto: 8,192 tokens</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-white h-100 p-3">
+                <span class="text-secondary small">Tokens Consumidos</span>
+                <h4 class="fw-bold text-warning mt-2">14,250</h4>
+                <span class="text-secondary small">Tasa de éxito: 99.4%</span>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark border-secondary text-white h-100 p-3">
+                <span class="text-secondary small">Latencia Promedio</span>
+                <h4 class="fw-bold text-success mt-2">18.5 ms</h4>
+                <span class="text-secondary small">Modo de simulación seguro</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Catálogo de Proveedores Configurados -->
+    <div class="card bg-dark border-secondary text-white p-4 mb-4">
+        <h5 class="fw-bold mb-3"><i class="bi bi-cpu text-primary me-2"></i>Proveedores de IA Soportados (Provider Agnostic)</h5>
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Proveedor</th>
+                        <th>Modelo</th>
+                        <th>Ventana Contexto</th>
+                        <th>Capacidades</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>MockAI</strong></td>
+                        <td>mock-gpt-4o</td>
+                        <td>8,192 tokens</td>
+                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">intent</span></td>
+                        <td><span class="badge bg-success">Activo (Default)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>OpenAI</strong></td>
+                        <td>gpt-4o</td>
+                        <td>128,000 tokens</td>
+                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">vision</span> <span class="badge bg-secondary">tools</span></td>
+                        <td><span class="badge bg-info">Listo para credenciales</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Google Gemini</strong></td>
+                        <td>gemini-1.5-pro</td>
+                        <td>1,000,000 tokens</td>
+                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">multimodal</span></td>
+                        <td><span class="badge bg-info">Listo para credenciales</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ollama (Local)</strong></td>
+                        <td>llama3</td>
+                        <td>8,192 tokens</td>
+                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">self-hosted</span></td>
+                        <td><span class="badge bg-info">Listo para endpoint local</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private async Task LoadAiData()
+    {
+        await Task.CompletedTask;
+    }
+}

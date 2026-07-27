@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
+    <ProjectReference Include="..\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Prompts\OCAP.Prompts\OCAP.Prompts.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Domain\OCAP.Agents.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Abstractions\OCAP.Agents.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Application\OCAP.Agents.Application.csproj" />
+    <ProjectReference Include="..\..\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

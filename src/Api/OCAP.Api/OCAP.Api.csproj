@@ -32,6 +32,11 @@
     <ProjectReference Include="..\..\Providers\OCAP.Providers.GoogleDrive\OCAP.Providers.GoogleDrive.csproj" />
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
     <ProjectReference Include="..\..\Channels\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
+    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Application\OCAP.Intelligence.Application.csproj" />
+    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Mock\OCAP.Intelligence.Mock.csproj" />
+    <ProjectReference Include="..\..\Prompts\OCAP.Prompts\OCAP.Prompts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

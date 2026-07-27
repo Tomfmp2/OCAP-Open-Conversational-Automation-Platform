@@ -4,6 +4,10 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using OCAP.Api.Configuration;
 using System.Threading.RateLimiting;
+using OCAP.Intelligence.Abstractions;
+using OCAP.Intelligence.Application.Services;
+using OCAP.Intelligence.Mock;
+using OCAP.Prompts;
 
 namespace OCAP.Api.Extensions;
 
@@ -16,6 +20,12 @@ public static class ApiServiceExtensions
     {
         services.AddControllers();
         services.AddEndpointsApiExplorer();
+
+        // Registrar servicios de Inteligencia Artificial Generativa y Prompts.
+        services.AddSingleton<IAiProvider, MockAiProvider>();
+        services.AddSingleton<IPromptBuilder, SystemPromptBuilder>();
+        services.AddScoped<IAgentReasoningService, AgentReasoningService>();
+        services.AddSingleton<IAiUsageTracker, AiUsageTracker>();
 
         // Swagger / OpenAPI habilitado únicamente en desarrollo para no exponer la superficie de la API en producción.
         services.AddSwaggerGen(c =>

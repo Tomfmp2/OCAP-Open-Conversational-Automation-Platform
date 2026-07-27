@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Domain\OCAP.Agents.Domain.csproj" />
+    <ProjectReference Include="..\..\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OCAP.Core.Entities;
+using OCAP.Intelligence.Domain;
 
 namespace OCAP.Infrastructure.Persistence.Context;
 
@@ -16,6 +17,8 @@ public class OCAPDbContext : DbContext
     public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
     public DbSet<AgentToolPermission> AgentToolPermissions => Set<AgentToolPermission>();
     public DbSet<OAuthConnection> OAuthConnections => Set<OAuthConnection>();
+    public DbSet<AiConversationMemory> AiConversationMemories => Set<AiConversationMemory>();
+    public DbSet<AiExecutionLog> AiExecutionLogs => Set<AiExecutionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
