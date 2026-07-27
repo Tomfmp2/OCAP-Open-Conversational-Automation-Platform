@@ -10,10 +10,12 @@ En la actualidad, las plataformas de automatización y bots limitan al usuario a
 Nuestra visión es establecer el estándar abierto para asistentes conversacionales corporativos y personales, creando una base estable donde una comunidad próspera construya y comparta módulos. Queremos que montar un asistente avanzado sea tan accesible, seguro y abierto como montar un WordPress.
 
 ## Características Principales
+- **Base de Conocimiento Empresarial & RAG (v1.5.0):** Ingesta multiformato (PDF, DOCX, TXT, MD, CSV, JSON, HTML, XML), Chunking configurable (Sentence, Paragraph, Semantic, SlidingWindow), Embeddings (OpenAI, Gemini, Ollama), Vector DBs (PgVector, Qdrant, ChromaDB, Pinecone) y Búsqueda Híbrida/Semántica con aislamiento estricto por Tenant.
+- **Workflow Automation Engine & Visual Designer (v1.4.0):** Diseñador visual interactivo drag-and-drop en Blazor, máquina de estados ejecutable y 23 tipos de nodos para automatización avanzada.
 - **Canales Múltiples:** Arquitectura agnóstica de canal (preparada para WhatsApp, Telegram, Slack, Web, etc.).
-- **Proveedores Flexibles:** Conecta fácilmente cualquier LLM, sistemas de almacenamiento o suites ofimáticas.
+- **Proveedores Flexibles:** Conecta fácilmente cualquier LLM (OpenAI, Claude, Gemini, Ollama), sistemas de almacenamiento o suites ofimáticas.
 - **Privacidad y Propiedad:** Self-hosted by design. Tus tokens, tus datos, tus servidores.
-- **Diseñado para Escalar:** Arquitectura en Modular Monolith, ideal para iniciar ligero y escalar a nivel empresarial.
+- **Diseñado para Escalar:** Arquitectura en Modular Monolith, Clean Architecture, Hexagonal y DDD.
 
 ## Arquitectura General
 OCAP está estructurado bajo los principios de **Arquitectura Hexagonal (Ports & Adapters)** y **Modular Monolith**:

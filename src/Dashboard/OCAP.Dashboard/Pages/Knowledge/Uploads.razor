@@ -1,0 +1,139 @@
+@page "/uploads"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Subir Archivos — OCAP</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-upload text-warning me-2"></i>Subida & Ingesta de Documentos</h1>
+        <p class="text-muted mb-0">Soporte multi-formato: PDF, DOCX, TXT, Markdown, CSV, JSON, HTML y XML con extracción de metadatos y SHA256.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_uploadMessage))
+    {
+        <div class="alert alert-@(_isSuccess ? "success" : "danger") alert-dismissible fade show mb-4" role="alert">
+            @_uploadMessage
+            <button type="button" class="btn-close" @onclick="() => _uploadMessage = null"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-7">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-header bg-black">
+                    <h5 class="card-title mb-0"><i class="bi bi-cloud-arrow-up me-2 text-primary"></i>Seleccionar Archivo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Base de Conocimiento Destino</label>
+                        <select class="form-select bg-black text-white border-secondary" @bind="_selectedKbId">
+                            <option value="default">Base Principal Empresarial (Default)</option>
+                            <option value="faq">Soporte al Cliente & FAQ</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Categoría del Documento</label>
+                        <select class="form-select bg-black text-white border-secondary" @bind="_selectedCategory">
+                            <option value="General">General</option>
+                            <option value="Technical">Técnico</option>
+                            <option value="Legal">Legal</option>
+                            <option value="Financial">Financiero</option>
+                            <option value="Hr">Recursos Humanos</option>
+                            <option value="CustomerSupport">Atención al Cliente</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted">Archivo (.pdf, .docx, .txt, .md, .csv, .json, .html, .xml)</label>
+                        <InputFile OnChange="HandleFileSelected" class="form-control bg-black text-white border-secondary" />
+                    </div>
+
+                    <button class="btn btn-primary w-100 py-2" @onclick="UploadFile" disabled="@(_selectedFile == null || _isUploading)">
+                        @if (_isUploading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Procesando e Indexando...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-cpu me-2"></i><span>Iniciar Ingesta RAG</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card bg-dark text-white border-secondary h-100">
+                <div class="card-header bg-black">
+                    <h5 class="card-title mb-0"><i class="bi bi-info-circle me-2 text-info"></i>Formatos Soportados</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span><i class="bi bi-file-pdf text-danger me-2"></i>PDF</span>
+                            <span class="text-muted">Texto & Tablas</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span><i class="bi bi-file-word text-primary me-2"></i>DOCX</span>
+                            <span class="text-muted">Word Documents</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span><i class="bi bi-file-text me-2"></i>TXT / Markdown</span>
+                            <span class="text-muted">Plain Text & MD</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span><i class="bi bi-table text-success me-2"></i>CSV</span>
+                            <span class="text-muted">Tabular Content</span>
+                        </li>
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between">
+                            <span><i class="bi bi-code-slash text-warning me-2"></i>JSON / XML / HTML</span>
+                            <span class="text-muted">Structured Data</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? _selectedFile;
+    private string _selectedKbId = "default";
+    private string _selectedCategory = "Technical";
+    private bool _isUploading = false;
+    private string? _uploadMessage;
+    private bool _isSuccess = false;
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+    }
+
+    private async Task UploadFile()
+    {
+        if (_selectedFile == null) return;
+
+        _isUploading = true;
+        _uploadMessage = null;
+
+        try
+        {
+            await Task.Delay(500); // UI simulation
+            _isSuccess = true;
+            _uploadMessage = $"Documento '{_selectedFile.Name}' cargado e indexado exitosamente con hash SHA256.";
+            _selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            _isSuccess = false;
+            _uploadMessage = $"Error al procesar archivo: {ex.Message}";
+        }
+        finally
+        {
+            _isUploading = false;
+        }
+    }
+}

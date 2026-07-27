@@ -1,0 +1,115 @@
+@page "/documents"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Documentos — OCAP</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-file-earmark-text text-info me-2"></i>Gestión de Documentos</h1>
+            <p class="text-muted mb-0">Listado, filtrado, estado de procesamiento y eliminación de documentos indexados.</p>
+        </div>
+        <a href="/uploads" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> Nuevo Documento</a>
+    </div>
+
+    <div class="card bg-dark text-white border-secondary mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" class="form-control bg-black text-white border-secondary" placeholder="Buscar por título..." @bind="_searchTerm" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select bg-black text-white border-secondary" @bind="_selectedStatus">
+                        <option value="">Todos los Estados</option>
+                        <option value="Indexed">Indexado</option>
+                        <option value="Processing">Procesando</option>
+                        <option value="Pending">Pendiente</option>
+                        <option value="Failed">Fallido</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select bg-black text-white border-secondary" @bind="_selectedCategory">
+                        <option value="">Todas las Categorías</option>
+                        <option value="General">General</option>
+                        <option value="Technical">Técnico</option>
+                        <option value="Legal">Legal</option>
+                        <option value="Financial">Financiero</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100"><i class="bi bi-funnel me-1"></i> Filtrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-white border-secondary">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Tipo</th>
+                            <th>Categoría</th>
+                            <th>Versión</th>
+                            <th>Autor</th>
+                            <th>Chunks</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold text-white"><i class="bi bi-file-pdf text-danger me-2"></i>Manual_Arquitectura_OCAP_v1.5.pdf</td>
+                            <td><span class="badge bg-danger">PDF</span></td>
+                            <td>Technical</td>
+                            <td>1.5.0</td>
+                            <td>TechLead</td>
+                            <td>42</td>
+                            <td><span class="badge bg-success">Indexed</span></td>
+                            <td>2026-07-27</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-white"><i class="bi bi-file-word text-primary me-2"></i>Politicas_Seguridad_Enterprise.docx</td>
+                            <td><span class="badge bg-primary">DOCX</span></td>
+                            <td>Legal</td>
+                            <td>2.1.0</td>
+                            <td>SecurityTeam</td>
+                            <td>18</td>
+                            <td><span class="badge bg-success">Indexed</span></td>
+                            <td>2026-07-26</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-white"><i class="bi bi-markdown text-info me-2"></i>API_Gateway_Specification.md</td>
+                            <td><span class="badge bg-info">Markdown</span></td>
+                            <td>Technical</td>
+                            <td>1.0.0</td>
+                            <td>DevOps</td>
+                            <td>29</td>
+                            <td><span class="badge bg-success">Indexed</span></td>
+                            <td>2026-07-25</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _searchTerm = "";
+    private string _selectedStatus = "";
+    private string _selectedCategory = "";
+}

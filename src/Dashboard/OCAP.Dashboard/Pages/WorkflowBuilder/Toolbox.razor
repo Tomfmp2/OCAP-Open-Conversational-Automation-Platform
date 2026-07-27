@@ -1,0 +1,46 @@
+@using OCAP.Workflow.Designer.Models
+@using OCAP.Workflow.Designer.Metadata
+
+<div class="toolbox bg-dark text-white border-end border-secondary" style="width: 250px; height: 100vh; overflow-y: auto;">
+    <div class="p-3 border-bottom border-secondary">
+        <h5 class="mb-0 fw-bold">Toolbox</h5>
+    </div>
+    <div class="p-2">
+        <input type="text" class="form-control bg-black text-white border-secondary mb-3" placeholder="Search nodes..." />
+        
+        @foreach (var category in Categories)
+        {
+            <div class="mb-3">
+                <h6 class="text-muted text-uppercase small fw-bold mb-2 ps-2">@category.Name</h6>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var node in AvailableNodes.Where(n => n.Category == category.Name))
+                    {
+                        <div class="node-item bg-black border border-secondary rounded p-2 d-flex align-items-center cursor-pointer" draggable="true" @ondragstart="@(e => OnDragStart(e, node))">
+                            <i class="@node.Icon me-2" style="color: @node.Color;"></i>
+                            <div>
+                                <div class="fw-bold" style="font-size: 0.9rem;">@node.Name</div>
+                                <div class="text-muted" style="font-size: 0.75rem;">@node.Description</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<CategoryMetadata> Categories { get; set; } = new();
+
+    [Parameter]
+    public List<NodeMetadata> AvailableNodes { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<NodeMetadata> OnNodeDragStart { get; set; }
+
+    private async Task OnDragStart(DragEventArgs e, NodeMetadata node)
+    {
+        await OnNodeDragStart.InvokeAsync(node);
+    }
+}

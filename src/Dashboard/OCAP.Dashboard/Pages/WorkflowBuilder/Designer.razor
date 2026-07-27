@@ -1,0 +1,300 @@
+@page "/workflows/designer"
+@page "/workflows/designer/{Id:guid}"
+@using OCAP.Workflow.Designer.Models
+@using OCAP.Workflow.Designer.Metadata
+@using OCAP.Workflow.Designer.DTOs
+@using OCAP.Workflow.Designer.Layout
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Workflow Builder — OCAP</PageTitle>
+
+<div class="d-flex flex-column h-100 vh-100 overflow-hidden bg-black text-white">
+    <!-- Header -->
+    <header class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary bg-dark">
+        <div class="d-flex align-items-center gap-3">
+            <a href="/workflows" class="text-white text-decoration-none"><i class="bi bi-arrow-left"></i></a>
+            <div>
+                <h1 class="h5 fw-bold mb-0">@_graph.Name</h1>
+                <small class="text-muted">@(_isDirty ? "Unsaved changes" : "All changes saved")</small>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ValidateWorkflow"><i class="bi bi-check-circle me-1"></i> Validate</button>
+            <button class="btn btn-primary btn-sm" @onclick="SaveWorkflow"><i class="bi bi-save me-1"></i> Save</button>
+            <div class="border-start border-secondary mx-2"></div>
+            <button class="btn btn-success btn-sm" @onclick="RunWorkflow" disabled="@_isDirty"><i class="bi bi-play-fill me-1"></i> Run</button>
+        </div>
+    </header>
+
+    @if (!string.IsNullOrEmpty(_validationMessage))
+    {
+        <div class="alert alert-@(_validationIsError ? "danger" : "success") alert-dismissible fade show m-3" role="alert">
+            @_validationMessage
+            <button type="button" class="btn-close" @onclick="() => _validationMessage = null"></button>
+        </div>
+    }
+
+    <!-- Main Designer Area -->
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        <!-- Toolbox (Left Panel) -->
+        <Toolbox Categories="_categories" AvailableNodes="_availableNodes" OnNodeDragStart="HandleNodeDragStart" />
+
+        <!-- Canvas (Center) -->
+        <Canvas Graph="_graph" 
+                SelectedNodeId="_selectedNodeId" 
+                DraggedNodeType="_draggedNodeType"
+                OnNodeSelectedEvent="HandleNodeSelected" 
+                OnNodeAddedEvent="HandleNodeAdded" />
+
+        <!-- Property Inspector (Right Panel) -->
+        <PropertyInspector SelectedNode="_selectedNode" 
+                           NodeMetadata="GetMetadataForNode(_selectedNode)"
+                           OnDeleteNodeEvent="HandleNodeDeleted" />
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    private VisualWorkflowGraph _graph = new() { Id = Guid.NewGuid().ToString(), Name = "New Automation", Description = "Created with Visual Builder", Version = 1 };
+    private string _selectedNodeId = string.Empty;
+    private string _draggedNodeType = string.Empty;
+    private bool _isDirty = false;
+    private Guid? _savedWorkflowId = null;
+    private string? _validationMessage;
+    private bool _validationIsError = false;
+
+    private List<CategoryMetadata> _categories = new()
+    {
+        new CategoryMetadata("Control", "Control & Logic", "bi-diagram-2", "#6366f1", 1),
+        new CategoryMetadata("AI", "Artificial Intelligence", "bi-robot", "#8b5cf6", 2),
+        new CategoryMetadata("Tools", "Integrations", "bi-tools", "#f59e0b", 3),
+        new CategoryMetadata("Custom", "Custom Nodes", "bi-code-square", "#10b981", 4)
+    };
+
+    private List<NodeMetadata> _availableNodes = new()
+    {
+        new NodeMetadata("start", "Control", "Start", "Entry point of the workflow", "bi-play-circle", "#10b981", new(), new(), new() { new("output", "trigger", false, "") }, new()),
+        new NodeMetadata("end", "Control", "End", "End of workflow", "bi-stop-circle", "#ef4444", new(), new() { new("input", "trigger", false, "") }, new(), new()),
+        new NodeMetadata("llm", "AI", "LLM Prompt", "Send prompt to LLM", "bi-robot", "#8b5cf6", new()
+        {
+            new PropertyMetadata("prompt", "Prompt", "text", true, "", ""),
+            new PropertyMetadata("model", "Model", "options", true, "gpt-4o", "", new() { "gpt-4o", "gemini-1.5-pro", "claude-3.5-sonnet" })
+        }, new() { new("input", "trigger", false, "") }, new() { new("output", "trigger", false, "") }, new()),
+        new NodeMetadata("http", "Tools", "HTTP Request", "Make an API call", "bi-globe", "#3b82f6", new()
+        {
+            new PropertyMetadata("url", "URL", "string", true, "https://", ""),
+            new PropertyMetadata("method", "Method", "options", true, "GET", "", new() { "GET", "POST", "PUT", "DELETE" })
+        }, new() { new("input", "trigger", false, "") }, new() { new("output", "trigger", false, "") }, new())
+    };
+
+    private VisualNode? _selectedNode => _graph.Nodes.FirstOrDefault(n => n.Id == _selectedNodeId);
+
+    protected override void OnInitialized()
+    {
+        if (!Id.HasValue)
+        {
+            // Create a default start node
+            var startNode = new VisualNode
+            {
+                Id = Guid.NewGuid().ToString(),
+                StepId = "start_1",
+                Name = "Start",
+                Type = "start",
+                Category = "Control",
+                Icon = "bi-play-circle",
+                Color = "#10b981",
+                Position = new NodePosition(100, 200),
+                ConfigurationJson = "{}",
+                InputPorts = new(),
+                OutputPorts = new List<string> { "output" }
+            };
+            _graph.Nodes.Add(startNode);
+        }
+        else
+        {
+            // TODO: Load from API
+            _savedWorkflowId = Id;
+        }
+    }
+
+    private void HandleNodeDragStart(NodeMetadata node)
+    {
+        _draggedNodeType = node.Type;
+    }
+
+    private void HandleNodeSelected(string id)
+    {
+        _selectedNodeId = id;
+        StateHasChanged();
+    }
+
+    private void HandleNodeAdded(VisualNode node)
+    {
+        _graph.Nodes.Add(node);
+        _selectedNodeId = node.Id;
+        _isDirty = true;
+        StateHasChanged();
+    }
+
+    private void HandleNodeDeleted(string id)
+    {
+        var node = _graph.Nodes.FirstOrDefault(n => n.Id == id);
+        if (node != null)
+        {
+            _graph.Nodes.Remove(node);
+            // Also remove connected edges
+            _graph.Edges.RemoveAll(e => e.FromNodeId == id || e.ToNodeId == id);
+            
+            if (_selectedNodeId == id)
+                _selectedNodeId = string.Empty;
+                
+            _isDirty = true;
+            StateHasChanged();
+        }
+    }
+
+    private NodeMetadata? GetMetadataForNode(VisualNode? node)
+    {
+        if (node == null) return null;
+        return _availableNodes.FirstOrDefault(m => m.Type == node.Type);
+    }
+
+    private async Task ValidateWorkflow()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/workflows/designer/validate", _graph);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<WorkflowValidationResult>();
+                if (result != null && result.IsValid)
+                {
+                    _validationIsError = false;
+                    _validationMessage = "Workflow is valid.";
+                }
+                else if (result != null)
+                {
+                    _validationIsError = true;
+                    _validationMessage = $"Validation failed: {string.Join(", ", result.Errors.Select(e => e.Message))}";
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _validationIsError = true;
+                _validationMessage = $"Server error during validation: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationIsError = true;
+            _validationMessage = $"Error validating workflow: {ex.Message}";
+        }
+    }
+
+    private async Task SaveWorkflow()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/workflows/designer/save", _graph);
+            if (response.IsSuccessStatusCode)
+            {
+                var definition = await response.Content.ReadFromJsonAsync<WorkflowDefinitionDto>();
+                if (definition != null)
+                {
+                    _isDirty = false;
+                    _savedWorkflowId = definition.Id;
+                    _validationIsError = false;
+                    _validationMessage = "Workflow saved successfully.";
+                }
+            }
+            else
+            {
+                var result = await response.Content.ReadFromJsonAsync<WorkflowValidationResult>();
+                _validationIsError = true;
+                if (result != null && !result.IsValid)
+                {
+                    _validationMessage = $"Cannot save. Validation failed: {string.Join(", ", result.Errors.Select(e => e.Message))}";
+                }
+                else
+                {
+                    _validationMessage = $"Failed to save workflow. Status code: {response.StatusCode}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationIsError = true;
+            _validationMessage = $"Error saving workflow: {ex.Message}";
+        }
+    }
+
+    private async Task RunWorkflow()
+    {
+        if (_isDirty)
+        {
+            _validationIsError = true;
+            _validationMessage = "Please save your changes before running the workflow.";
+            return;
+        }
+
+        if (!_savedWorkflowId.HasValue)
+        {
+            _validationIsError = true;
+            _validationMessage = "Workflow has not been saved yet.";
+            return;
+        }
+
+        try
+        {
+            var response = await Http.PostAsync($"api/workflows/{_savedWorkflowId}/execute", null);
+            if (response.IsSuccessStatusCode)
+            {
+                var execution = await response.Content.ReadFromJsonAsync<WorkflowExecutionDto>();
+                _validationIsError = false;
+                _validationMessage = $"Workflow execution started successfully. Execution ID: {execution?.Id}";
+            }
+            else
+            {
+                _validationIsError = true;
+                _validationMessage = $"Failed to execute workflow. Status code: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _validationIsError = true;
+            _validationMessage = $"Error executing workflow: {ex.Message}";
+        }
+    }
+
+    public class WorkflowDefinitionDto
+    {
+        public Guid Id { get; set; }
+        public Guid TenantId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int CurrentVersion { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public int StepsCount { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+    }
+
+    public class WorkflowExecutionDto
+    {
+        public Guid Id { get; set; }
+        public Guid WorkflowDefinitionId { get; set; }
+        public Guid TenantId { get; set; }
+        public Guid UserId { get; set; }
+        public Guid? AgentId { get; set; }
+        public string CurrentStepId { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime StartedAtUtc { get; set; }
+        public DateTime? CompletedAtUtc { get; set; }
+        public string OutputJson { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,90 @@
+@page "/embeddings"
+
+<PageTitle>Embeddings IA — OCAP</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-layers text-primary me-2"></i>Proveedores de Embeddings Vectoriales</h1>
+        <p class="text-muted mb-0">Configuración agnóstica de modelos de embeddings: OpenAI, Google Gemini y Ollama Local.</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card bg-dark text-white border-secondary h-100">
+                <div class="card-header bg-black d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">OpenAI Embeddings</h5>
+                    <span class="badge bg-success">Activo</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Modelo Predeterminado</label>
+                        <select class="form-select bg-black text-white border-secondary">
+                            <option value="text-embedding-3-small">text-embedding-3-small (1536 dims)</option>
+                            <option value="text-embedding-3-large">text-embedding-3-large (3072 dims)</option>
+                            <option value="text-embedding-ada-002">text-embedding-ada-002 (1536 dims)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Dimensiones</label>
+                        <input type="text" class="form-control bg-black text-white border-secondary" value="1536" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">API Key State</label>
+                        <input type="password" class="form-control bg-black text-white border-secondary" value="sk-proj-xxxxxxxx" readonly />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-dark text-white border-secondary h-100">
+                <div class="card-header bg-black d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Google Gemini Embeddings</h5>
+                    <span class="badge bg-info">Disponible</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Modelo Predeterminado</label>
+                        <select class="form-select bg-black text-white border-secondary">
+                            <option value="text-embedding-004">text-embedding-004 (768 dims)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Dimensiones</label>
+                        <input type="text" class="form-control bg-black text-white border-secondary" value="768" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Google API Key State</label>
+                        <input type="password" class="form-control bg-black text-white border-secondary" value="AIzaSyxxxxxxxx" readonly />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-dark text-white border-secondary h-100">
+                <div class="card-header bg-black d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Ollama Local Embeddings</h5>
+                    <span class="badge bg-warning">Self-Hosted</span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Modelo Local</label>
+                        <select class="form-select bg-black text-white border-secondary">
+                            <option value="nomic-embed-text">nomic-embed-text (768 dims)</option>
+                            <option value="mxbai-embed-large">mxbai-embed-large (1024 dims)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Endpoint Base</label>
+                        <input type="text" class="form-control bg-black text-white border-secondary" value="http://localhost:11434" readonly />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Estado del Servidor</label>
+                        <span class="badge bg-success">Conectado (Ollama v0.3.1)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

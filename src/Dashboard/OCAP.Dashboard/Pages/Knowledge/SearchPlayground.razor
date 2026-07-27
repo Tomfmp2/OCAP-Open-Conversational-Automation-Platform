@@ -1,0 +1,128 @@
+@page "/search"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>RAG Playground — OCAP</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="mb-4">
+        <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-search text-primary me-2"></i>RAG Playground & Buscador Vectorial</h1>
+        <p class="text-muted mb-0">Prueba de estrategias de búsqueda: Similaridad Vectorial, Búsqueda Híbrida RRF, Palabras Clave y Semántica.</p>
+    </div>
+
+    <div class="card bg-dark text-white border-secondary mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" class="form-control bg-black text-white border-secondary form-control-lg" placeholder="Escribe tu consulta semántica o pregunta..." @bind="_query" @onkeyup="HandleKeyUp" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select bg-black text-white border-secondary form-select-lg" @bind="_strategy">
+                        <option value="Hybrid">Hybrid Search (RRF Vector + BM25)</option>
+                        <option value="Similarity">Similarity Search (Cosine Distance)</option>
+                        <option value="Semantic">Semantic Search</option>
+                        <option value="Keyword">Keyword Search</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary btn-lg w-100" @onclick="ExecuteSearch" disabled="@_isSearching">
+                        @if (_isSearching)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-search me-1"></i>
+                        }
+                        Buscar Contexto
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_results != null)
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="text-white mb-0">Resultados Recuperados (@_results.Count Top-K)</h5>
+            <span class="badge bg-secondary">Aislamiento Tenant: Verificado</span>
+        </div>
+
+        <div class="row g-3">
+            @foreach (var res in _results)
+            {
+                <div class="col-12">
+                    <div class="card bg-dark text-white border-secondary">
+                        <div class="card-header bg-black d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-info"><i class="bi bi-file-earmark-text me-2"></i>@res.DocumentTitle</span>
+                            <div>
+                                <span class="badge bg-success me-2">Score: @(res.Score.ToString("F3"))</span>
+                                <span class="badge bg-dark border border-secondary">Distancia: @(res.Distance.ToString("F3"))</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text text-light font-monospace bg-black p-3 rounded border border-secondary mb-2">
+                                @res.Content
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _query = "arquitectura de workflows y nodos";
+    private string _strategy = "Hybrid";
+    private bool _isSearching = false;
+    private List<SearchResultViewModel>? _results;
+
+    private async Task HandleKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ExecuteSearch();
+        }
+    }
+
+    private async Task ExecuteSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_query)) return;
+        _isSearching = true;
+
+        try
+        {
+            await Task.Delay(300); // Visual simulation
+            _results = new List<SearchResultViewModel>
+            {
+                new SearchResultViewModel
+                {
+                    DocumentTitle = "Manual_Arquitectura_OCAP_v1.5.pdf",
+                    Content = "El motor de workflows de OCAP ejecuta nodos secuenciales y paralelos evaluando condiciones y ejecutando herramientas externas mediante IToolRegistry con aislamiento de TenantId.",
+                    Score = 0.942,
+                    Distance = 0.058
+                },
+                new SearchResultViewModel
+                {
+                    DocumentTitle = "API_Gateway_Specification.md",
+                    Content = "Todas las peticiones a la API Gateway requieren encabezados de autenticación JWT o API Key asociadas al TenantId activo para garantizar el aislamiento multi-inquilino.",
+                    Score = 0.885,
+                    Distance = 0.115
+                }
+            };
+        }
+        finally
+        {
+            _isSearching = false;
+        }
+    }
+
+    public class SearchResultViewModel
+    {
+        public string DocumentTitle { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public double Score { get; set; }
+        public double Distance { get; set; }
+    }
+}

@@ -31,5 +31,11 @@ public enum WorkflowNodeType
     ApiRequest = 14,
     Script = 15,
     SubWorkflow = 16,
-    ErrorHandler = 17
+    ErrorHandler = 17,
+    KnowledgeSearch = 18,
+    SemanticSearch = 19,
+    RetrieveContext = 20,
+    AskKnowledgeBase = 21,
+    DocumentUpload = 22,
+    Reindex = 23
 }

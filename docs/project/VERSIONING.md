@@ -63,3 +63,4 @@ Cada lanzamiento o tagging de versión requiere la actualización del archivo `C
 | `v1.2.0` | AI Provider Integration & Orchestration | Adaptadores OpenAI, Gemini, Ollama, Failover y Streaming SSE |
 | `v1.3.0` | Workflow Automation Engine Foundation | Motor de automatización de workflows con 17 tipos de nodos |
 | `v1.3.1` | Production Readiness & Audit Cert. | Auditoría completa, 0 errores, 0 warnings, 74 tests pasando |
+| `v1.4.0` | Visual Workflow Builder Foundation | Diseñador visual Drag-and-Drop integrado en Blazor Dashboard |

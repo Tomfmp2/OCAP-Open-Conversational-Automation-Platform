@@ -4,6 +4,7 @@ using OCAP.Application.Extensions;
 using OCAP.Channels.Abstractions.Extensions;
 using OCAP.Channels.WhatsApp.Extensions;
 using OCAP.Infrastructure.Extensions;
+using OCAP.Knowledge.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,11 +12,14 @@ var builder = WebApplication.CreateBuilder(args);
 // Se aplica globalmente antes de llegar a los controladores.
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 1 * 1024 * 1024; // 1 MB máximo por petición.
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB máximo por petición para soporte de documentos
 });
 
 // Registra servicios de la capa de aplicación (casos de uso).
 builder.Services.AddApplicationServices();
+
+// Registra el módulo de Knowledge Base y RAG
+builder.Services.AddKnowledgeModule();
 
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);

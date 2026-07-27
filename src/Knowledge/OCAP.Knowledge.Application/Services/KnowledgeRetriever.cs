@@ -1,0 +1,142 @@
+using Microsoft.Extensions.Logging;
+using OCAP.Knowledge.Abstractions;
+using OCAP.Knowledge.Domain.Enums;
+using OCAP.Knowledge.Domain.ValueObjects;
+
+namespace OCAP.Knowledge.Application.Services;
+
+public class KnowledgeRetriever : IKnowledgeRetriever
+{
+    private readonly IVectorDatabase _vectorDatabase;
+    private readonly IEmbeddingGenerator _embeddingGenerator;
+    private readonly IKnowledgeChunkRepository _chunkRepository;
+    private readonly IKnowledgeDocumentRepository _documentRepository;
+    private readonly ILogger<KnowledgeRetriever> _logger;
+
+    public KnowledgeRetriever(
+        IVectorDatabase vectorDatabase,
+        IEmbeddingGenerator embeddingGenerator,
+        IKnowledgeChunkRepository chunkRepository,
+        IKnowledgeDocumentRepository documentRepository,
+        ILogger<KnowledgeRetriever> logger)
+    {
+        _vectorDatabase = vectorDatabase ?? throw new ArgumentNullException(nameof(vectorDatabase));
+        _embeddingGenerator = embeddingGenerator ?? throw new ArgumentNullException(nameof(embeddingGenerator));
+        _chunkRepository = chunkRepository ?? throw new ArgumentNullException(nameof(chunkRepository));
+        _documentRepository = documentRepository ?? throw new ArgumentNullException(nameof(documentRepository));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public Task<List<KnowledgeSearchResult>> SearchAsync(
+        Guid tenantId,
+        string query,
+        SearchStrategyType strategy = SearchStrategyType.Hybrid,
+        int topK = 5,
+        double minScore = 0.5,
+        CancellationToken cancellationToken = default)
+    {
+        return SearchAsync(tenantId, null, query, strategy, topK, minScore, cancellationToken);
+    }
+
+    public async Task<List<KnowledgeSearchResult>> SearchAsync(
+        Guid tenantId,
+        Guid? knowledgeBaseId,
+        string query,
+        SearchStrategyType strategy = SearchStrategyType.Hybrid,
+        int topK = 5,
+        double minScore = 0.5,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required for retrieval isolation.", nameof(tenantId));
+        if (string.IsNullOrWhiteSpace(query)) return new List<KnowledgeSearchResult>();
+
+        _logger.LogInformation("Ejecutando Knowledge Retrieval ({Strategy}) para Tenant {TenantId}. Query: {Query}", strategy, tenantId, query);
+
+        switch (strategy)
+        {
+            case SearchStrategyType.Similarity:
+            case SearchStrategyType.Semantic:
+                return await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+
+            case SearchStrategyType.Keyword:
+                return await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+
+            case SearchStrategyType.Hybrid:
+            default:
+                var vectorResults = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+                var keywordResults = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+
+                return MergeHybridResults(vectorResults, keywordResults, topK);
+        }
+    }
+
+    private async Task<List<KnowledgeSearchResult>> ExecuteVectorSearchAsync(Guid tenantId, string query, int topK, double minScore, CancellationToken cancellationToken)
+    {
+        var queryVector = await _embeddingGenerator.GenerateVectorAsync(query, "OpenAI", "text-embedding-3-small", cancellationToken);
+        var results = await _vectorDatabase.SearchVectorsAsync(tenantId, queryVector, topK, minScore, cancellationToken);
+        return results;
+    }
+
+    private async Task<List<KnowledgeSearchResult>> ExecuteKeywordSearchAsync(Guid tenantId, string query, int topK, CancellationToken cancellationToken)
+    {
+        // Simple in-memory BM25/keyword scoring fallback over tenant chunks
+        var results = new List<KnowledgeSearchResult>();
+        var queryTerms = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        // Fetch documents for tenant
+        var docs = await _documentRepository.GetByKnowledgeBaseAsync(Guid.Empty, tenantId, cancellationToken);
+        foreach (var doc in docs)
+        {
+            var chunks = await _chunkRepository.GetByDocumentAsync(doc.Id, tenantId, cancellationToken);
+            foreach (var chunk in chunks)
+            {
+                var contentLower = chunk.Content.ToLowerInvariant();
+                int matchCount = queryTerms.Count(term => contentLower.Contains(term));
+                if (matchCount > 0)
+                {
+                    double score = (double)matchCount / queryTerms.Length;
+                    var highlights = queryTerms.Where(t => contentLower.Contains(t)).ToList();
+
+                    results.Add(new KnowledgeSearchResult(
+                        chunk.Id,
+                        chunk.DocumentId,
+                        doc.Title,
+                        chunk.Content,
+                        score,
+                        1.0 - score,
+                        chunk.MetadataJson,
+                        highlights
+                    ));
+                }
+            }
+        }
+
+        return results.OrderByDescending(r => r.Score).Take(topK).ToList();
+    }
+
+    private static List<KnowledgeSearchResult> MergeHybridResults(List<KnowledgeSearchResult> vectorResults, List<KnowledgeSearchResult> keywordResults, int topK)
+    {
+        var dict = new Dictionary<Guid, KnowledgeSearchResult>();
+
+        foreach (var v in vectorResults)
+        {
+            dict[v.ChunkId] = v;
+        }
+
+        foreach (var k in keywordResults)
+        {
+            if (dict.TryGetValue(k.ChunkId, out var existing))
+            {
+                // Hybrid RRF (Reciprocal Rank Fusion) boost
+                double boostedScore = (existing.Score * 0.7) + (k.Score * 0.3);
+                dict[k.ChunkId] = existing with { Score = boostedScore };
+            }
+            else
+            {
+                dict[k.ChunkId] = k;
+            }
+        }
+
+        return dict.Values.OrderByDescending(r => r.Score).Take(topK).ToList();
+    }
+}

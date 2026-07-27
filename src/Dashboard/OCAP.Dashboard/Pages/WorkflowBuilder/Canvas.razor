@@ -1,0 +1,108 @@
+@using OCAP.Workflow.Designer.Models
+
+<div class="canvas-container flex-grow-1 position-relative overflow-hidden" 
+     style="background-color: #1e1e1e; background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px;"
+     @ondragover:preventDefault
+     @ondrop="OnDrop">
+    
+    <div class="canvas-toolbar position-absolute top-0 end-0 m-3 d-flex gap-2 z-index-3">
+        <button class="btn btn-sm btn-dark border-secondary" @onclick="ZoomIn"><i class="bi bi-zoom-in"></i></button>
+        <button class="btn btn-sm btn-dark border-secondary" @onclick="ZoomOut"><i class="bi bi-zoom-out"></i></button>
+        <button class="btn btn-sm btn-dark border-secondary" @onclick="ResetZoom"><i class="bi bi-arrows-fullscreen"></i></button>
+    </div>
+
+    <div class="canvas-transform" style="transform: scale(@_zoom) translate(@(_panX)px, @(_panY)px); transform-origin: 0 0; width: 100%; height: 100%;">
+        @foreach (var edge in Graph.Edges)
+        {
+            <svg class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events: none;">
+                <!-- SVG path for edges would go here, calculating start and end points based on node positions -->
+                <path d="M10,10 L100,100" stroke="#555" stroke-width="2" fill="none" />
+            </svg>
+        }
+
+        @foreach (var node in Graph.Nodes)
+        {
+            <div class="visual-node position-absolute bg-dark border @(SelectedNodeId == node.Id ? "border-primary shadow-lg" : "border-secondary") rounded p-2 cursor-pointer"
+                 style="left: @(node.Position.X)px; top: @(node.Position.Y)px; width: 200px;"
+                 @onclick="() => OnNodeSelected(node.Id)">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="@node.Icon me-2" style="color: @node.Color;"></i>
+                    <span class="fw-bold text-white text-truncate" style="font-size: 0.9rem;">@node.Name</span>
+                </div>
+                <div class="node-ports d-flex justify-content-between mt-3">
+                    <div class="input-ports d-flex flex-column gap-1">
+                        @foreach (var port in node.InputPorts)
+                        {
+                            <div class="port-circle bg-secondary rounded-circle" style="width: 10px; height: 10px; margin-left: -15px;" title="@port"></div>
+                        }
+                    </div>
+                    <div class="output-ports d-flex flex-column gap-1 text-end">
+                        @foreach (var port in node.OutputPorts)
+                        {
+                            <div class="port-circle bg-secondary rounded-circle" style="width: 10px; height: 10px; margin-right: -15px;" title="@port"></div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public VisualWorkflowGraph Graph { get; set; } = new() { Id = Guid.NewGuid().ToString(), Name = "New Workflow", Description = "", Version = 1 };
+
+    [Parameter]
+    public string SelectedNodeId { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> OnNodeSelectedEvent { get; set; }
+
+    [Parameter]
+    public EventCallback<VisualNode> OnNodeAddedEvent { get; set; }
+
+    [Parameter]
+    public string DraggedNodeType { get; set; } = string.Empty;
+
+    private double _zoom = 1.0;
+    private double _panX = 0;
+    private double _panY = 0;
+
+    private void ZoomIn() => _zoom = Math.Min(_zoom + 0.1, 2.0);
+    private void ZoomOut() => _zoom = Math.Max(_zoom - 0.1, 0.5);
+    private void ResetZoom()
+    {
+        _zoom = 1.0;
+        _panX = 0;
+        _panY = 0;
+    }
+
+    private async Task OnDrop(DragEventArgs e)
+    {
+        // Add new node based on drag data
+        var nodeType = DraggedNodeType; // simplified for example
+        if (string.IsNullOrEmpty(nodeType)) return;
+        
+        var newNode = new VisualNode
+        {
+            Id = Guid.NewGuid().ToString(),
+            StepId = Guid.NewGuid().ToString(),
+            Name = nodeType,
+            Type = nodeType,
+            Category = "General",
+            Icon = "bi-box",
+            Color = "#ffffff",
+            Position = new NodePosition(e.ClientX - 300, e.ClientY - 100), // Adjusted for toolbox width
+            ConfigurationJson = "{}",
+            InputPorts = new List<string> { "input" },
+            OutputPorts = new List<string> { "output" }
+        };
+        
+        await OnNodeAddedEvent.InvokeAsync(newNode);
+    }
+
+    private async Task OnNodeSelected(string id)
+    {
+        await OnNodeSelectedEvent.InvokeAsync(id);
+    }
+}

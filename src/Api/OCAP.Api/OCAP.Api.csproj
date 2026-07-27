@@ -42,6 +42,9 @@
     <ProjectReference Include="..\..\Security\OCAP.Security.Infrastructure\OCAP.Security.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Application\OCAP.Workflow.Application.csproj" />
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Infrastructure\OCAP.Workflow.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Designer\OCAP.Workflow.Designer.csproj" />
+    <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Application\OCAP.Knowledge.Application.csproj" />
+    <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Infrastructure\OCAP.Knowledge.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,8 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.1] - 2026-07-27
+## [1.5.0] - 2026-07-27
 
+### Added
+- **Enterprise Knowledge Base & RAG Engine**: Added 4 new modular Clean Architecture projects (`OCAP.Knowledge.Domain`, `OCAP.Knowledge.Abstractions`, `OCAP.Knowledge.Application`, `OCAP.Knowledge.Infrastructure`).
+- **Domain Model (DDD)**: Aggregate Root (`KnowledgeBase`), Entities (`KnowledgeDocument`, `KnowledgeChunk`, `DocumentProcessingJob`, `DocumentPermission`), Value Objects (`EmbeddingVector`, `DocumentVersion`, `DocumentMetadata`, `KnowledgeSearchResult`), and Enums (`DocumentType`, `DocumentStatus`, `KnowledgeSource`, `DocumentCategory`, `ChunkingStrategy`, `VectorDbProviderType`, `SearchStrategyType`).
+- **Document Parsers**: Universal multi-format parser (`IDocumentParser`) with native support for PDF, DOCX, TXT, Markdown, CSV, JSON, HTML, and XML with SHA256 digital signature extraction.
+- **Chunking Engine**: Configurable strategies (`SentenceChunker`, `ParagraphChunker`, `SemanticChunker`, `SlidingWindowChunker`) with token window and overlap parameters.
+- **Embeddings Providers**: Provider abstraction (`IEmbeddingProvider`) with implementations for OpenAI, Gemini, and Ollama.
+- **Vector Database Adapters**: Plug-and-play vector storage abstraction (`IVectorDatabase`) supporting PostgreSQL (`pgvector`), `Qdrant`, `ChromaDB`, and `Pinecone`.
+- **Knowledge Retriever & RAG Engine**: Multi-strategy search (`KnowledgeRetriever`) supporting Similarity, Hybrid (Reciprocal Rank Fusion - RRF), Keyword, and Semantic search with strict multi-tenant isolation.
+- **AI & Prompt Builder Integration**: Context-injected dynamic RAG system prompt builder (`IPromptBuilder`) with Top-K snippets and exact source citations.
+- **Workflow Engine Nodes**: Added 6 Knowledge workflow nodes (`KnowledgeSearch`, `SemanticSearch`, `RetrieveContext`, `AskKnowledgeBase`, `DocumentUpload`, `Reindex`).
+- **Blazor Dashboard SPA**: 6 Blazor WASM management pages (`KnowledgeIndex`, `Documents`, `Uploads`, `SearchPlayground`, `EmbeddingsConfig`, `VectorDbStatus`) with main menu navigation integration.
+- **API Endpoints**: Gateway controller (`KnowledgeController`) with upload, search, document management, reindexing, and vector status endpoints.
+- **Testing & Documentation**: Suite of unit tests (`OCAP.Knowledge.Tests`) and 7 architecture/RAG documentation guides under `docs/knowledge/`.
+
+## [1.4.0] - 2026-07-27
+
+### Added
+- Visual Workflow Builder (`OCAP.Workflow.Designer`) inside the Dashboard.
+- Drag-and-drop interactive canvas for building workflow graphs using Blazor.
+- Property Inspector with two-way data binding for dynamic node configuration.
+- API endpoints integration for validating, saving, and executing visual workflows from the Dashboard.
+- Workflow Designer DTOs (`WorkflowDesignerSaveRequest`, `WorkflowValidationResult`) and Models (`VisualNode`, `VisualEdge`, `VisualWorkflowGraph`).
+
+## [1.3.1] - 2026-07-27
 ### Fixed
 - Fixed EF Core constructor binding in `WorkflowExecution` aggregate root to ensure parameterless private hydration constructor.
 - Resolved constructor parameter warning CS8618 in `User`, `Session`, and `Message` core entities.

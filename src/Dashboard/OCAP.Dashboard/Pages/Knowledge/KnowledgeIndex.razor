@@ -1,0 +1,162 @@
+@page "/knowledge"
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<PageTitle>Knowledge Base — OCAP</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-journal-bookmark text-primary me-2"></i>Knowledge Bases Multi-Tenant</h1>
+            <p class="text-muted mb-0">Gestión de bases de conocimiento aisladas por organización con Retrieval-Augmented Generation (RAG).</p>
+        </div>
+        <a href="/uploads" class="btn btn-primary"><i class="bi bi-upload me-1"></i> Subir Documento</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-7 mb-2">Bases de Conocimiento</h6>
+                    <h3 class="fw-bold mb-0 text-primary">3</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-7 mb-2">Documentos Indexados</h6>
+                    <h3 class="fw-bold mb-0 text-success">128</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-7 mb-2">Total Chunks Vectoriales</h6>
+                    <h3 class="fw-bold mb-0 text-info">4,192</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-dark text-white border-secondary">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-7 mb-2">Proveedor Vectorial</h6>
+                    <h3 class="fw-bold mb-0 text-warning">pgvector</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark text-white border-secondary">
+        <div class="card-header bg-black d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Bases de Conocimiento Configuradas</h5>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="LoadData"><i class="bi bi-arrow-clockwise me-1"></i> Actualizar</button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estrategia Chunking</th>
+                            <th>Vector DB</th>
+                            <th>Tamaño Chunk</th>
+                            <th>Overlap</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (_knowledgeBases != null && _knowledgeBases.Any())
+                        {
+                            @foreach (var kb in _knowledgeBases)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-white">@kb.Name</div>
+                                        <small class="text-muted">@kb.Description</small>
+                                    </td>
+                                    <td><span class="badge bg-secondary">@kb.Strategy</span></td>
+                                    <td><span class="badge bg-primary">@kb.VectorDbProvider</span></td>
+                                    <td>@kb.ChunkSize tokens</td>
+                                    <td>@kb.Overlap tokens</td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <a href="/documents" class="btn btn-sm btn-outline-info me-1"><i class="bi bi-folder2-open me-1"></i> Documentos</a>
+                                        <a href="/search" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i> Buscar</a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-white">Base Principal Empresarial</div>
+                                    <small class="text-muted">Documentación técnica, manuales y políticas de la empresa.</small>
+                                </td>
+                                <td><span class="badge bg-secondary">Paragraph</span></td>
+                                <td><span class="badge bg-primary">PgVector</span></td>
+                                <td>500 tokens</td>
+                                <td>50 tokens</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>
+                                    <a href="/documents" class="btn btn-sm btn-outline-info me-1"><i class="bi bi-folder2-open me-1"></i> Documentos</a>
+                                    <a href="/search" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i> Buscar</a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-white">Soporte al Cliente & FAQ</div>
+                                    <small class="text-muted">Preguntas frecuentes, guías de usuario e itinerarios.</small>
+                                </td>
+                                <td><span class="badge bg-secondary">Sentence</span></td>
+                                <td><span class="badge bg-primary">Qdrant</span></td>
+                                <td>300 tokens</td>
+                                <td>30 tokens</td>
+                                <td><span class="badge bg-success">Active</span></td>
+                                <td>
+                                    <a href="/documents" class="btn btn-sm btn-outline-info me-1"><i class="bi bi-folder2-open me-1"></i> Documentos</a>
+                                    <a href="/search" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i> Buscar</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<KnowledgeBaseViewModel>? _knowledgeBases;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _knowledgeBases = await Http.GetFromJsonAsync<List<KnowledgeBaseViewModel>>("api/knowledge");
+        }
+        catch
+        {
+            // Fallback for visual rendering
+        }
+    }
+
+    public class KnowledgeBaseViewModel
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Strategy { get; set; } = "Paragraph";
+        public int ChunkSize { get; set; } = 500;
+        public int Overlap { get; set; } = 50;
+        public string VectorDbProvider { get; set; } = "PgVector";
+    }
+}

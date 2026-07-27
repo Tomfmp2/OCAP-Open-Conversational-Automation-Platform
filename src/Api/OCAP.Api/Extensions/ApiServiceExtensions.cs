@@ -102,6 +102,8 @@ public static class ApiServiceExtensions
         services.AddSingleton<IWorkflowNode, ErrorHandlerNode>();
 
         services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
+        services.AddSingleton<IWorkflowValidator, WorkflowValidator>();
+        services.AddSingleton<IWorkflowDesignerMapper, WorkflowDesignerMapper>();
 
         // Swagger / OpenAPI habilitado únicamente en desarrollo.
         services.AddSwaggerGen(c =>

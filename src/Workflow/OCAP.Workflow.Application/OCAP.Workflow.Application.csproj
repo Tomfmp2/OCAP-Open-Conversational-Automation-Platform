@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\OCAP.Workflow.Abstractions\OCAP.Workflow.Abstractions.csproj" />
@@ -6,6 +6,9 @@
     <ProjectReference Include="..\..\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
     <ProjectReference Include="..\..\Modules\OCAP.Agents.Abstractions\OCAP.Agents.Abstractions.csproj" />
+    <ProjectReference Include="..\OCAP.Workflow.Designer\OCAP.Workflow.Designer.csproj" />
+    <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Abstractions\OCAP.Knowledge.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Application\OCAP.Knowledge.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -84,6 +84,7 @@
   <Folder Name="/src/Workflow/">
     <Project Path="src/Workflow/OCAP.Workflow.Abstractions/OCAP.Workflow.Abstractions.csproj" />
     <Project Path="src/Workflow/OCAP.Workflow.Application/OCAP.Workflow.Application.csproj" />
+    <Project Path="src/Workflow/OCAP.Workflow.Designer/OCAP.Workflow.Designer.csproj" />
     <Project Path="src/Workflow/OCAP.Workflow.Domain/OCAP.Workflow.Domain.csproj" />
     <Project Path="src/Workflow/OCAP.Workflow.Infrastructure/OCAP.Workflow.Infrastructure.csproj" />
   </Folder>
@@ -99,5 +100,13 @@
     <Project Path="tests/OCAP.Tools.Tests/OCAP.Tools.Tests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />
     <Project Path="tests/OCAP.Workflow.Tests/OCAP.Workflow.Tests.csproj" />
+    <Project Path="tests/OCAP.Workflow.Designer.Tests/OCAP.Workflow.Designer.Tests.csproj" />
+    <Project Path="tests/OCAP.Knowledge.Tests/OCAP.Knowledge.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Knowledge/">
+    <Project Path="src/Knowledge/OCAP.Knowledge.Abstractions/OCAP.Knowledge.Abstractions.csproj" />
+    <Project Path="src/Knowledge/OCAP.Knowledge.Application/OCAP.Knowledge.Application.csproj" />
+    <Project Path="src/Knowledge/OCAP.Knowledge.Domain/OCAP.Knowledge.Domain.csproj" />
+    <Project Path="src/Knowledge/OCAP.Knowledge.Infrastructure/OCAP.Knowledge.Infrastructure.csproj" />
   </Folder>
 </Solution>

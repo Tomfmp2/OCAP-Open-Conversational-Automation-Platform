@@ -9,6 +9,11 @@ public class SystemPromptBuilder : IPromptBuilder
 {
     public PromptTemplate BuildPrompt(Agent agent, string userMessage, ConversationContext? context, IReadOnlyCollection<ITool>? availableTools)
     {
+        return BuildPromptWithKnowledge(agent, userMessage, context, availableTools, null);
+    }
+
+    public PromptTemplate BuildPromptWithKnowledge(Agent agent, string userMessage, ConversationContext? context, IReadOnlyCollection<ITool>? availableTools, IReadOnlyCollection<string>? knowledgeSnippets)
+    {
         if (agent == null) throw new ArgumentNullException(nameof(agent));
 
         var sbTools = new StringBuilder();
@@ -25,7 +30,19 @@ public class SystemPromptBuilder : IPromptBuilder
             sbTools.AppendLine("No hay herramientas externas configuradas para este agente.");
         }
 
-        var systemPromptText = $"{agent.Configuration.SystemPrompt}\n\n{sbTools}";
+        var sbRag = new StringBuilder();
+        if (knowledgeSnippets != null && knowledgeSnippets.Any())
+        {
+            sbRag.AppendLine("\n--- CONTEXTO DE BASE DE CONOCIMIENTO (RAG) ---");
+            int index = 1;
+            foreach (var snippet in knowledgeSnippets)
+            {
+                sbRag.AppendLine($"[Fuente {index++}]: {snippet}");
+            }
+            sbRag.AppendLine("Utiliza este contexto relevante para responder con precisión indicando las citas correspondientes.");
+        }
+
+        var systemPromptText = $"{agent.Configuration.SystemPrompt}\n\n{sbTools}{sbRag}";
 
         var template = new PromptTemplate
         {

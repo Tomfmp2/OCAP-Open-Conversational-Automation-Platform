@@ -1,0 +1,169 @@
+@using OCAP.Workflow.Designer.Models
+@using OCAP.Workflow.Designer.Metadata
+
+<div class="property-inspector bg-dark text-white border-start border-secondary p-3" style="width: 300px; height: 100vh; overflow-y: auto;">
+    <div class="border-bottom border-secondary pb-2 mb-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold">Properties</h5>
+        @if (SelectedNode != null)
+        {
+            <span class="badge bg-primary">@SelectedNode.Type</span>
+        }
+    </div>
+
+    @if (SelectedNode == null)
+    {
+        <div class="text-center text-muted mt-5">
+            <i class="bi bi-mouse2 fs-1 mb-2 d-block"></i>
+            <p>Select a node to view properties</p>
+        </div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label class="form-label text-muted small">Node Name</label>
+            <input type="text" class="form-control bg-black text-white border-secondary" @bind="SelectedNode.Name" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label text-muted small">Step ID</label>
+            <input type="text" class="form-control bg-black text-white border-secondary" value="@SelectedNode.StepId" disabled />
+        </div>
+
+        <hr class="border-secondary my-4" />
+
+        <h6 class="fw-bold mb-3">Configuration</h6>
+
+        @if (NodeMetadata != null && NodeMetadata.Properties.Any())
+        {
+            @foreach (var prop in NodeMetadata.Properties)
+            {
+                <div class="mb-3">
+                    <label class="form-label text-muted small">
+                        @prop.DisplayName
+                        @if (prop.IsRequired)
+                        {
+                            <span class="text-danger ms-1">*</span>
+                        }
+                    </label>
+                    
+                    @if (prop.Type == "string" || prop.Type == "expression")
+                    {
+                        <input type="text" class="form-control bg-black text-white border-secondary" 
+                               placeholder="@prop.DefaultValue" 
+                               value="@GetConfigValue(prop.Name)" 
+                               @onchange="@(e => UpdateConfigValue(prop.Name, e.Value?.ToString()))" />
+                        @if (prop.Type == "expression")
+                        {
+                            <div class="form-text text-info small"><i class="bi bi-code-slash me-1"></i>Supports expressions</div>
+                        }
+                    }
+                    else if (prop.Type == "boolean")
+                    {
+                        <div class="form-check form-switch">
+                            <input class="form-check-input bg-secondary border-secondary" type="checkbox" role="switch"
+                                   checked="@(GetConfigValue(prop.Name) == "true")"
+                                   @onchange="@(e => UpdateConfigValue(prop.Name, ((bool)(e.Value ?? false)).ToString().ToLower()))" />
+                        </div>
+                    }
+                    else if (prop.Type == "options" && prop.Options != null)
+                    {
+                        <select class="form-select bg-black text-white border-secondary"
+                                value="@GetConfigValue(prop.Name)"
+                                @onchange="@(e => UpdateConfigValue(prop.Name, e.Value?.ToString()))">
+                            <option value="">-- Select --</option>
+                            @foreach (var opt in prop.Options)
+                            {
+                                <option value="@opt">@opt</option>
+                            }
+                        </select>
+                    }
+                    else if (prop.Type == "json")
+                    {
+                        <textarea class="form-control bg-black text-white border-secondary font-monospace" rows="4"
+                                  value="@GetConfigValue(prop.Name)"
+                                  @onchange="@(e => UpdateConfigValue(prop.Name, e.Value?.ToString()))"></textarea>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="mb-3">
+                <label class="form-label text-muted small">Raw JSON Configuration</label>
+                <textarea class="form-control bg-black text-white border-secondary font-monospace" rows="10" 
+                          value="@SelectedNode.ConfigurationJson"
+                          @onchange="@(e => SelectedNode.ConfigurationJson = e.Value?.ToString() ?? "{}")"></textarea>
+            </div>
+        }
+        
+        <div class="mt-4 pt-3 border-top border-secondary text-end">
+            <button class="btn btn-sm btn-outline-danger" @onclick="OnDeleteClicked"><i class="bi bi-trash me-1"></i>Delete Node</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public VisualNode? SelectedNode { get; set; }
+
+    [Parameter]
+    public NodeMetadata? NodeMetadata { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnDeleteNodeEvent { get; set; }
+
+    private Dictionary<string, string> _configValues = new();
+    private string _lastNodeId = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedNode != null && SelectedNode.Id != _lastNodeId)
+        {
+            _lastNodeId = SelectedNode.Id;
+            LoadConfig();
+        }
+    }
+
+    private void LoadConfig()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(SelectedNode?.ConfigurationJson) || SelectedNode.ConfigurationJson == "{}")
+            {
+                _configValues = new();
+            }
+            else
+            {
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(SelectedNode.ConfigurationJson);
+                _configValues = dict?.ToDictionary(k => k.Key, v => v.Value?.ToString() ?? "") ?? new();
+            }
+        }
+        catch
+        {
+            _configValues = new();
+        }
+    }
+
+    private string GetConfigValue(string key)
+    {
+        return _configValues.TryGetValue(key, out var val) ? val : "";
+    }
+
+    private void UpdateConfigValue(string key, string? value)
+    {
+        if (value == null) return;
+        _configValues[key] = value;
+        if (SelectedNode != null)
+        {
+            SelectedNode.ConfigurationJson = System.Text.Json.JsonSerializer.Serialize(_configValues);
+        }
+    }
+
+    private async Task OnDeleteClicked()
+    {
+        if (SelectedNode != null)
+        {
+            await OnDeleteNodeEvent.InvokeAsync(SelectedNode.Id);
+        }
+    }
+}

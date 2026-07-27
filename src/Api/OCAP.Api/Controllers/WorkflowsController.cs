@@ -3,7 +3,9 @@ using OCAP.Api.Models.Workflow;
 using OCAP.Workflow.Abstractions;
 using OCAP.Workflow.Domain.Entities;
 using OCAP.Workflow.Domain.Enums;
-
+using OCAP.Workflow.Application.Services;
+using OCAP.Workflow.Designer.Models;
+using OCAP.Workflow.Designer.DTOs;
 namespace OCAP.Api.Controllers;
 
 [ApiController]
@@ -11,10 +13,17 @@ namespace OCAP.Api.Controllers;
 public class WorkflowsController : ControllerBase
 {
     private readonly IWorkflowEngine _workflowEngine;
+    private readonly IWorkflowValidator _workflowValidator;
+    private readonly IWorkflowDesignerMapper _workflowDesignerMapper;
 
-    public WorkflowsController(IWorkflowEngine workflowEngine)
+    public WorkflowsController(
+        IWorkflowEngine workflowEngine,
+        IWorkflowValidator workflowValidator,
+        IWorkflowDesignerMapper workflowDesignerMapper)
     {
         _workflowEngine = workflowEngine ?? throw new ArgumentNullException(nameof(workflowEngine));
+        _workflowValidator = workflowValidator ?? throw new ArgumentNullException(nameof(workflowValidator));
+        _workflowDesignerMapper = workflowDesignerMapper ?? throw new ArgumentNullException(nameof(workflowDesignerMapper));
     }
 
     [HttpGet]
@@ -107,6 +116,42 @@ public class WorkflowsController : ControllerBase
         var dto = new WorkflowExecutionDto(
             execution.Id, execution.WorkflowDefinitionId, execution.TenantId, execution.UserId, execution.AgentId,
             execution.CurrentStepId, execution.Status.ToString(), execution.StartedAtUtc, execution.CompletedAtUtc, execution.OutputJson, execution.ErrorMessage
+        );
+
+        return Ok(dto);
+    }
+
+    [HttpPost("designer/validate")]
+    public ActionResult<WorkflowValidationResult> ValidateWorkflow([FromBody] VisualWorkflowGraph graph)
+    {
+        var result = _workflowValidator.Validate(graph);
+        return Ok(result);
+    }
+
+    [HttpPost("designer/save")]
+    public ActionResult<WorkflowDefinitionDto> SaveWorkflow([FromBody] VisualWorkflowGraph graph)
+    {
+        var validationResult = _workflowValidator.Validate(graph);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(validationResult);
+        }
+
+        var tenantId = Guid.NewGuid(); // Simplified for mock
+        var definition = _workflowDesignerMapper.MapToDomain(graph, tenantId);
+
+        // Here it would typically save the definition to the database and generate a version.
+        // For now we just return a dto.
+
+        var dto = new WorkflowDefinitionDto(
+            definition.Id,
+            definition.TenantId,
+            definition.Name,
+            definition.Description,
+            definition.CurrentVersion,
+            definition.Status.ToString(),
+            definition.Steps.Count,
+            definition.CreatedAtUtc
         );
 
         return Ok(dto);
