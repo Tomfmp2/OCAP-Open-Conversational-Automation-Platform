@@ -1,7 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
+    <ProjectReference Include="..\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.10" />
   </ItemGroup>
 
   <PropertyGroup>

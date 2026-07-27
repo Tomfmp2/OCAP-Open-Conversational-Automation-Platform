@@ -1,6 +1,8 @@
 using OCAP.Api.Extensions;
 using OCAP.Api.Middlewares;
 using OCAP.Application.Extensions;
+using OCAP.Channels.Abstractions.Extensions;
+using OCAP.Channels.WhatsApp.Extensions;
 using OCAP.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +19,10 @@ builder.Services.AddApplicationServices();
 
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Registra la arquitectura de canales y el canal de WhatsApp Evolution API.
+builder.Services.AddChannels(builder.Configuration);
+builder.Services.AddWhatsAppChannel(builder.Configuration);
 
 // Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting.
 builder.Services.AddApiServices(builder.Configuration);

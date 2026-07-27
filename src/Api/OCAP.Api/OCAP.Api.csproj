@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\Providers\OCAP.Providers.S3\OCAP.Providers.S3.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.GoogleDrive\OCAP.Providers.GoogleDrive.csproj" />
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
