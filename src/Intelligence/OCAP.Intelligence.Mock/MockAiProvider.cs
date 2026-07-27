@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using OCAP.Agents.Domain.Entities;
 using OCAP.Intelligence.Abstractions;
@@ -8,6 +9,8 @@ namespace OCAP.Intelligence.Mock;
 // Proveedor mock de Inteligencia Artificial para ejecución de pruebas sin servicios externos.
 public class MockAiProvider : IAiProvider
 {
+    public string Name => "MockAI";
+
     public Task<AiResponse> GenerateResponseAsync(AiRequest request, CancellationToken cancellationToken = default)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -46,6 +49,19 @@ public class MockAiProvider : IAiProvider
         };
 
         return Task.FromResult(response);
+    }
+
+    public async IAsyncEnumerable<string> StreamResponseAsync(AiRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var fullResponse = (await GenerateResponseAsync(request, cancellationToken)).GeneratedText;
+        var words = fullResponse.Split(' ');
+
+        foreach (var word in words)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return word + " ";
+            await Task.Delay(10, cancellationToken);
+        }
     }
 
     public Task<Intent> AnalyzeIntentAsync(string message, CancellationToken cancellationToken = default)
@@ -97,7 +113,26 @@ public class MockAiProvider : IAiProvider
             Provider = "MockAI",
             Model = "mock-gpt-4o",
             ContextSize = 8192,
-            Capabilities = new List<string> { "text-generation", "intent-analysis", "structured-data" }
+            Capabilities = new List<string> { "text-generation", "intent-analysis", "structured-data", "streaming" }
         };
+    }
+
+    public Task<ProviderHealth> HealthAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new ProviderHealth
+        {
+            ProviderName = Name,
+            IsHealthy = true,
+            LatencyMs = 5.0,
+            ModelList = new List<string> { "mock-gpt-4o", "mock-gpt-3.5-turbo" },
+            Version = "v1.2.0",
+            StatusMessage = "Mock Provider Operativo"
+        });
+    }
+
+    public Task<IReadOnlyList<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<string> models = new List<string> { "mock-gpt-4o", "mock-gpt-3.5-turbo" };
+        return Task.FromResult(models);
     }
 }

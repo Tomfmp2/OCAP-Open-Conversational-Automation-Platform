@@ -32,6 +32,9 @@
     <ProjectReference Include="..\..\src\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Tools\OCAP.Tools.Google\OCAP.Tools.Google.csproj" />
     <ProjectReference Include="..\..\src\Providers\Google\OCAP.Providers.Google.Calendar\OCAP.Providers.Google.Calendar.csproj" />
+    <ProjectReference Include="..\..\src\Providers\OCAP.Providers.OpenAI\OCAP.Providers.OpenAI.csproj" />
+    <ProjectReference Include="..\..\src\Providers\OCAP.Providers.Gemini\OCAP.Providers.Gemini.csproj" />
+    <ProjectReference Include="..\..\src\Providers\OCAP.Providers.Ollama\OCAP.Providers.Ollama.csproj" />
   </ItemGroup>
 
 </Project>

@@ -15,8 +15,7 @@ public class PasswordHasher : IPasswordHasher
         if (string.IsNullOrWhiteSpace(password)) throw new ArgumentException("La contraseña no puede ser vacía.", nameof(password));
 
         byte[] saltBytes = RandomNumberGenerator.GetBytes(SaltSize);
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, Iterations, HashAlgorithmName.SHA256);
-        byte[] hashBytes = pbkdf2.GetBytes(HashSize);
+        byte[] hashBytes = Rfc2898DeriveBytes.Pbkdf2(password, saltBytes, Iterations, HashAlgorithmName.SHA256, HashSize);
 
         return (Convert.ToBase64String(hashBytes), Convert.ToBase64String(saltBytes));
     }
@@ -29,8 +28,7 @@ public class PasswordHasher : IPasswordHasher
         byte[] saltBytes = Convert.FromBase64String(salt);
         byte[] expectedHashBytes = Convert.FromBase64String(hash);
 
-        using var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, Iterations, HashAlgorithmName.SHA256);
-        byte[] actualHashBytes = pbkdf2.GetBytes(HashSize);
+        byte[] actualHashBytes = Rfc2898DeriveBytes.Pbkdf2(password, saltBytes, Iterations, HashAlgorithmName.SHA256, HashSize);
 
         return CryptographicOperations.FixedTimeEquals(actualHashBytes, expectedHashBytes);
     }

@@ -1,94 +1,63 @@
-# OCAP — Política de Versionamiento y Gestión de Releases
+# Estándar de Versionado y Ciclo de Lanzamiento de OCAP
 
 ## Visión General
-
-Este documento establece la política obligatoria de control de versiones, estándares de commit y ciclo de lanzamientos (*releases*) para la plataforma **Open Conversational Automation Platform (OCAP)**.
-
-Todos los contribuyentes y agentes de desarrollo deben adherirse estrictamente a estas reglas en cada fase del proyecto.
+El proyecto **OCAP (Open Conversational Automation Platform)** sigue estrictamente los estándares internacionales de la industria de software para la gestión de versiones, cambios e historial de publicación.
 
 ---
 
-## 1. Semantic Versioning (SemVer 2.0.0)
+## 1. Semantic Versioning 2.0.0 (SemVer)
+El número de versión se representa en el formato de tres componentes:
 
-OCAP sigue la especificación de **[Semantic Versioning](https://semver.org/)** con el formato `MAJOR.MINOR.PATCH`:
+$$\text{MAJOR}.\text{MINOR}.\text{PATCH}$$
 
-- **MAJOR (`X.0.0`)**: Cambios incompatibles en la API, reestructuración profunda de la arquitectura o entregas principales de la plataforma.
-- **MINOR (`0.X.0`)**: Incorporación de nuevas funcionalidades, nuevos adaptadores o módulos manteniendo compatibilidad hacia atrás.
-- **PATCH (`0.0.X`)**: Correcciones de errores (*bugfixes*), refactorizaciones internas menores o parches de seguridad.
-
----
-
-## 2. Conventional Commits
-
-Todos los commits del repositorio deben utilizar la convención **[Conventional Commits 1.0.0](https://www.conventionalcommits.org/)**:
-
-### Formato
-```text
-<tipo>(<alcance opcional>): <descripción corta>
-
-[cuerpo opcional]
-
-[nota de cambio rompedor opcional]
-```
-
-### Tipos Permitidos
-- `feat`: Nueva funcionalidad agregada a la plataforma.
-- `fix`: Corrección de un error o bug.
-- `docs`: Modificaciones únicamente en la documentación.
-- `refactor`: Cambios de código que no corrigen un bug ni agregan una funcionalidad.
-- `test`: Adición o corrección de pruebas unitarias o de integración.
-- `chore`: Tareas de mantenimiento, configuración de build o dependencias.
+- **MAJOR**: Incrementado ante cambios incompatibles en la API pública, contratos de dominio o arquitectura breaking changes (ej. `v1.0.0`).
+- **MINOR**: Incrementado ante la adición de nuevas funcionalidades, módulos o adaptadores compatibles con versiones anteriores (ej. `v1.1.0`, `v1.2.0`).
+- **PATCH**: Incrementado ante correcciones de errores, parches de seguridad o parches de calidad completamente retrocompatibles (ej. `v0.4.1`).
 
 ---
 
-## 3. Git Tags
+## 2. Convención de Commits (Conventional Commits 1.0.0)
+Todos los commits en el repositorio Git deben seguir la sintaxis de mensajes estructurados:
 
-Cada versión publicada debe estar asociada a una etiqueta anotada (*annotated Git Tag*) en el repositorio con el prefijo `v`:
+$$\text{tipo}(\text{alcance opcional}): \text{descripción en minúsculas sin punto final}$$
 
-```bash
-git tag -a v1.0.0 -m "OCAP Generative AI Engine Foundation Release"
-```
-
----
-
-## 4. Keep a Changelog
-
-El archivo `CHANGELOG.md` en la raíz del proyecto es la fuente única de verdad para el historial de cambios.
-
-### Reglas Obligatorias:
-1. El archivo se mantiene siguiendo el estándar **[Keep a Changelog](https://keepachangelog.com/en/1.1.0/)**.
-2. Cada nueva versión se agrega inmediatamente **encima de la versión anterior**.
-3. **Nunca se elimina ni se sobreescribe** el historial de versiones pasadas.
-4. Las secciones utilizadas para cada versión son:
-   - `### Added` (Nuevas funcionalidades)
-   - `### Changed` (Modificaciones a código existente)
-   - `### Deprecated` (Funcionalidades marcadas para desuso)
-   - `### Removed` (Funcionalidades eliminadas)
-   - `### Fixed` (Correcciones de errores)
-   - `### Security` (Parches de seguridad)
-   - `### Documentation` (Cambios significativos en docs)
+### Tipos de Commit Permitidos:
+- `feat`: Nuevas características o capacidades agregadas al sistema.
+- `fix`: Corrección de errores en código de producción.
+- `docs`: Cambios o adiciones exclusivas a archivos de documentación (`.md`).
+- `test`: Adición o refactorización de suites de prueba unitarias o de integración.
+- `refactor`: Cambios en código que ni corrigen errores ni agregan características.
+- `chore`: Tareas de mantenimiento, actualización de dependencias o scripts de compilación.
 
 ---
 
-## 5. Flujo de Publicación de Futuras Versiones (Release Workflow)
+## 3. Registro en CHANGELOG.md (Keep a Changelog 1.1.0)
+Cada lanzamiento o tagging de versión requiere la actualización del archivo `CHANGELOG.md` en la raíz del proyecto. El archivo agrupa los cambios bajo las siguientes secciones estandarizadas:
 
-Al finalizar el desarrollo de cualquier nueva fase o versión del proyecto, es **obligatorio** ejecutar el siguiente flujo en orden:
+- `### Added`: Nuevas funcionalidades introducidas.
+- `### Changed`: Modificaciones en funcionalidades existentes.
+- `### Deprecated`: Funcionalidades que serán removidas en versiones futuras.
+- `### Removed`: Funcionalidades eliminadas.
+- `### Fixed`: Corrección de errores.
+- `### Security`: Mejoras o vulnerabilidades corregidas.
+- `### Documentation`: Cambios y creaciones en la documentación.
 
-```text
-1. Desarrollo & Pruebas Completadas (dotnet build & dotnet test en 100%)
-                   │
-                   ▼
-2. Actualización de CHANGELOG.md con la nueva sección ## [X.Y.Z]
-                   │
-                   ▼
-3. Actualización de la documentación correspondiente en /docs
-                   │
-                   ▼
-4. Creación del Commit Convencional (git commit -m "tipo(scope): descripción")
-                   │
-                   ▼
-5. Creación del Tag Git Anotado (git tag -a vX.Y.Z -m "Mensaje de Release")
-                   │
-                   ▼
-6. Verificación de Historial (git log -1 & git tag -l)
-```
+---
+
+## 4. Historial de Versiones Publicadas de OCAP
+
+| Versión | Nombre del Hito | Descripción Clave |
+| :--- | :--- | :--- |
+| `v0.1.0` | Architecture Foundation | Base de Arquitectura Hexagonal y Modular Monolith |
+| `v0.2.0` | Core Conversational Engine | Entidades puras del dominio conversacional y casos de uso |
+| `v0.3.0` | Persistence Foundation | Integración de EF Core con PostgreSQL |
+| `v0.4.0` | API Gateway Foundation | Gateway HTTP REST, controladores DTO y Swagger |
+| `v0.4.1` | API Quality Foundation | Middleware de excepciones, Rate Limiting y tests de integración |
+| `v0.5.0` | Channel Architecture Foundation | Arquitectura agnóstica de canales con router desacoplado |
+| `v0.6.0` | WhatsApp Evolution API Adapter | Adaptador nativo para el canal de WhatsApp Evolution API |
+| `v0.7.0` | Agent Engine Foundation | Motor base de agentes conversacionales e intenciones |
+| `v0.8.0` | Tool Execution & Google Workspace | Sistema extensible de herramientas y suite Google Workspace |
+| `v0.9.0` | Dashboard & Deployment Manager | Panel Blazor WASM y CLI de autohospedaje automatizado |
+| `v1.0.0` | Generative AI Engine Foundation | Motor agnóstico de IA Generativa y Prompts dinámicos |
+| `v1.1.0` | Identity & Multi-Tenant Security | Autenticación JWT, RBAC granular, API Keys y Multi-Tenant |
+| `v1.2.0` | AI Provider Integration & Orchestration | Adaptadores OpenAI, Gemini, Ollama, Failover y Streaming SSE |

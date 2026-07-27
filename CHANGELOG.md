@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-27
+
+### Added
+- Complete AI Provider Integration & Intelligent Orchestration (`OCAP.Providers.OpenAI`, `OCAP.Providers.Gemini`, `OCAP.Providers.Ollama`, `OCAP.Intelligence.Application`).
+- Production-ready `OpenAiProvider` with Chat Completions, SSE Streaming, JSON Response format, Timeouts, and Retries via `IHttpClientFactory`.
+- Official `GeminiAiProvider` integrating Google Gemini REST API with Safety Settings, System Instructions, and SSE Streaming.
+- Self-Hosted `OllamaAiProvider` compatible with localhost, Docker containers, and remote servers with Model Discovery (`/api/tags`).
+- Intelligent AI Provider Orchestrator (`AiProviderSelector`) with dynamic selection based on priority, availability, cost, latency, and automatic Failover.
+- In-memory AI Response Caching (`InMemoryAiResponseCache`) with configurable TTL for prompt reuse and latency reduction.
+- Full Server-Sent Events (SSE) streaming support via `IAsyncEnumerable<string>` across API Gateway and Dashboard.
+- API Endpoints for AI Providers (`GET /api/providers`, `GET /api/providers/status`, `GET /api/providers/models`, `POST /api/providers/select`, `POST /api/providers/test`, `POST /api/providers/stream`).
+- Dashboard SPA page in Blazor WebAssembly (`Pages/Providers.razor`) for real-time model configuration, failover policies, streaming control, and prompt testing.
+- Unit and integration tests for OpenAI, Gemini, Ollama, Provider Selector, and Streaming in `tests/OCAP.Intelligence.Tests`.
+
+### Documentation
+- AI Provider, Selector, and Streaming documentation in `docs/providers/OPENAI.md`, `GEMINI.md`, `OLLAMA.md`, `PROVIDER_SELECTOR.md`, `STREAMING.md`.
+
 ## [1.1.0] - 2026-07-27
 
 ### Added

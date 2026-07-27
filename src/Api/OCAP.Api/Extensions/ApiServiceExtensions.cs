@@ -8,6 +8,9 @@ using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
 using OCAP.Intelligence.Mock;
 using OCAP.Prompts;
+using OCAP.Providers.Gemini;
+using OCAP.Providers.Ollama;
+using OCAP.Providers.OpenAI;
 using OCAP.Security.Abstractions;
 using OCAP.Security.Application.UseCases;
 using OCAP.Security.Infrastructure.Services;
@@ -24,6 +27,10 @@ public static class ApiServiceExtensions
         services.AddControllers();
         services.AddEndpointsApiExplorer();
 
+        // Registrar Caché en Memoria
+        services.AddMemoryCache();
+        services.AddSingleton<IAiResponseCache, InMemoryAiResponseCache>();
+
         // Registrar servicios de Seguridad, Autenticación y Multi-Tenant.
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenService>(sp => new JwtTokenService(
@@ -35,13 +42,44 @@ public static class ApiServiceExtensions
         services.AddScoped<CreateTenantUseCase>();
         services.AddScoped<CreateApiKeyUseCase>();
 
-        // Registrar servicios de Inteligencia Artificial Generativa y Prompts.
+        // Registrar clientes HTTP y proveedores de IA Generativa.
+        services.AddHttpClient<OpenAiProvider>();
+        services.AddHttpClient<GeminiAiProvider>();
+        services.AddHttpClient<OllamaAiProvider>();
+
+        var openAiSettings = new AiProviderSettings
+        {
+            ApiKey = configuration["AiProviders:OpenAI:ApiKey"] ?? string.Empty,
+            BaseUrl = configuration["AiProviders:OpenAI:BaseUrl"] ?? "https://api.openai.com/v1",
+            ModelName = configuration["AiProviders:OpenAI:ModelName"] ?? "gpt-4o"
+        };
+
+        var geminiSettings = new AiProviderSettings
+        {
+            ApiKey = configuration["AiProviders:Gemini:ApiKey"] ?? string.Empty,
+            ModelName = configuration["AiProviders:Gemini:ModelName"] ?? "gemini-1.5-flash"
+        };
+
+        var ollamaSettings = new AiProviderSettings
+        {
+            BaseUrl = configuration["AiProviders:Ollama:BaseUrl"] ?? "http://localhost:11434",
+            ModelName = configuration["AiProviders:Ollama:ModelName"] ?? "llama3"
+        };
+
+        services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(sp.GetRequiredService<HttpClient>(), openAiSettings));
+        services.AddSingleton<IAiProvider>(sp => new GeminiAiProvider(sp.GetRequiredService<HttpClient>(), geminiSettings));
+        services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(sp.GetRequiredService<HttpClient>(), ollamaSettings));
         services.AddSingleton<IAiProvider, MockAiProvider>();
+
+        // Orquestador inteligente de proveedores
+        services.AddSingleton<IAiProviderSelector, AiProviderSelector>();
+
+        // Prompts y razonamiento
         services.AddSingleton<IPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<IAgentReasoningService, AgentReasoningService>();
         services.AddSingleton<IAiUsageTracker, AiUsageTracker>();
 
-        // Swagger / OpenAPI habilitado únicamente en desarrollo para no exponer la superficie de la API en producción.
+        // Swagger / OpenAPI habilitado únicamente en desarrollo.
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo
@@ -52,10 +90,8 @@ public static class ApiServiceExtensions
             });
         });
 
-        // Health Checks de ASP.NET Core para verificar el estado del servicio.
         services.AddHealthChecks();
 
-        // Enlaza la sección de configuración de CORS a la clase tipada.
         services.Configure<CorsSettings>(configuration.GetSection(CorsSettings.SectionName));
         services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
 
@@ -65,8 +101,6 @@ public static class ApiServiceExtensions
         return services;
     }
 
-    // Configura CORS con orígenes explícitos obtenidos de la configuración.
-    // Nunca se permite AllowAnyOrigin() porque habilita CSRF desde cualquier dominio.
     private static void AddCors(IServiceCollection services, IConfiguration configuration)
     {
         var corsSettings = configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
@@ -78,7 +112,6 @@ public static class ApiServiceExtensions
             {
                 if (corsSettings.AllowedOrigins.Length > 0)
                 {
-                    // Política restrictiva: solo los orígenes configurados explícitamente.
                     policy.WithOrigins(corsSettings.AllowedOrigins)
                           .AllowAnyHeader()
                           .AllowAnyMethod();
@@ -90,15 +123,12 @@ public static class ApiServiceExtensions
                 }
                 else
                 {
-                    // Sin orígenes configurados: bloquear todo CORS por defecto (fail-secure).
                     policy.SetIsOriginAllowed(_ => false);
                 }
             });
         });
     }
 
-    // Configura Rate Limiting por IP para proteger el gateway contra consumo excesivo de recursos.
-    // Usa la ventana fija de ASP.NET Core nativo (sin Polly ni paquetes adicionales).
     private static void AddRateLimiting(IServiceCollection services, IConfiguration configuration)
     {
         var rateLimitSettings = configuration.GetSection(RateLimitingSettings.SectionName).Get<RateLimitingSettings>()
@@ -106,13 +136,11 @@ public static class ApiServiceExtensions
 
         if (!rateLimitSettings.EnableRateLimiting)
         {
-            // Rate limiting deshabilitado: útil en entornos de testing para no interferir con los tests.
             return;
         }
 
         services.AddRateLimiter(options =>
         {
-            // Política de ventana fija: limita peticiones por IP en un período de tiempo.
             options.AddFixedWindowLimiter("IpFixed", limiterOptions =>
             {
                 limiterOptions.PermitLimit = rateLimitSettings.PermitLimit;
@@ -121,7 +149,6 @@ public static class ApiServiceExtensions
                 limiterOptions.QueueLimit = rateLimitSettings.QueueLimit;
             });
 
-            // Responde con 429 Too Many Requests cuando se excede el límite.
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
         });
     }
