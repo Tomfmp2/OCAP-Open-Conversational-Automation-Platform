@@ -52,6 +52,7 @@
     <Project Path="src/Providers/OCAP.Providers.S3/OCAP.Providers.S3.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />
   </Folder>

@@ -30,6 +30,12 @@
     <ProjectReference Include="..\..\Providers\OCAP.Providers.LocalStorage\OCAP.Providers.LocalStorage.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.S3\OCAP.Providers.S3.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.GoogleDrive\OCAP.Providers.GoogleDrive.csproj" />
+    <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
   <PropertyGroup>

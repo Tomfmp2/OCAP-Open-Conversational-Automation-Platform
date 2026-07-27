@@ -11,10 +11,20 @@ public static class InfrastructureServiceExtensions
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var useInMemory = string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase);
 
-        services.AddDbContext<OCAPDbContext>(options =>
-            options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName)));
+        if (useInMemory)
+        {
+            var dbName = configuration["InMemoryDbName"] ?? "OCAP_InMemory_Db";
+            services.AddDbContext<OCAPDbContext>(options =>
+                options.UseInMemoryDatabase(dbName));
+        }
+        else
+        {
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            services.AddDbContext<OCAPDbContext>(options =>
+                options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName)));
+        }
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
