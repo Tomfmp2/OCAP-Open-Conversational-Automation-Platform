@@ -1,0 +1,51 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Api/">
+    <Project Path="src/Api/OCAP.Api/OCAP.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Channels/">
+    <Project Path="src/Channels/OCAP.Channels.Discord/OCAP.Channels.Discord.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.MicrosoftTeams/OCAP.Channels.MicrosoftTeams.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.Slack/OCAP.Channels.Slack.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.Telegram/OCAP.Channels.Telegram.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.WebChat/OCAP.Channels.WebChat.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.WhatsApp/OCAP.Channels.WhatsApp.csproj" />
+  </Folder>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/OCAP.Core/OCAP.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/Dashboard/">
+    <Project Path="src/Dashboard/OCAP.Dashboard/OCAP.Dashboard.csproj" />
+  </Folder>
+  <Folder Name="/src/DeploymentManager/">
+    <Project Path="src/DeploymentManager/OCAP.DeploymentManager/OCAP.DeploymentManager.csproj" />
+  </Folder>
+  <Folder Name="/src/Infrastructure/">
+    <Project Path="src/Infrastructure/OCAP.Infrastructure/OCAP.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/OCAP.Modules.Administration/OCAP.Modules.Administration.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Automation/OCAP.Modules.Automation.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Calendar/OCAP.Modules.Calendar.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Contacts/OCAP.Modules.Contacts.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Conversation/OCAP.Modules.Conversation.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Documents/OCAP.Modules.Documents.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Email/OCAP.Modules.Email.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Knowledge/OCAP.Modules.Knowledge.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Notifications/OCAP.Modules.Notifications.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Settings/OCAP.Modules.Settings.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Tasks/OCAP.Modules.Tasks.csproj" />
+    <Project Path="src/Modules/OCAP.Modules.Users/OCAP.Modules.Users.csproj" />
+  </Folder>
+  <Folder Name="/src/Providers/">
+    <Project Path="src/Providers/OCAP.Providers.Claude/OCAP.Providers.Claude.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.Gemini/OCAP.Providers.Gemini.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.Google/OCAP.Providers.Google.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.GoogleDrive/OCAP.Providers.GoogleDrive.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.LocalStorage/OCAP.Providers.LocalStorage.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.Microsoft365/OCAP.Providers.Microsoft365.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.Ollama/OCAP.Providers.Ollama.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.OpenAI/OCAP.Providers.OpenAI.csproj" />
+    <Project Path="src/Providers/OCAP.Providers.S3/OCAP.Providers.S3.csproj" />
+  </Folder>
+</Solution>

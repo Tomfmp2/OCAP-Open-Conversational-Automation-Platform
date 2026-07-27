@@ -1,0 +1,43 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+*.userprefs
+*.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Environment Variables
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Docker
+docker-data/
+volumes/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+
+# Secrets & Keys
+secrets/
+*.key
+*.pem
+*.pfx
+*.p12
+
+# Publish
+publish/
+out/

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Conversation\OCAP.Modules.Conversation.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Calendar\OCAP.Modules.Calendar.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Email\OCAP.Modules.Email.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Contacts\OCAP.Modules.Contacts.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Tasks\OCAP.Modules.Tasks.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Documents\OCAP.Modules.Documents.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Notifications\OCAP.Modules.Notifications.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Automation\OCAP.Modules.Automation.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Users\OCAP.Modules.Users.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Administration\OCAP.Modules.Administration.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Settings\OCAP.Modules.Settings.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Modules.Knowledge\OCAP.Modules.Knowledge.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.WhatsApp\OCAP.Channels.WhatsApp.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.Telegram\OCAP.Channels.Telegram.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.Discord\OCAP.Channels.Discord.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.Slack\OCAP.Channels.Slack.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.MicrosoftTeams\OCAP.Channels.MicrosoftTeams.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.WebChat\OCAP.Channels.WebChat.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.Google\OCAP.Providers.Google.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.Microsoft365\OCAP.Providers.Microsoft365.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.OpenAI\OCAP.Providers.OpenAI.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.Gemini\OCAP.Providers.Gemini.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.Claude\OCAP.Providers.Claude.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.Ollama\OCAP.Providers.Ollama.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.LocalStorage\OCAP.Providers.LocalStorage.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.S3\OCAP.Providers.S3.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.GoogleDrive\OCAP.Providers.GoogleDrive.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+
+</Project>
