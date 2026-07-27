@@ -17,6 +17,7 @@ public class KnowledgeService
     private readonly IEmbeddingGenerator _embeddingGenerator;
     private readonly IVectorDatabase _vectorDatabase;
     private readonly IKnowledgeRetriever _retriever;
+    private readonly IFileUploadValidator _fileUploadValidator;
     private readonly ILogger<KnowledgeService> _logger;
 
     public KnowledgeService(
@@ -29,6 +30,7 @@ public class KnowledgeService
         IEmbeddingGenerator embeddingGenerator,
         IVectorDatabase vectorDatabase,
         IKnowledgeRetriever retriever,
+        IFileUploadValidator fileUploadValidator,
         ILogger<KnowledgeService> logger)
     {
         _knowledgeBaseRepository = knowledgeBaseRepository ?? throw new ArgumentNullException(nameof(knowledgeBaseRepository));
@@ -40,11 +42,14 @@ public class KnowledgeService
         _embeddingGenerator = embeddingGenerator ?? throw new ArgumentNullException(nameof(embeddingGenerator));
         _vectorDatabase = vectorDatabase ?? throw new ArgumentNullException(nameof(vectorDatabase));
         _retriever = retriever ?? throw new ArgumentNullException(nameof(retriever));
+        _fileUploadValidator = fileUploadValidator ?? throw new ArgumentNullException(nameof(fileUploadValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<KnowledgeBase> CreateKnowledgeBaseAsync(Guid tenantId, string name, string description, ChunkingStrategy strategy, VectorDbProviderType vectorDbProvider, CancellationToken cancellationToken = default)
     {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required for tenant isolation.", nameof(tenantId));
+
         var kb = new KnowledgeBase(Guid.NewGuid(), tenantId, name, description, strategy, 500, 50, 1000, 50, vectorDbProvider);
         await _knowledgeBaseRepository.AddAsync(kb, cancellationToken);
         _logger.LogInformation("Knowledge Base creada: {Id} para Tenant {TenantId}", kb.Id, tenantId);
@@ -53,6 +58,7 @@ public class KnowledgeService
 
     public async Task<IReadOnlyList<KnowledgeBase>> GetKnowledgeBasesAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required for tenant isolation.", nameof(tenantId));
         return await _knowledgeBaseRepository.GetByTenantAsync(tenantId, cancellationToken);
     }
 
@@ -66,10 +72,31 @@ public class KnowledgeService
         string author = "System",
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Procesando subida de documento '{FileName}' para Tenant {TenantId}", fileName, tenantId);
+        if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required for tenant isolation.", nameof(tenantId));
+        
+        // 1. Validar seguridad del archivo y prevenir Path Traversal / Archivos corruptos
+        var validation = _fileUploadValidator.ValidateFile(fileStream, fileName, string.Empty);
+        if (!validation.IsValid)
+        {
+            _logger.LogWarning("Intento de subida de archivo no válido: {Error}", validation.ErrorMessage);
+            throw new ArgumentException($"Seguridad de archivo: {validation.ErrorMessage}");
+        }
 
-        // 1. Instanciar documento y guardar estado pendiente
-        var document = new KnowledgeDocument(Guid.NewGuid(), knowledgeBaseId, tenantId, fileName, fileName, fileType, category, author);
+        var sanitizedFileName = validation.SanitizedFileName;
+        var sha256Hash = _fileUploadValidator.ComputeSha256Hash(fileStream);
+
+        _logger.LogInformation("Procesando subida de documento seguro '{FileName}' (Hash: {Hash}) para Tenant {TenantId}", sanitizedFileName, sha256Hash, tenantId);
+
+        // 2. Verificar pertenencia de la KnowledgeBase al Tenant
+        var kb = await _knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
+        if (kb != null && kb.TenantId != tenantId)
+        {
+            _logger.LogWarning("Acceso no autorizado a Knowledge Base {KbId} por Tenant {TenantId}", knowledgeBaseId, tenantId);
+            throw new UnauthorizedAccessException("Acceso denegado a la Base de Conocimiento de otro Tenant.");
+        }
+
+        // 3. Instanciar documento y guardar estado pendiente
+        var document = new KnowledgeDocument(Guid.NewGuid(), knowledgeBaseId, tenantId, sanitizedFileName, sanitizedFileName, fileType, category, author);
         await _documentRepository.AddAsync(document, cancellationToken);
 
         var job = new DocumentProcessingJob(Guid.NewGuid(), document.Id, tenantId);
@@ -80,14 +107,13 @@ public class KnowledgeService
 
         try
         {
-            // 2. Parsear contenido
+            // 4. Parsear contenido
             var parser = _parserFactory.GetParser(fileType);
-            var parsedResult = await parser.ParseAsync(fileStream, fileName, cancellationToken);
+            var parsedResult = await parser.ParseAsync(fileStream, sanitizedFileName, cancellationToken);
             job.UpdateProgress(30);
             await _jobRepository.UpdateAsync(job, cancellationToken);
 
-            // 3. Chunking
-            var kb = await _knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
+            // 5. Chunking
             var strategy = kb?.Strategy ?? ChunkingStrategy.Paragraph;
             var chunker = _chunkerFactory.GetChunker(strategy);
 
@@ -106,7 +132,7 @@ public class KnowledgeService
             job.UpdateProgress(60);
             await _jobRepository.UpdateAsync(job, cancellationToken);
 
-            // 4. Generate Embeddings & Store in Vector DB
+            // 6. Generate Embeddings & Store in Vector DB
             var vectors = await _embeddingGenerator.GenerateVectorsForChunksAsync(chunks, "OpenAI", "text-embedding-3-small", cancellationToken);
             await _vectorDatabase.UpsertVectorsAsync(tenantId, vectors, cancellationToken);
 
@@ -116,7 +142,7 @@ public class KnowledgeService
             document.MarkIndexed(chunks.Count);
             await _documentRepository.UpdateAsync(document, cancellationToken);
 
-            _logger.LogInformation("Documento '{FileName}' procesado exitosamente con {Count} chunks.", fileName, chunks.Count);
+            _logger.LogInformation("Documento '{FileName}' procesado exitosamente con {Count} chunks.", sanitizedFileName, chunks.Count);
             return document;
         }
         catch (Exception ex)

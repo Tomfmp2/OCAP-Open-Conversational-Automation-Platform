@@ -51,7 +51,8 @@ public static class DependencyInjection
         services.AddSingleton<PineconeVectorStorage>();
         services.AddSingleton<IVectorDatabase, PgVectorStorage>();
 
-        // Services & Retriever
+        // Services, Validator & Retriever
+        services.AddSingleton<IFileUploadValidator, FileUploadValidator>();
         services.AddSingleton<IKnowledgeRetriever, KnowledgeRetriever>();
         services.AddSingleton<KnowledgeService>();
 

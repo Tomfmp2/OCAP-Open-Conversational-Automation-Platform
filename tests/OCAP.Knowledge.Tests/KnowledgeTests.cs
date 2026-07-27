@@ -118,8 +118,9 @@ public class KnowledgeTests
         var generator = new EmbeddingGenerator(new[] { embeddingProvider });
         var vectorDb = new PgVectorStorage(NullLogger<PgVectorStorage>.Instance);
 
+        var validator = new FileUploadValidator();
         var retriever = new KnowledgeRetriever(vectorDb, generator, chunkRepo, docRepo, NullLogger<KnowledgeRetriever>.Instance);
-        var service = new KnowledgeService(kbRepo, docRepo, chunkRepo, jobRepo, parserFactory, chunkerFactory, generator, vectorDb, retriever, NullLogger<KnowledgeService>.Instance);
+        var service = new KnowledgeService(kbRepo, docRepo, chunkRepo, jobRepo, parserFactory, chunkerFactory, generator, vectorDb, retriever, validator, NullLogger<KnowledgeService>.Instance);
 
         var tenantId = Guid.NewGuid();
         var kb = await service.CreateKnowledgeBaseAsync(tenantId, "Base Test", "Descripción de prueba", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
