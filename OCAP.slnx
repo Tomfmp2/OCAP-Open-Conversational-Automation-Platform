@@ -7,8 +7,10 @@
     <Project Path="src/Application/OCAP.Application/OCAP.Application.csproj" />
   </Folder>
   <Folder Name="/src/Channels/">
+    <Project Path="src/Channels/OCAP.Channels.Abstractions/OCAP.Channels.Abstractions.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Discord/OCAP.Channels.Discord.csproj" />
     <Project Path="src/Channels/OCAP.Channels.MicrosoftTeams/OCAP.Channels.MicrosoftTeams.csproj" />
+    <Project Path="src/Channels/OCAP.Channels.Mock/OCAP.Channels.Mock.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Slack/OCAP.Channels.Slack.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Telegram/OCAP.Channels.Telegram.csproj" />
     <Project Path="src/Channels/OCAP.Channels.WebChat/OCAP.Channels.WebChat.csproj" />
@@ -53,6 +55,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
+    <Project Path="tests/OCAP.Channels.Tests/OCAP.Channels.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
     <Project Path="tests/OCAP.UnitTests/OCAP.UnitTests.csproj" />
   </Folder>
