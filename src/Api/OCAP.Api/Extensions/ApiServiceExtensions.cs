@@ -8,6 +8,9 @@ using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
 using OCAP.Intelligence.Mock;
 using OCAP.Prompts;
+using OCAP.Security.Abstractions;
+using OCAP.Security.Application.UseCases;
+using OCAP.Security.Infrastructure.Services;
 
 namespace OCAP.Api.Extensions;
 
@@ -20,6 +23,17 @@ public static class ApiServiceExtensions
     {
         services.AddControllers();
         services.AddEndpointsApiExplorer();
+
+        // Registrar servicios de Seguridad, Autenticación y Multi-Tenant.
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IJwtTokenService>(sp => new JwtTokenService(
+            configuration["Jwt:SecretKey"] ?? "OCAP_SUPER_SECRET_SECURITY_KEY_FOR_JWT_SIGNING_2026_PRODUCTION"));
+        services.AddSingleton<IApiKeyService, ApiKeyService>();
+        services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
+
+        services.AddScoped<AuthenticateUserUseCase>();
+        services.AddScoped<CreateTenantUseCase>();
+        services.AddScoped<CreateApiKeyUseCase>();
 
         // Registrar servicios de Inteligencia Artificial Generativa y Prompts.
         services.AddSingleton<IAiProvider, MockAiProvider>();

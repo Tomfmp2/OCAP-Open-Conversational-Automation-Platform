@@ -1,0 +1,45 @@
+@page "/permissions"
+
+<PageTitle>Permisos Granulares — OCAP</PageTitle>
+
+<div class="container-fluid py-4 text-white">
+    <h1 class="h3 fw-bold mb-3">Catálogo de Permisos Granulares</h1>
+    <div class="card bg-dark border-secondary p-4">
+        <table class="table table-dark table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>Conversation.Read</code></td>
+                    <td>Lectura de Conversaciones</td>
+                    <td><span class="badge bg-secondary">Conversations</span></td>
+                    <td>Permite ver historial de conversaciones</td>
+                </tr>
+                <tr>
+                    <td><code>Agent.Execute</code></td>
+                    <td>Ejecución de Agentes</td>
+                    <td><span class="badge bg-secondary">Agents</span></td>
+                    <td>Permite ejecutar razonamiento de agente</td>
+                </tr>
+                <tr>
+                    <td><code>Tool.Execute</code></td>
+                    <td>Ejecución de Herramientas</td>
+                    <td><span class="badge bg-secondary">Tools</span></td>
+                    <td>Permite invocar herramientas externas</td>
+                </tr>
+                <tr>
+                    <td><code>AI.Execute</code></td>
+                    <td>Ejecución de IA Generativa</td>
+                    <td><span class="badge bg-secondary">AI</span></td>
+                    <td>Permite consultar modelos LLM</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

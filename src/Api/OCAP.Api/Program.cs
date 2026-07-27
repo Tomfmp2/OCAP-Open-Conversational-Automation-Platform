@@ -24,7 +24,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddChannels(builder.Configuration);
 builder.Services.AddWhatsAppChannel(builder.Configuration);
 
-// Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting.
+// Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting, Seguridad.
 builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
@@ -33,6 +33,9 @@ var app = builder.Build();
 
 // El middleware de manejo de excepciones va primero para capturar errores de cualquier capa posterior.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Middleware de encabezados de seguridad (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
+app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // HTTPS redirect solo en producción; en desarrollo se usa HTTP para facilitar el debugging.
 if (!app.Environment.IsDevelopment())
@@ -51,7 +54,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("OcapCorsPolicy");
 
 // Rate Limiting protege el gateway antes de que las peticiones lleguen a los controladores.
-// Solo activo cuando el Rate Limiter está registrado (determinado por la configuración).
 var rateLimitingSection = builder.Configuration.GetSection("RateLimiting");
 var enableRateLimiting = rateLimitingSection.GetValue<bool>("EnableRateLimiting");
 if (enableRateLimiting)
@@ -68,5 +70,4 @@ app.MapHealthChecks("/api/health");
 await app.RunAsync();
 
 // Hace visible el tipo Program para la WebApplicationFactory de los tests de integración.
-// Sin esta declaración, el proyecto de test no puede referenciar la clase Program interna.
 public partial class Program { }

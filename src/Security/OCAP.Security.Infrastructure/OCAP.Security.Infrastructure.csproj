@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
+    <ProjectReference Include="..\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
+    <ProjectReference Include="..\OCAP.Security.Application\OCAP.Security.Application.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.5.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.5.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

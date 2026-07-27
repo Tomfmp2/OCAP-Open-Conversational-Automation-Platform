@@ -1,0 +1,53 @@
+@page "/login"
+
+<PageTitle>Inicio de Sesión — OCAP</PageTitle>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card bg-dark border-secondary text-white p-4 shadow-lg">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold text-primary">OCAP SaaS</h2>
+                    <p class="text-secondary">Inicio de Sesión Seguro Multi-Tenant</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger p-2 small">@errorMessage</div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label text-secondary">Correo Electrónico</label>
+                    <input type="email" class="form-control bg-black text-white border-secondary" @bind="email" placeholder="admin@ocap.io" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-secondary">Contraseña</label>
+                    <input type="password" class="form-control bg-black text-white border-secondary" @bind="password" placeholder="••••••••" />
+                </div>
+
+                <button class="btn btn-primary w-100 py-2 fw-bold" @onclick="HandleLogin">
+                    Iniciar Sesión
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string email = string.Empty;
+    private string password = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Por favor ingrese correo y contraseña.";
+            return;
+        }
+
+        errorMessage = string.Empty;
+        await Task.CompletedTask;
+    }
+}

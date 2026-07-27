@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-27
+
+### Added
+- Complete Identity, Authentication & Multi-Tenant Security Foundation (`OCAP.Security.Domain`, `OCAP.Security.Abstractions`, `OCAP.Security.Application`, `OCAP.Security.Infrastructure`).
+- Domain entities: `UserIdentity`, `Tenant`, `TenantMember`, `Role`, `Permission`, `RefreshToken`, `ApiKey`, `UserSession`, `AuditLog`.
+- Secure Password Hashing using PBKDF2 with SHA256 and dynamic salt (`PasswordHasher`).
+- Structured JWT Access Token generation with tenant, role, and granular permission claims (`JwtTokenService`).
+- Secure API Key generation and SHA256 hashed validation (`ApiKeyService`).
+- Security Audit Logging service for tracking login, logout, tenant, role, and API Key events (`SecurityAuditService`).
+- Security API Gateway Controllers (`AuthController`, `UsersController`, `RolesController`, `PermissionsController`, `TenantsController`, `ApiKeysController`, `SessionsController`).
+- HTTP Security Headers Middleware (`SecurityHeadersMiddleware` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options).
+- Dashboard SPA pages in Blazor WebAssembly (`/login`, `/profile`, `/users`, `/roles`, `/permissions`, `/tenants`, `/api-keys`, `/sessions`).
+- Comprehensive Security test suite in `tests/OCAP.Security.Tests`.
+
+### Documentation
+- Authentication, JWT, RBAC, Multi-Tenant, API Keys, and Security guides in `docs/security/`.
+
 ## [1.0.0] - 2026-07-27
 
 ### Added

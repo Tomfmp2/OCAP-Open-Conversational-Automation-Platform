@@ -37,6 +37,9 @@
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Application\OCAP.Intelligence.Application.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Mock\OCAP.Intelligence.Mock.csproj" />
     <ProjectReference Include="..\..\Prompts\OCAP.Prompts\OCAP.Prompts.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Application\OCAP.Security.Application.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Infrastructure\OCAP.Security.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
