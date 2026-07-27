@@ -10,9 +10,9 @@ public class ToolRegistry : IToolRegistry
     public void RegisterTool(ITool tool)
     {
         if (tool == null) throw new ArgumentNullException(nameof(tool));
-        if (string.IsNullOrWhiteSpace(tool.Metadata.Name)) throw new ArgumentException("La herramienta debe poseer un nombre válido.");
+        if (string.IsNullOrWhiteSpace(tool.Definition?.Name)) throw new ArgumentException("La herramienta debe poseer una definición con nombre válido.");
 
-        _tools[tool.Metadata.Name] = tool;
+        _tools[tool.Definition.Name] = tool;
     }
 
     public ITool? GetTool(string name)

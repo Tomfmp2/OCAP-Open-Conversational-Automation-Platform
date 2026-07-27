@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Providers\Google\OCAP.Providers.Google.Abstractions\OCAP.Providers.Google.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

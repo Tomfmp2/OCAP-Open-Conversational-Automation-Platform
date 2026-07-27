@@ -1,12 +1,11 @@
 namespace OCAP.Tools.Abstractions;
 
-// Contrato fundamental que representa una herramienta externa invocable por un agente.
-// Desacopla las capacidades de automatización (Google, email, etc.) de la lógica conversacional.
+// Contrato fundamental que representa una herramienta ejecutable por un agente.
 public interface ITool
 {
-    // Obtiene los metadatos descriptivos de la herramienta.
-    ToolMetadata Metadata { get; }
+    // Definición y capacidades asociadas a la herramienta.
+    ToolDefinition Definition { get; }
 
-    // Ejecuta la capacidad de la herramienta con argumentos arbitrarios provistos por el agente.
-    Task<ToolExecutionResult> ExecuteAsync(Dictionary<string, object> arguments, CancellationToken cancellationToken = default);
+    // Ejecuta la herramienta de forma asíncrona recibiendo su contexto de ejecución.
+    Task<ToolResult> ExecuteAsync(ToolExecutionContext context, CancellationToken cancellationToken = default);
 }

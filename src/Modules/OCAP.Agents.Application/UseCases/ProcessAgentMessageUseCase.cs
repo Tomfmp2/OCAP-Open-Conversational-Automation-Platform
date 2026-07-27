@@ -6,7 +6,7 @@ using OCAP.Agents.Domain.ValueObjects;
 namespace OCAP.Agents.Application.UseCases;
 
 // Caso de uso principal que orquesta la inteligencia conversacional del Agent Engine.
-// Recibe un mensaje entrante, identifica el agente, resuelve la intención, actualiza el contexto y determina la respuesta/acción.
+// Recibe un mensaje entrante, identifica el agente, resuelve la intención, valida permisos y ejecuta acciones con herramientas.
 public class ProcessAgentMessageUseCase
 {
     private readonly IAgentRepository _agentRepository;
@@ -29,7 +29,6 @@ public class ProcessAgentMessageUseCase
         _logger = logger;
     }
 
-    // Orquesta la respuesta conversacional completa para una conversación.
     public async Task<string> ExecuteAsync(Guid conversationId, string userMessage, CancellationToken cancellationToken = default)
     {
         if (conversationId == Guid.Empty) throw new ArgumentException("El ID de conversación no puede ser vacío.", nameof(conversationId));
@@ -67,11 +66,28 @@ public class ProcessAgentMessageUseCase
         }
         await _contextRepository.SaveAsync(context, cancellationToken);
 
-        // 5. Determinar acción y generar respuesta según la intención
+        // 5. Determinar acción y ejecutar según la intención
+        if (intent.Name == Intent.CreateReminder)
+        {
+            var actionParams = new Dictionary<string, object>
+            {
+                ["Title"] = "Recordatorio solicitado por usuario",
+                ["Description"] = userMessage,
+                ["StartDate"] = DateTime.UtcNow.AddDays(1)
+            };
+            var action = new AgentAction(AgentAction.CreateCalendarEvent, "CreateCalendarEventTool", actionParams);
+            var result = await _actionDispatcher.DispatchActionAsync(agent.Id, Guid.Empty, conversationId, action, cancellationToken);
+
+            if (result.Success)
+            {
+                return $"¡Recordatorio registrado! {result.Message}";
+            }
+            return $"No fue posible registrar el recordatorio: {result.Message} (Error: {result.ErrorCode})";
+        }
+
         return intent.Name switch
         {
             Intent.Greeting => "¡Hola! Soy OCAP. ¿En qué puedo colaborar contigo hoy?",
-            Intent.CreateReminder => "He registrado tu solicitud de recordatorio. Próximamente me integraré con tu calendario.",
             Intent.HumanSupport => "Entendido. Un asesor del equipo humano tomará el control de esta conversación en breve.",
             Intent.GetInformation => "OCAP (Open Conversational Automation Platform) es una plataforma open source para automatización de diálogos.",
             _ => $"Comprendo tu mensaje ('{userMessage}'). Actualmente estoy aprendiendo a procesar esta solicitud."

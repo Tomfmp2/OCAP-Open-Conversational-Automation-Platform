@@ -5,6 +5,7 @@
     <ProjectReference Include="..\OCAP.Agents.Abstractions\OCAP.Agents.Abstractions.csproj" />
     <ProjectReference Include="..\..\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
+    <ProjectReference Include="..\..\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

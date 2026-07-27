@@ -13,6 +13,9 @@ public class OCAPDbContext : DbContext
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Session> Sessions => Set<Session>();
+    public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
+    public DbSet<AgentToolPermission> AgentToolPermissions => Set<AgentToolPermission>();
+    public DbSet<OAuthConnection> OAuthConnections => Set<OAuthConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

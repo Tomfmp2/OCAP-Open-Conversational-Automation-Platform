@@ -1,14 +1,14 @@
 namespace OCAP.Tools.Abstractions;
 
-// Registro central para descubrir y obtener herramientas disponibles en el sistema.
+// Registro central para administrar y descubrir herramientas ejecutables.
 public interface IToolRegistry
 {
-    // Registra una nueva herramienta ejecutable en el contenedor.
+    // Registra una nueva herramienta en el sistema.
     void RegisterTool(ITool tool);
 
-    // Obtiene una herramienta por su nombre único identificador.
+    // Obtiene una herramienta por su nombre identificador.
     ITool? GetTool(string name);
 
-    // Obtiene la colección completa de herramientas disponibles en el sistema.
+    // Obtiene todas las herramientas registradas en el sistema.
     IReadOnlyCollection<ITool> GetAllTools();
 }
