@@ -20,7 +20,8 @@ OCAP follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
 
 | Version | Release Date | Key Feature / Focus | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.5.0** | 2026-07-27 | **Enterprise Knowledge Base & RAG Engine** (PDF, DOCX, TXT, MD, CSV, JSON, HTML, XML parsers, Chunking engine, Embeddings OpenAI/Gemini/Ollama, Vector DBs PgVector/Qdrant/ChromaDB/Pinecone, RAG Retriever, Workflow Nodes, Blazor Dashboard UI) | **Production Ready** |
+| **v1.5.1** | 2026-07-27 | **Enterprise Hardening, Security Audit & Production Validation** (Multi-Tenant Context ITenantContext, Security File Upload Validator, EF Core Persistence, OpenTelemetry Knowledge Telemetry, Security & Tenant Test Suite) | **Production Ready** |
+| **v1.5.0** | 2026-07-27 | **Enterprise Knowledge Base & RAG Engine** (PDF, DOCX, TXT, MD, CSV, JSON, HTML, XML parsers, Chunking engine, Embeddings OpenAI/Gemini/Ollama, Vector DBs PgVector/Qdrant/ChromaDB/Pinecone, RAG Retriever, Workflow Nodes, Blazor Dashboard UI) | Production Ready |
 | **v1.4.0** | 2026-07-27 | **Visual Workflow Designer** (Interactive Blazor canvas, drag-and-drop nodes, Property Inspector, Execution Engine API integration) | Production Ready |
 | **v1.3.1** | 2026-07-27 | **Production Readiness Audit & Bug Fixes** (EF Core constructor hydration fix, warning CS8618 cleanup, 100% test pass rate) | Production Ready |
 | **v1.3.0** | 2026-07-27 | **Workflow Automation Engine** (State machine, 17 node types, tool execution, Blazor Dashboard SPA) | Production Ready |

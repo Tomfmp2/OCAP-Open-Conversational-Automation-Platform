@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-07-27
+
+### Added
+- **Multi-Tenant Context Resolution (`ITenantContext`)**: Added `ITenantContext` and `HttpTenantContext` resolving `TenantId` dynamically from JWT claims (`tenant_id`), HTTP Header (`X-Tenant-ID`), or default fallback.
+- **Enterprise File Upload Validator (`IFileUploadValidator`)**: Implemented strict security file validator supporting extension whitelisting (`.pdf`, `.docx`, `.txt`, `.md`, `.csv`, `.json`, `.html`, `.xml`), 25MB max size limit, cross-platform Path Traversal sanitization, corrupt file detection, and SHA256 checksum calculation.
+- **EF Core Persistence for Knowledge Base**: Created `KnowledgeConfigurations` EF Core entity maps and `EfKnowledgeRepositories` (`EfKnowledgeBaseRepository`, `EfKnowledgeDocumentRepository`, `EfKnowledgeChunkRepository`, `EfDocumentProcessingJobRepository`) with strict `.AsNoTracking()` and tenant-scoped query filters.
+- **OpenTelemetry Knowledge Telemetry (`IKnowledgeTelemetry`)**: Added decoupled `KnowledgeTelemetry` service utilizing `ActivitySource` ("OCAP.Knowledge") and `Meter` ("OCAP.Knowledge.Metrics") tracking document processing, chunk generation, embedding creation, search latency, and error counts.
+- **Security & Multi-Tenant Test Suite**: Expanded unit and security test suite (`OCAP.Knowledge.Tests`) with Path Traversal, disallowed file extensions, file size limits, SHA256 hashing, and multi-tenant data isolation tests.
+
+### Fixed
+- **API Multi-Tenant Hardening**: Updated `KnowledgeController` endpoints to consume `ITenantContext` instead of dummy tenant GUIDs.
+- **Path Traversal Cross-Platform Normalization**: Normalized backslashes and forward slashes in `SanitizeFileName` preventing bypasses on Linux runtimes.
+
+### Performance
+- **Search Term Matching**: Optimized BM25/keyword search term matching using `HashSet<string>` $O(1)$ lookups and early cancellation checks.
+
 ## [1.5.0] - 2026-07-27
 
 ### Added
