@@ -3,6 +3,7 @@ using OCAP.Api.Middlewares;
 using OCAP.Application.Extensions;
 using OCAP.Channels.Abstractions.Extensions;
 using OCAP.Channels.WhatsApp.Extensions;
+using OCAP.Channels.Telegram.Extensions;
 using OCAP.Infrastructure.Extensions;
 using OCAP.Knowledge.Infrastructure;
 using Serilog;
@@ -43,9 +44,10 @@ builder.Services.AddKnowledgeModule();
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Registra la arquitectura de canales y el canal de WhatsApp Evolution API.
+// Registra la arquitectura de canales y los canales nativos (WhatsApp, Telegram).
 builder.Services.AddChannels(builder.Configuration);
 builder.Services.AddWhatsAppChannel(builder.Configuration);
+builder.Services.AddTelegramChannel(builder.Configuration);
 
 // Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting, Seguridad.
 builder.Services.AddApiServices(builder.Configuration);
