@@ -40,6 +40,7 @@ public static class ApiServiceExtensions
             configuration["Jwt:SecretKey"] ?? "OCAP_SUPER_SECRET_SECURITY_KEY_FOR_JWT_SIGNING_2026_PRODUCTION"));
         services.AddSingleton<IApiKeyService, ApiKeyService>();
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
+        services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
