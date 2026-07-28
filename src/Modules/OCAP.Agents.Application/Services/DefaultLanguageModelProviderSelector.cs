@@ -1,25 +1,48 @@
 using OCAP.Agents.Abstractions.Providers;
+using OCAP.Intelligence.Abstractions;
 
 namespace OCAP.Agents.Application.Services;
 
-// Implementación por defecto del selector de proveedores de modelos de lenguaje (OpenAI, Gemini, Ollama, Local).
+// Selector dinámico de proveedores de modelos de lenguaje aislado por Tenant con failover a proveedores registrados.
 public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelector
 {
-    private readonly IEnumerable<ILanguageModelProvider> _providers;
+    private readonly IEnumerable<ILanguageModelProvider> _staticProviders;
+    private readonly IAiProviderConfigurationService? _configurationService;
 
-    public DefaultLanguageModelProviderSelector(IEnumerable<ILanguageModelProvider> providers)
+    public DefaultLanguageModelProviderSelector(
+        IEnumerable<ILanguageModelProvider> staticProviders,
+        IAiProviderConfigurationService? configurationService = null)
     {
-        _providers = providers;
+        _staticProviders = staticProviders;
+        _configurationService = configurationService;
     }
 
-    public Task<ILanguageModelProvider> GetProviderAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default)
+    public async Task<ILanguageModelProvider> GetProviderAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default)
     {
+        // 1. Intentar resolver mediante el servicio dinámico de configuraciones por Tenant
+        if (_configurationService != null && tenantId != Guid.Empty)
+        {
+            try
+            {
+                var aiProvider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
+                if (aiProvider != null)
+                {
+                    return new LanguageModelProviderAdapter(aiProvider);
+                }
+            }
+            catch
+            {
+                // Fallback silencioso a proveedores estáticos si la consulta dinámica falla
+            }
+        }
+
+        // 2. Resolver desde lista estática de proveedores registrados
         var targetName = preferredProvider ?? "Mock";
-        var selected = _providers.FirstOrDefault(p => string.Equals(p.ProviderName, targetName, StringComparison.OrdinalIgnoreCase))
-            ?? _providers.FirstOrDefault()
+        var selected = _staticProviders.FirstOrDefault(p => string.Equals(p.ProviderName, targetName, StringComparison.OrdinalIgnoreCase))
+            ?? _staticProviders.FirstOrDefault()
             ?? new FallbackLanguageModelProvider();
 
-        return Task.FromResult(selected);
+        return selected;
     }
 }
 
@@ -30,6 +53,7 @@ public class FallbackLanguageModelProvider : ILanguageModelProvider
     public Task<LanguageModelResponse> GenerateAsync(LanguageModelRequest request, CancellationToken cancellationToken = default)
     {
         var userMsg = request.Messages.LastOrDefault(m => m.Role == MessageRole.User)?.Content ?? "";
+
         return Task.FromResult(new LanguageModelResponse(
             $"[OCAP Core Response]: Procesado exitosamente ('{userMsg}').",
             ProviderName,

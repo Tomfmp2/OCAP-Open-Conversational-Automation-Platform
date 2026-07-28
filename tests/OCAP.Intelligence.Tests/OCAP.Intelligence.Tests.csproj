@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -35,6 +35,8 @@
     <ProjectReference Include="..\..\src\Providers\OCAP.Providers.OpenAI\OCAP.Providers.OpenAI.csproj" />
     <ProjectReference Include="..\..\src\Providers\OCAP.Providers.Gemini\OCAP.Providers.Gemini.csproj" />
     <ProjectReference Include="..\..\src\Providers\OCAP.Providers.Ollama\OCAP.Providers.Ollama.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Security\OCAP.Security.Infrastructure\OCAP.Security.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
