@@ -43,6 +43,7 @@ public class OCAPDbContext : DbContext
     public DbSet<DocumentPermission> DocumentPermissions => Set<DocumentPermission>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
+    public DbSet<ChannelConnection> ChannelConnections => Set<ChannelConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
