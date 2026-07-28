@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, RefreshCw, Lock, Key } from "lucide-react";
+import { ShieldCheck, RefreshCw, Lock, Inbox } from "lucide-react";
 import { useSecurityData } from "@/features/security/api/useSecurityData";
 import { RbacMatrixTable } from "@/features/security/components/RbacMatrixTable";
 import { VaultSecurityStatus } from "@/features/security/components/VaultSecurityStatus";
@@ -14,7 +14,7 @@ export default function SecurityPage() {
     return <SecuritySkeleton />;
   }
 
-  const { roles, vault } = data || { roles: [], vault: { algorithm: "", keyRotationDays: 0, totalSecretsEncrypted: 0, status: "healthy" as const } };
+  const { roles, vault } = data || { roles: [], vault: { algorithm: "AES-256", keyRotationDays: 30, totalSecretsEncrypted: 0, status: "healthy" as const } };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -46,7 +46,15 @@ export default function SecurityPage() {
 
       <div className="grid grid-cols-1 gap-6">
         <VaultSecurityStatus vault={vault} />
-        <RbacMatrixTable roles={roles} />
+        {roles.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-8 text-center space-y-2">
+            <Inbox className="w-6 h-6 text-zinc-400 mx-auto" />
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">No hay roles ni permisos asignados</h3>
+            <p className="text-xs text-zinc-500">Configura la matriz de acceso RBAC para el tenant activo.</p>
+          </div>
+        ) : (
+          <RbacMatrixTable roles={roles} />
+        )}
       </div>
     </div>
   );

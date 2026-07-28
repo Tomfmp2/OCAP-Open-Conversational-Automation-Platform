@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Code2, Key, Radio, BookOpen, RefreshCw } from "lucide-react";
+import { Code2, BookOpen, RefreshCw, Inbox } from "lucide-react";
 import { useDeveloperData } from "@/features/developer/api/useDeveloperData";
 import { ApiKeyManager } from "@/features/developer/components/ApiKeyManager";
 import { WebhookManager } from "@/features/developer/components/WebhookManager";
@@ -49,8 +49,24 @@ export default function DeveloperPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <ApiKeyManager keys={apiKeys} />
-        <WebhookManager webhooks={webhooks} />
+        {apiKeys.length === 0 && webhooks.length === 0 ? (
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
+              <Inbox className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">No se encontraron API Keys ni Webhooks configurados</h3>
+              <p className="text-xs text-zinc-500 mt-1">
+                Genera una API Key para acceder programáticamente al backend de OCAP.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ApiKeyManager keys={apiKeys} />
+            <WebhookManager webhooks={webhooks} />
+          </>
+        )}
       </div>
     </div>
   );

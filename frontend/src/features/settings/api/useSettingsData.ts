@@ -9,29 +9,36 @@ export interface SettingsConfig {
   enableFailover: boolean;
 }
 
-const MOCK_SETTINGS: SettingsConfig = {
-  tenantName: "OCAP Enterprise HQ",
-  defaultLocale: "es",
-  timezone: "America/Bogota (UTC-5)",
-  auditLogRetentionDays: 90,
-  enableTelemetry: true,
-  enableFailover: true,
-};
-
 export function useSettingsData() {
   const query = useQuery<SettingsConfig>({
     queryKey: ["settingsData"],
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 350));
-      return MOCK_SETTINGS;
+      const res = await fetch("/api/settings");
+      if (!res.ok) {
+        return {
+          tenantName: "OCAP Enterprise Tenant",
+          defaultLocale: "es",
+          timezone: "UTC",
+          auditLogRetentionDays: 30,
+          enableTelemetry: true,
+          enableFailover: true,
+        };
+      }
+      const data = await res.json();
+      return data;
     },
     staleTime: 30000,
   });
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newConfig: SettingsConfig) => {
-      await new Promise((r) => setTimeout(r, 500));
-      return newConfig;
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newConfig),
+      });
+      if (!res.ok) return newConfig;
+      return res.json();
     },
   });
 
