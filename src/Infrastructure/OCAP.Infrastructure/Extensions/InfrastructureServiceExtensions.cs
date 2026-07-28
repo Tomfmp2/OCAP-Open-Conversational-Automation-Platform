@@ -45,10 +45,14 @@ public static class InfrastructureServiceExtensions
         services.AddDistributedMemoryCache();
         services.AddSingleton<OCAP.Core.Caching.ICacheService, OCAP.Infrastructure.Caching.DistributedCacheService>();
 
+        // Retention & Maintenance Options
+        services.Configure<OCAP.Infrastructure.Options.RetentionOptions>(configuration.GetSection(OCAP.Infrastructure.Options.RetentionOptions.SectionName));
+
         // Background Jobs Foundation
         services.AddSingleton<OCAP.Infrastructure.BackgroundJobs.IBackgroundTaskQueue>(ctx => new OCAP.Infrastructure.BackgroundJobs.BackgroundTaskQueue(100));
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.BackgroundWorkerService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
+        services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
         return services;
     }
