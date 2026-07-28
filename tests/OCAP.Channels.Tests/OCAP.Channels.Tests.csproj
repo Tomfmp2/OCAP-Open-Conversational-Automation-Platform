@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Channels\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Channels\OCAP.Channels.Mock\OCAP.Channels.Mock.csproj" />
+    <ProjectReference Include="..\..\src\Channels\OCAP.Channels.Telegram\OCAP.Channels.Telegram.csproj" />
+    <ProjectReference Include="..\..\src\Application\OCAP.Application\OCAP.Application.csproj" />
   </ItemGroup>
 
 </Project>
