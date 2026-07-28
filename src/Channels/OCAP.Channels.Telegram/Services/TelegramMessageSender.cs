@@ -30,7 +30,7 @@ public class TelegramMessageSender : IMessageSender
         try
         {
             var request = TelegramWebhookMapper.ToSendMessageRequest(message);
-            var success = await _apiClient.SendMessageAsync(request, cancellationToken);
+            var success = await _apiClient.SendMessageAsync(request, cancellationToken: cancellationToken);
 
             if (success)
             {
