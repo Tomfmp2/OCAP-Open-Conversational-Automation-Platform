@@ -5,9 +5,28 @@ using OCAP.Channels.Abstractions.Extensions;
 using OCAP.Channels.WhatsApp.Extensions;
 using OCAP.Infrastructure.Extensions;
 using OCAP.Knowledge.Infrastructure;
+using Serilog;
+using Serilog.Events;
 
-var builder = WebApplication.CreateBuilder(args);
+// Bootstrap Logger for initial startup failures
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
+try
+{
+    Log.Information("Starting OCAP API Server");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Replace built-in logging with Serilog
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .WriteTo.Console());
 // Limita el tamaño máximo del cuerpo de las peticiones para prevenir ataques de consumo de memoria.
 // Se aplica globalmente antes de llegar a los controladores.
 builder.WebHost.ConfigureKestrel(options =>
@@ -69,9 +88,22 @@ app.UseRouting();
 
 // Mapeo de controladores y health checks.
 app.MapControllers();
+// Serilog Request Logging middleware for structured HTTP logging
+app.UseSerilogRequestLogging();
+
 app.MapHealthChecks("/api/health");
 
 await app.RunAsync();
+
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "OCAP API Server terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Hace visible el tipo Program para la WebApplicationFactory de los tests de integración.
 public partial class Program { }
