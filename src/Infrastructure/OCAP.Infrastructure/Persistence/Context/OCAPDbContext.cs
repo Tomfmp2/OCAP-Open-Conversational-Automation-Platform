@@ -22,6 +22,7 @@ public class OCAPDbContext : DbContext
     public DbSet<OAuthConnection> OAuthConnections => Set<OAuthConnection>();
     public DbSet<AiConversationMemory> AiConversationMemories => Set<AiConversationMemory>();
     public DbSet<AiExecutionLog> AiExecutionLogs => Set<AiExecutionLog>();
+    public DbSet<AiProviderConfiguration> AiProviderConfigurations => Set<AiProviderConfiguration>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
