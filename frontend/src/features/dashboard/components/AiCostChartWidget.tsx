@@ -47,7 +47,7 @@ export function AiCostChartWidget({ data }: AiCostChartWidgetProps) {
                 color: "#FAFAFA",
                 fontSize: "12px",
               }}
-              formatter={(value: any) => [`$${value}`, "Costo USD"]}
+              formatter={(value) => [`$${value ?? 0}`, "Costo USD"]}
             />
             <Area type="monotone" dataKey="costUsd" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#costGradient)" />
           </AreaChart>

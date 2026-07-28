@@ -2,13 +2,13 @@
 
 import React from "react";
 import { MessageSquare, Plus, RefreshCw, Radio, CheckCircle2, ShieldCheck, Inbox } from "lucide-react";
-import { useChannelsData } from "@/features/channels/api/useChannelsData";
+import { useChannelsData, ChannelConnectionDto } from "@/features/channels/api/useChannelsData";
 import { ChannelCard } from "@/features/channels/components/ChannelCard";
 import { ChannelConnectModal } from "@/features/channels/components/ChannelConnectModal";
 import { ChannelsSkeleton } from "@/features/channels/components/ChannelsSkeleton";
 
 export default function ChannelsPage() {
-  const { data: channels, isLoading, isError, refetch, isFetching, testConnectionMutation } = useChannelsData();
+  const { data: channels, isLoading, refetch, isFetching, testConnectionMutation } = useChannelsData();
   const [modalOpen, setModalOpen] = React.useState(false);
   const [testingId, setTestingId] = React.useState<string | null>(null);
 
@@ -116,7 +116,7 @@ export default function ChannelsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {channelList.map((channel: any) => (
+          {channelList.map((channel: ChannelConnectionDto) => (
             <ChannelCard
               key={channel.id}
               channel={channel}

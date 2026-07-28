@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Settings, RefreshCw } from "lucide-react";
-import { useSettingsData } from "@/features/settings/api/useSettingsData";
+import { useSettingsData, SettingsConfig } from "@/features/settings/api/useSettingsData";
 import { SettingsForm } from "@/features/settings/components/SettingsForm";
 import { SettingsSkeleton } from "@/features/settings/components/SettingsSkeleton";
 
@@ -13,7 +13,7 @@ export default function SettingsPage() {
     return <SettingsSkeleton />;
   }
 
-  const handleSave = (newConfig: any) => {
+  const handleSave = (newConfig: SettingsConfig) => {
     updateSettingsMutation.mutate(newConfig);
   };
 

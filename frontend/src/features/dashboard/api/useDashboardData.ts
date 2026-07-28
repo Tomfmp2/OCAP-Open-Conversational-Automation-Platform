@@ -49,36 +49,41 @@ export interface DashboardDataDto {
   };
 }
 
+const DEFAULT_DASHBOARD_DATA: DashboardDataDto = {
+  metrics: {
+    totalExecutions: 0,
+    executionsChange: "0%",
+    activeChannelsCount: 0,
+    totalChannelsCount: 0,
+    monthlyAiCostUsd: 0,
+    aiCostChange: "0%",
+    systemHealthPercentage: 100,
+  },
+  conversations: [],
+  costTrends: [],
+  throughputTrends: [],
+  agentStatus: {
+    name: "EnterpriseAssistantAgent",
+    status: "idle",
+    activeProvider: "Sin Configurar",
+    memoryUsedMb: 0,
+    registeredTools: 0,
+  },
+};
+
 export function useDashboardData() {
   return useQuery<DashboardDataDto>({
     queryKey: ["dashboardData"],
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/stats");
-      if (!res.ok) {
-        return {
-          metrics: {
-            totalExecutions: 0,
-            executionsChange: "0%",
-            activeChannelsCount: 0,
-            totalChannelsCount: 0,
-            monthlyAiCostUsd: 0,
-            aiCostChange: "0%",
-            systemHealthPercentage: 100,
-          },
-          conversations: [],
-          costTrends: [],
-          throughputTrends: [],
-          agentStatus: {
-            name: "EnterpriseAssistantAgent",
-            status: "idle",
-            activeProvider: "Sin Configurar",
-            memoryUsedMb: 0,
-            registeredTools: 0,
-          },
-        };
+      try {
+        if (typeof window === "undefined") return DEFAULT_DASHBOARD_DATA;
+        const res = await fetch("/api/dashboard/stats");
+        if (!res.ok) return DEFAULT_DASHBOARD_DATA;
+        const data = await res.json();
+        return data || DEFAULT_DASHBOARD_DATA;
+      } catch {
+        return DEFAULT_DASHBOARD_DATA;
       }
-      const data = await res.json();
-      return data;
     },
     staleTime: 15000,
   });

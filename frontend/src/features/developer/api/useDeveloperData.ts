@@ -26,15 +26,18 @@ export function useDeveloperData() {
   return useQuery<DeveloperData>({
     queryKey: ["developerData"],
     queryFn: async () => {
-      const res = await fetch("/api/apikeys");
-      if (!res.ok) {
+      try {
+        if (typeof window === "undefined") return { apiKeys: [], webhooks: [] };
+        const res = await fetch("/api/apikeys");
+        if (!res.ok) return { apiKeys: [], webhooks: [] };
+        const data = await res.json();
+        return {
+          apiKeys: Array.isArray(data) ? data : data?.apiKeys || [],
+          webhooks: data?.webhooks || [],
+        };
+      } catch {
         return { apiKeys: [], webhooks: [] };
       }
-      const data = await res.json();
-      return {
-        apiKeys: Array.isArray(data) ? data : data?.apiKeys || [],
-        webhooks: data?.webhooks || [],
-      };
     },
     staleTime: 30000,
   });

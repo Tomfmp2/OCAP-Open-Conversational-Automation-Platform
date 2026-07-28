@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, RefreshCw, Lock, Inbox } from "lucide-react";
+import { ShieldCheck, RefreshCw, Inbox } from "lucide-react";
 import { useSecurityData } from "@/features/security/api/useSecurityData";
 import { RbacMatrixTable } from "@/features/security/components/RbacMatrixTable";
 import { VaultSecurityStatus } from "@/features/security/components/VaultSecurityStatus";

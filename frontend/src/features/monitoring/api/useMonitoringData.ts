@@ -28,24 +28,29 @@ export interface MonitoringData {
   };
 }
 
+const DEFAULT_MONITORING_DATA: MonitoringData = {
+  metrics: [],
+  logs: [],
+  summary: { cpuAverage: 0, memoryPeakMb: 0, uptimePercent: 100, errorRate: "0%" },
+};
+
 export function useMonitoringData() {
   return useQuery<MonitoringData>({
     queryKey: ["monitoringData"],
     queryFn: async () => {
-      const res = await fetch("/api/health");
-      if (!res.ok) {
+      try {
+        if (typeof window === "undefined") return DEFAULT_MONITORING_DATA;
+        const res = await fetch("/api/health");
+        if (!res.ok) return DEFAULT_MONITORING_DATA;
+        const data = await res.json();
         return {
-          metrics: [],
-          logs: [],
-          summary: { cpuAverage: 0, memoryPeakMb: 0, uptimePercent: 100, errorRate: "0%" },
+          metrics: data?.metrics || [],
+          logs: data?.logs || [],
+          summary: data?.summary || DEFAULT_MONITORING_DATA.summary,
         };
+      } catch {
+        return DEFAULT_MONITORING_DATA;
       }
-      const data = await res.json();
-      return {
-        metrics: data?.metrics || [],
-        logs: data?.logs || [],
-        summary: data?.summary || { cpuAverage: 0, memoryPeakMb: 0, uptimePercent: 100, errorRate: "0%" },
-      };
     },
     staleTime: 15000,
   });

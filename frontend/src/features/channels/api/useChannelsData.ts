@@ -19,21 +19,29 @@ export function useChannelsData() {
   const query = useQuery<ChannelConnectionDto[]>({
     queryKey: ["channelsData"],
     queryFn: async () => {
-      const res = await fetch("/api/channels/connections");
-      if (!res.ok) {
+      try {
+        if (typeof window === "undefined") return [];
+        const res = await fetch("/api/channels/connections");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data?.data || (Array.isArray(data) ? data : []);
+      } catch {
         return [];
       }
-      const data = await res.json();
-      return data?.data || data || [];
     },
     staleTime: 15000,
   });
 
   const testConnectionMutation = useMutation({
     mutationFn: async (channelId: string) => {
-      const res = await fetch(`/api/channels/connections/${channelId}/health`);
-      if (!res.ok) throw new Error("Error testing connection health");
-      return res.json();
+      try {
+        if (typeof window === "undefined") return { success: false };
+        const res = await fetch(`/api/channels/connections/${channelId}/health`);
+        if (!res.ok) return { success: false };
+        return await res.json();
+      } catch {
+        return { success: false };
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["channelsData"] });
