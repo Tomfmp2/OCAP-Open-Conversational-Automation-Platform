@@ -12,18 +12,11 @@ export default function WorkflowsPage() {
   const [selectedWf, setSelectedWf] = React.useState<WorkflowItem | null>(null);
 
   const workflowList = workflows || [];
-
-  React.useEffect(() => {
-    if (workflowList.length > 0 && !selectedWf) {
-      setSelectedWf(workflowList[0]);
-    }
-  }, [workflowList, selectedWf]);
+  const activeWf = selectedWf || workflowList[0] || null;
 
   if (isLoading) {
     return <WorkflowsSkeleton />;
   }
-
-  const activeWf = selectedWf || workflowList[0];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">

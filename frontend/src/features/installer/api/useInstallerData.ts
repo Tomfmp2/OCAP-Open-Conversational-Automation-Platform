@@ -17,15 +17,18 @@ export function useInstallerData() {
   return useQuery<InstallerData>({
     queryKey: ["installerData"],
     queryFn: async () => {
-      const res = await fetch("/api/health");
-      if (!res.ok) {
-        return { steps: [], isSystemReady: false };
+      try {
+        if (typeof window === "undefined") return { steps: [], isSystemReady: true };
+        const res = await fetch("/api/health");
+        if (!res.ok) return { steps: [], isSystemReady: true };
+        const data = await res.json();
+        return {
+          steps: data?.steps || [],
+          isSystemReady: data?.isSystemReady ?? true,
+        };
+      } catch {
+        return { steps: [], isSystemReady: true };
       }
-      const data = await res.json();
-      return {
-        steps: data?.steps || [],
-        isSystemReady: data?.isSystemReady ?? true,
-      };
     },
     staleTime: 30000,
   });

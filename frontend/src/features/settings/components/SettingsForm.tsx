@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Settings, Save, CheckCircle2, Globe, Clock, ShieldCheck } from "lucide-react";
+import { Settings, Save, CheckCircle2 } from "lucide-react";
 import { SettingsConfig } from "../api/useSettingsData";
 
 interface SettingsFormProps {
@@ -50,7 +50,7 @@ export function SettingsForm({ settings, onSave, isSaving }: SettingsFormProps) 
           <label className="font-semibold text-zinc-700 dark:text-zinc-300 block">Idioma por Defecto</label>
           <select
             value={form.defaultLocale}
-            onChange={(e) => setForm({ ...form, defaultLocale: e.target.value as any })}
+            onChange={(e) => setForm({ ...form, defaultLocale: e.target.value as SettingsConfig["defaultLocale"] })}
             className="w-full bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="es">Español (ES)</option>

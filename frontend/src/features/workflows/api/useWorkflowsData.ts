@@ -5,7 +5,7 @@ export interface WorkflowNode {
   type: "trigger" | "agent" | "condition" | "action";
   label: string;
   configSummary?: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface WorkflowItem {
@@ -24,12 +24,15 @@ export function useWorkflowsData() {
   return useQuery<WorkflowItem[]>({
     queryKey: ["workflowsData"],
     queryFn: async () => {
-      const res = await fetch("/api/workflows");
-      if (!res.ok) {
+      try {
+        if (typeof window === "undefined") return [];
+        const res = await fetch("/api/workflows");
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch {
         return [];
       }
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
     },
     staleTime: 15000,
   });

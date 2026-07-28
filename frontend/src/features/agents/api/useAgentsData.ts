@@ -35,15 +35,18 @@ export function useAgentsData() {
   return useQuery<AgentsData>({
     queryKey: ["agentsData"],
     queryFn: async () => {
-      const res = await fetch("/api/agents");
-      if (!res.ok) {
+      try {
+        if (typeof window === "undefined") return { agents: [], recentTraces: [] };
+        const res = await fetch("/api/agents");
+        if (!res.ok) return { agents: [], recentTraces: [] };
+        const data = await res.json();
+        return {
+          agents: Array.isArray(data) ? data : data?.agents || [],
+          recentTraces: data?.recentTraces || [],
+        };
+      } catch {
         return { agents: [], recentTraces: [] };
       }
-      const data = await res.json();
-      return {
-        agents: Array.isArray(data) ? data : data?.agents || [],
-        recentTraces: data?.recentTraces || [],
-      };
     },
     staleTime: 15000,
   });

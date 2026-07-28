@@ -2,13 +2,13 @@
 
 import React from "react";
 import { Cpu, Plus, RefreshCw, Lock, Zap, Inbox } from "lucide-react";
-import { useIntelligenceData } from "@/features/intelligence/api/useIntelligenceData";
+import { useIntelligenceData, AiProviderConfigDto } from "@/features/intelligence/api/useIntelligenceData";
 import { ProviderCard } from "@/features/intelligence/components/ProviderCard";
 import { AddProviderModal } from "@/features/intelligence/components/AddProviderModal";
 import { IntelligenceSkeleton } from "@/features/intelligence/components/IntelligenceSkeleton";
 
 export default function IntelligencePage() {
-  const { data: providers, isLoading, isError, refetch, isFetching, testProviderMutation } = useIntelligenceData();
+  const { data: providers, isLoading, refetch, isFetching, testProviderMutation } = useIntelligenceData();
   const [modalOpen, setModalOpen] = React.useState(false);
   const [testingId, setTestingId] = React.useState<string | null>(null);
 
@@ -119,7 +119,7 @@ export default function IntelligencePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {providerList.map((provider: any) => (
+          {providerList.map((provider: AiProviderConfigDto) => (
             <ProviderCard
               key={provider.id}
               provider={provider}

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Bot, Plus, RefreshCw, ShieldCheck, Zap, Inbox } from "lucide-react";
-import { useAgentsData } from "@/features/agents/api/useAgentsData";
+import { useAgentsData, AgentDto } from "@/features/agents/api/useAgentsData";
 import { AgentCard } from "@/features/agents/components/AgentCard";
 import { ReasoningTraceInspector } from "@/features/agents/components/ReasoningTraceInspector";
 import { CreateAgentModal } from "@/features/agents/components/CreateAgentModal";
@@ -110,7 +110,7 @@ export default function AgentsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Agentes en la Red</h2>
-            {agents.map((agent: any) => (
+            {agents.map((agent: AgentDto) => (
               <AgentCard key={agent.id} agent={agent} />
             ))}
           </div>
