@@ -45,10 +45,15 @@
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Designer\OCAP.Workflow.Designer.csproj" />
     <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Application\OCAP.Knowledge.Application.csproj" />
     <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Infrastructure\OCAP.Knowledge.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Channels\OCAP.Channels.Mock\OCAP.Channels.Mock.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.10" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
