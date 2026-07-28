@@ -27,7 +27,7 @@ public class TelegramWebhookRegistrationService : IHostedService
         if (!string.IsNullOrWhiteSpace(_options.WebhookUrl))
         {
             _logger.LogInformation("Registrando Webhook de Telegram en {WebhookUrl}...", _options.WebhookUrl);
-            var success = await _apiClient.SetWebhookAsync(_options.WebhookUrl, _options.SecretToken, cancellationToken);
+            var success = await _apiClient.SetWebhookAsync(_options.WebhookUrl, _options.SecretToken, cancellationToken: cancellationToken);
             if (success)
             {
                 _logger.LogInformation("Webhook de Telegram registrado exitosamente.");

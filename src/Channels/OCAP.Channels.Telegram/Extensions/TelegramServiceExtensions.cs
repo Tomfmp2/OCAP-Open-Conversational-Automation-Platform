@@ -20,7 +20,9 @@ public static class TelegramServiceExtensions
         services.AddScoped<TelegramMessageSender>();
         services.AddScoped<IChannelProvider, TelegramChannelProvider>();
         services.AddScoped<TelegramChannelProvider>();
+        services.AddScoped<ITelegramBotRuntimeManager, TelegramBotRuntimeManager>();
         services.AddHostedService<TelegramWebhookRegistrationService>();
+        services.AddHostedService<TelegramPollingBackgroundService>();
 
         return services;
     }
