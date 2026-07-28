@@ -48,10 +48,10 @@ public static class ApiServiceExtensions
         services.AddScoped<CreateTenantUseCase>();
         services.AddScoped<CreateApiKeyUseCase>();
 
-        // Registrar clientes HTTP y proveedores de IA Generativa.
-        services.AddHttpClient<OpenAiProvider>();
-        services.AddHttpClient<GeminiAiProvider>();
-        services.AddHttpClient<OllamaAiProvider>();
+        // Registrar clientes HTTP y proveedores de IA Generativa con Resilience (Polly).
+        services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient<GeminiAiProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient<OllamaAiProvider>().AddStandardResilienceHandler();
 
         var openAiSettings = new AiProviderSettings
         {
@@ -107,6 +107,14 @@ public static class ApiServiceExtensions
         services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
         services.AddSingleton<IWorkflowValidator, WorkflowValidator>();
         services.AddSingleton<IWorkflowDesignerMapper, WorkflowDesignerMapper>();
+        
+        services.AddSingleton<OCAP.Tools.Abstractions.IToolRegistry, OCAP.Agents.Application.Services.ToolRegistry>();
+        services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, OCAP.Agents.Application.Persistence.Repositories.AgentRepository>();
+        
+        // Registrar missing services
+        services.AddScoped<OCAP.Agents.Abstractions.Ports.IActionDispatcher, OCAP.Agents.Application.Services.ActionDispatcher>();
+        services.AddSingleton<OCAP.Core.Ports.IMessageSender, OCAP.Infrastructure.Services.CoreMessageSenderMock>();
+        services.AddSingleton<OCAP.Security.Abstractions.IPermissionValidator, OCAP.Security.Abstractions.DefaultPermissionValidator>();
 
         // Swagger / OpenAPI habilitado únicamente en desarrollo.
         services.AddSwaggerGen(c =>
@@ -119,7 +127,8 @@ public static class ApiServiceExtensions
             });
         });
 
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddDbContextCheck<OCAP.Infrastructure.Persistence.Context.OCAPDbContext>("Database");
 
         services.Configure<CorsSettings>(configuration.GetSection(CorsSettings.SectionName));
         services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
