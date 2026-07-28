@@ -42,6 +42,7 @@ public class OCAPDbContext : DbContext
     public DbSet<DocumentProcessingJob> DocumentProcessingJobs => Set<DocumentProcessingJob>();
     public DbSet<DocumentPermission> DocumentPermissions => Set<DocumentPermission>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
