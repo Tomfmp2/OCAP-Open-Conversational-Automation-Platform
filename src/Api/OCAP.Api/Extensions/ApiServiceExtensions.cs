@@ -41,6 +41,9 @@ public static class ApiServiceExtensions
         services.AddSingleton<IApiKeyService, ApiKeyService>();
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
         services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();
+        services.AddSingleton<ICredentialVault, AesDbCredentialVault>();
+        services.AddSingleton<IChannelRegistry, ChannelRegistry>();
+        services.AddScoped<IChannelConnectionManager, ChannelConnectionManager>();
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
