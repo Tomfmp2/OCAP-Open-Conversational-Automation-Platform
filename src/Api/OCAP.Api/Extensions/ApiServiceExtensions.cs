@@ -84,6 +84,10 @@ public static class ApiServiceExtensions
         services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(sp.GetRequiredService<HttpClient>(), ollamaSettings));
         services.AddSingleton<IAiProvider, MockAiProvider>();
 
+        // Registro de Proveedores de IA y Servicio de Configuración por Tenant
+        services.AddSingleton<IAiProviderRegistry, AiProviderRegistry>();
+        services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
+
         // Orquestador inteligente de proveedores
         services.AddSingleton<IAiProviderSelector, AiProviderSelector>();
 
