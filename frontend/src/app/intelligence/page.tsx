@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Cpu, Plus, RefreshCw, Lock, ShieldCheck, Zap } from "lucide-react";
+import { Cpu, Plus, RefreshCw, Lock, Zap, Inbox } from "lucide-react";
 import { useIntelligenceData } from "@/features/intelligence/api/useIntelligenceData";
 import { ProviderCard } from "@/features/intelligence/components/ProviderCard";
 import { AddProviderModal } from "@/features/intelligence/components/AddProviderModal";
@@ -23,8 +23,9 @@ export default function IntelligencePage() {
     });
   };
 
-  const activeCount = providers?.filter((p) => p.isActive).length || 0;
-  const totalTokens = providers?.reduce((acc, curr) => acc + curr.totalTokensProcessed, 0) || 0;
+  const providerList = providers || [];
+  const activeCount = providerList.filter((p) => p.isActive).length;
+  const totalTokens = providerList.reduce((acc, curr) => acc + (curr.totalTokensProcessed || 0), 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -66,7 +67,7 @@ export default function IntelligencePage() {
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-xs text-zinc-500">Proveedores Activos</p>
-            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{activeCount} / {providers?.length || 0}</p>
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{activeCount} / {providerList.length}</p>
           </div>
           <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-500">
             <Cpu className="w-5 h-5" />
@@ -76,7 +77,9 @@ export default function IntelligencePage() {
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 flex items-center justify-between shadow-sm">
           <div>
             <p className="text-xs text-zinc-500">Total Tokens Procesados</p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{(totalTokens / 1000000).toFixed(2)}M</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+              {totalTokens > 0 ? `${(totalTokens / 1000000).toFixed(2)}M` : "0"}
+            </p>
           </div>
           <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500">
             <Zap className="w-5 h-5" />
@@ -94,17 +97,38 @@ export default function IntelligencePage() {
         </div>
       </div>
 
-      {/* Provider Cards List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {providers?.map((provider) => (
-          <ProviderCard
-            key={provider.id}
-            provider={provider}
-            onTest={handleTest}
-            isTesting={testingId === provider.id}
-          />
-        ))}
-      </div>
+      {/* Provider Cards List or Empty State */}
+      {providerList.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mx-auto flex items-center justify-center">
+            <Inbox className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">No existen proveedores de IA configurados</h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              Registra credenciales de OpenAI, Gemini u Ollama para habilitar la orquestación de inteligencia.
+            </p>
+          </div>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Registrar Proveedor</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {providerList.map((provider: any) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              onTest={handleTest}
+              isTesting={testingId === provider.id}
+            />
+          ))}
+        </div>
+      )}
 
       <AddProviderModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>

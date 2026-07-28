@@ -19,41 +19,22 @@ export interface SecurityData {
   vault: VaultStatus;
 }
 
-const MOCK_SECURITY_DATA: SecurityData = {
-  roles: [
-    {
-      id: "r-admin",
-      name: "Global Administrator",
-      usersCount: 3,
-      permissions: ["*"],
-    },
-    {
-      id: "r-operator",
-      name: "Agent Operator",
-      usersCount: 12,
-      permissions: ["agents.read", "agents.execute", "channels.read"],
-    },
-    {
-      id: "r-developer",
-      name: "API Developer",
-      usersCount: 8,
-      permissions: ["developer.keys", "webhooks.manage"],
-    },
-  ],
-  vault: {
-    algorithm: "AES-256-GCM (Tenant Isolated)",
-    keyRotationDays: 45,
-    totalSecretsEncrypted: 24,
-    status: "healthy",
-  },
-};
-
 export function useSecurityData() {
   return useQuery<SecurityData>({
     queryKey: ["securityData"],
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 350));
-      return MOCK_SECURITY_DATA;
+      const res = await fetch("/api/roles");
+      if (!res.ok) {
+        return {
+          roles: [],
+          vault: { algorithm: "AES-256-GCM (Tenant Isolated)", keyRotationDays: 30, totalSecretsEncrypted: 0, status: "healthy" },
+        };
+      }
+      const data = await res.json();
+      return {
+        roles: Array.isArray(data) ? data : [],
+        vault: { algorithm: "AES-256-GCM (Tenant Isolated)", keyRotationDays: 30, totalSecretsEncrypted: 0, status: "healthy" },
+      };
     },
     staleTime: 30000,
   });

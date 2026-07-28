@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, RefreshCw } from "lucide-react";
+import { ShieldCheck, RefreshCw, Inbox } from "lucide-react";
 import { useInstallerData } from "@/features/installer/api/useInstallerData";
 import { InstallerWizardSteps } from "@/features/installer/components/InstallerWizardSteps";
 import { InstallerSkeleton } from "@/features/installer/components/InstallerSkeleton";
@@ -9,9 +9,11 @@ import { InstallerSkeleton } from "@/features/installer/components/InstallerSkel
 export default function InstallerPage() {
   const { data, isLoading, refetch, isFetching } = useInstallerData();
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return <InstallerSkeleton />;
   }
+
+  const steps = data?.steps || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -41,7 +43,15 @@ export default function InstallerPage() {
         </div>
       </div>
 
-      <InstallerWizardSteps steps={data.steps} />
+      {steps.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-3">
+          <Inbox className="w-6 h-6 text-zinc-400 mx-auto" />
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">No hay información de instalación disponible</h3>
+          <p className="text-xs text-zinc-500">Ejecuta el asistente de verificación para validar las dependencias del servidor.</p>
+        </div>
+      ) : (
+        <InstallerWizardSteps steps={steps} />
+      )}
     </div>
   );
 }

@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Settings,
   Sparkles,
-  Store,
   Code2,
   Activity,
 } from "lucide-react";
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { href: "/agents", label: "Agentes", icon: Bot },
   { href: "/workflows", label: "Workflows", icon: GitFork },
   { href: "/monitoring", label: "Monitoreo", icon: Activity },
-  { href: "/marketplace", label: "Marketplace", icon: Store },
   { href: "/developer", label: "Developer Center", icon: Code2 },
   { href: "/security", label: "Seguridad", icon: ShieldCheck },
 ];

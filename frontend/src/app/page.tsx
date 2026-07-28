@@ -9,15 +9,11 @@ import {
   TrendingUp,
   RefreshCw,
   Plus,
+  Inbox,
 } from "lucide-react";
 import { useDashboardData } from "@/features/dashboard/api/useDashboardData";
 import { DashboardSkeleton } from "@/features/dashboard/components/DashboardSkeleton";
 import { DashboardErrorState } from "@/features/dashboard/components/DashboardErrorState";
-import { AiCostChartWidget } from "@/features/dashboard/components/AiCostChartWidget";
-import { ExecutionMetricsChartWidget } from "@/features/dashboard/components/ExecutionMetricsChartWidget";
-import { RecentConversationsWidget } from "@/features/dashboard/components/RecentConversationsWidget";
-import { AgentStatusWidget } from "@/features/dashboard/components/AgentStatusWidget";
-import { ChannelStatusGridWidget } from "@/features/dashboard/components/ChannelStatusGridWidget";
 
 export default function OverviewPage() {
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboardData();
@@ -35,28 +31,28 @@ export default function OverviewPage() {
   const METRIC_CARDS = [
     {
       title: "Ejecuciones Totales",
-      value: metrics.totalExecutions.toLocaleString(),
-      change: metrics.executionsChange,
+      value: (metrics?.totalExecutions || 0).toLocaleString(),
+      change: metrics?.executionsChange || "0%",
       period: "vs mes anterior",
       icon: Activity,
     },
     {
       title: "Canales Activos",
-      value: `${metrics.activeChannelsCount} / ${metrics.totalChannelsCount}`,
+      value: `${metrics?.activeChannelsCount || 0} / ${metrics?.totalChannelsCount || 0}`,
       change: "100%",
       period: "Adaptadores Omnichannel",
       icon: MessageSquare,
     },
     {
       title: "Costo Estimado IA",
-      value: `$${metrics.monthlyAiCostUsd.toFixed(2)}`,
-      change: metrics.aiCostChange,
+      value: `$${(metrics?.monthlyAiCostUsd || 0).toFixed(2)}`,
+      change: metrics?.aiCostChange || "0%",
       period: "Consumo mensual USD",
       icon: Cpu,
     },
     {
       title: "Salud del Sistema",
-      value: `${metrics.systemHealthPercentage}%`,
+      value: `${metrics?.systemHealthPercentage || 100}%`,
       change: "Excelente",
       period: "Uptime Núcleo OCAP",
       icon: ShieldCheck,
@@ -84,10 +80,6 @@ export default function OverviewPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
             <span>{isFetching ? "Sincronizando..." : "Sincronizar"}</span>
-          </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-sm">
-            <Plus className="w-3.5 h-3.5" />
-            <span>Personalizar Vista</span>
           </button>
         </div>
       </div>
@@ -120,19 +112,24 @@ export default function OverviewPage() {
         })}
       </div>
 
-      {/* Main Grid Section */}
+      {/* Main Grid: Empty States for Activity & Conversations */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Columns: Charts & Throughput */}
         <div className="lg:col-span-2 space-y-6">
-          <AiCostChartWidget data={costTrends} />
-          <ExecutionMetricsChartWidget data={throughputTrends} />
-          <ChannelStatusGridWidget />
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-3">
+            <Inbox className="w-8 h-8 text-zinc-400 mx-auto" />
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">No hay métricas ni actividad disponible</h3>
+            <p className="text-xs text-zinc-500">
+              Conecta adaptadores de comunicación o registra proveedores de IA para visualizar telemetría en tiempo real.
+            </p>
+          </div>
         </div>
 
-        {/* Right 1 Column: Agent Status & Conversations */}
-        <div className="space-y-6">
-          <AgentStatusWidget agentStatus={agentStatus} />
-          <RecentConversationsWidget conversations={conversations} />
+        <div>
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-8 text-center space-y-2">
+            <Inbox className="w-6 h-6 text-zinc-400 mx-auto" />
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">No existen conversaciones activas</h3>
+            <p className="text-xs text-zinc-500">Las conversaciones entrantes de Telegram o WhatsApp aparecerán aquí.</p>
+          </div>
         </div>
       </div>
     </div>
