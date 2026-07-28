@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -24,6 +25,9 @@
     <ProjectReference Include="..\..\src\Channels\OCAP.Channels.Mock\OCAP.Channels.Mock.csproj" />
     <ProjectReference Include="..\..\src\Channels\OCAP.Channels.Telegram\OCAP.Channels.Telegram.csproj" />
     <ProjectReference Include="..\..\src\Application\OCAP.Application\OCAP.Application.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Security\OCAP.Security.Infrastructure\OCAP.Security.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
