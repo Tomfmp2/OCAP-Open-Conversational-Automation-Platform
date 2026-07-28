@@ -131,8 +131,9 @@ public class ChannelManagementController : ControllerBase
                 request.Metadata,
                 cancellationToken);
 
-            await _auditService.LogAsync(tenantId, userId, "Channel_Connection_Created",
-                $"Conexión creada para el proveedor {request.Provider} (ID: {connection.Id})");
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+            await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Created",
+                $"Conexión creada para el proveedor {request.Provider} (ID: {connection.Id})", ipAddress, true, cancellationToken);
 
             var response = new ChannelConnectionResponse
             {
@@ -182,7 +183,8 @@ public class ChannelManagementController : ControllerBase
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
         }
 
-        await _auditService.LogAsync(tenantId, userId, "Channel_Connection_Enabled", $"Conexión de canal {id} habilitada.");
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Enabled", $"Conexión de canal {id} habilitada.", ipAddress, true, cancellationToken);
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión habilitada exitosamente.", Data = null });
     }
@@ -205,7 +207,8 @@ public class ChannelManagementController : ControllerBase
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
         }
 
-        await _auditService.LogAsync(tenantId, userId, "Channel_Connection_Disabled", $"Conexión de canal {id} deshabilitada.");
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Disabled", $"Conexión de canal {id} deshabilitada.", ipAddress, true, cancellationToken);
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión deshabilitada exitosamente.", Data = null });
     }
@@ -228,7 +231,8 @@ public class ChannelManagementController : ControllerBase
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
         }
 
-        await _auditService.LogAsync(tenantId, userId, "Channel_Connection_Removed", $"Conexión de canal {id} eliminada.");
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Removed", $"Conexión de canal {id} eliminada.", ipAddress, true, cancellationToken);
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión eliminada exitosamente.", Data = null });
     }
