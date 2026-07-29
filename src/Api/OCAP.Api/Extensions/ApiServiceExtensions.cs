@@ -77,6 +77,12 @@ public static class ApiServiceExtensions
         // Registrar Enterprise Single Sign-On SAML 2.0 (CAP-18)
         services.AddScoped<ISamlService, SamlService>();
 
+        // Registrar Enterprise Directory Synchronization (SCIM 2.0 & LDAP / Active Directory) (CAP-19)
+        services.AddScoped<IScimService, ScimService>();
+        services.AddScoped<ILdapService, LdapService>();
+        services.AddScoped<IDirectorySyncEngine, DirectorySyncEngine>();
+        services.AddHostedService<DirectorySyncBackgroundService>();
+
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
 
