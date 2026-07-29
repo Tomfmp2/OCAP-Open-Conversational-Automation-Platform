@@ -83,4 +83,36 @@ public class UserConsentConfiguration : IEntityTypeConfiguration<UserConsent>
     }
 }
 
+public class GroupConfiguration : IEntityTypeConfiguration<Group>
+{
+    public void Configure(EntityTypeBuilder<Group> builder)
+    {
+        builder.ToTable("Groups");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(128);
+        builder.Property(x => x.Description).HasMaxLength(512);
+        builder.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+    }
+}
+
+public class UserGroupConfiguration : IEntityTypeConfiguration<UserGroup>
+{
+    public void Configure(EntityTypeBuilder<UserGroup> builder)
+    {
+        builder.ToTable("UserGroups");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.UserId, x.GroupId }).IsUnique();
+    }
+}
+
+public class GroupRoleConfiguration : IEntityTypeConfiguration<GroupRole>
+{
+    public void Configure(EntityTypeBuilder<GroupRole> builder)
+    {
+        builder.ToTable("GroupRoles");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.GroupId, x.RoleId }).IsUnique();
+    }
+}
+
 

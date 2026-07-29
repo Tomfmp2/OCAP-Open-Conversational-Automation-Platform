@@ -16,18 +16,19 @@ Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap
 - [x] **CAP-13**: Frontend Live Integration Next.js SPA + SignalR Streaming + React Query.
 - [x] **CAP-14**: OAuth2 Authorization Code Flow + PKCE (RFC 7636) & User Consent Management.
 - [x] **CAP-15**: External Identity Providers (Google, Microsoft Entra ID, GitHub, Generic OIDC) & Account Linking/Auto-Provisioning.
+- [x] **CAP-16**: Identity & Administration Management (Users, Roles, Permissions, Groups, Tenants, Profile, Lock/Unlock, Activation, Invites).
 
 ---
 
 ## 🚀 Próximos CAPs
 
-- [ ] **CAP-16**: Enterprise SSO SAML2 & Directory Synchronization (SCIM).
 - [ ] **CAP-17**: Multi-Factor Authentication (MFA / TOTP) & Passkeys (WebAuthn).
-- [ ] **CAP-18**: Distributed Event Bus (RabbitMQ / NATS) & High Availability Cluster.
+- [ ] **CAP-18**: Enterprise SSO SAML2 & Directory Synchronization (SCIM).
+- [ ] **CAP-19**: Distributed Event Bus (RabbitMQ / NATS) & High Availability Cluster.
 
 ---
 
 ## 📊 Estado de Progreso General
 - **Fase Actual**: Fase 7 — Seguridad & Escalabilidad Empresarial
-- **Progreso CAPs**: 15 / 18 completados (**83.3%**)
+- **Progreso CAPs**: 16 / 19 completados (**84.2%**)
 - **Dependencias**: .NET 10, OpenIddict, EF Core, PostgreSQL, SignalR, Next.js, TanStack Query.

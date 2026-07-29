@@ -50,6 +50,9 @@ public class OCAPDbContext : DbContext
     public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
     public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
     public DbSet<UserConsent> UserConsents => Set<UserConsent>();
+    public DbSet<Group> Groups => Set<Group>();
+    public DbSet<UserGroup> UserGroups => Set<UserGroup>();
+    public DbSet<GroupRole> GroupRoles => Set<GroupRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
