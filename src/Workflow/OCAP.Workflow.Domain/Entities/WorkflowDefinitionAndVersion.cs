@@ -23,6 +23,12 @@ public class WorkflowDefinition
         Description = description ?? string.Empty;
     }
 
+    public void UpdateDetails(string name, string description)
+    {
+        Name = name ?? throw new ArgumentNullException(nameof(name));
+        Description = description ?? string.Empty;
+    }
+
     public void AddStep(WorkflowStep step) => Steps.Add(step);
     public void AddTransition(WorkflowTransition transition) => Transitions.Add(transition);
     public void Activate() => Status = WorkflowStatus.Active;
