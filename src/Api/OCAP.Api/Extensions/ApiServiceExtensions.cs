@@ -65,6 +65,10 @@ public static class ApiServiceExtensions
         services.AddScoped<IExternalAuthProvider, OCAP.Security.Infrastructure.Services.Providers.GenericOidcExternalAuthProvider>();
         services.AddScoped<IExternalAuthenticationService, ExternalAuthenticationService>();
 
+        // Registrar servicios de administración de identidades (CAP-16)
+        services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<IGroupService, GroupService>();
+
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
 

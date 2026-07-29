@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-29
+
+### Added
+- **Identity & Administration Management (CAP-16)**: Complete administrative module for users, roles, permissions, groups, organizations (tenants), memberships, user profile, password change/reset, account lock/unlock, activation/deactivation, invitation, email verification infrastructure, and audit trails.
+- **Group Management Engine (`IGroupService`, `GroupService`)**: Full support for tenant-isolated groups (`Group`, `UserGroup`, `GroupRole`) with user and role assignments.
+- **User Lifecycle Service (`IUserManagementService`, `UserManagementService`)**: Invitation, account lock/unlock, activation/deactivation, password reset, and verification infrastructure.
+- **REST API Endpoints**: Production-ready controllers for `/api/users`, `/api/groups`, `/api/roles`, `/api/permissions`, `/api/tenants`, `/api/profile`.
+- **Architecture & Security**: ADR-005 document created in `docs/adr/ADR-005-identity-administration-management.md`.
+
 ## [1.6.0] - 2026-07-29
 
 ### Added
