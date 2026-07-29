@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Search, Bell, Sun, Moon, Globe, Terminal, User } from "lucide-react";
+import { Search, Bell, Sun, Moon, Globe, User } from "lucide-react";
 import { useThemeStore } from "@/shared/stores/useThemeStore";
 import { CommandPalette } from "./CommandPalette";
 

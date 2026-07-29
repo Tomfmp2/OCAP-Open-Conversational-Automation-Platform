@@ -1,5 +1,5 @@
 import React from "react";
-import { GitFork, CheckCircle2, Play, Radio, RotateCcw } from "lucide-react";
+import { GitFork, CheckCircle2 } from "lucide-react";
 import { WorkflowItem } from "../api/useWorkflowsData";
 
 interface WorkflowCardProps {

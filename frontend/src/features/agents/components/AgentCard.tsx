@@ -1,5 +1,5 @@
 import React from "react";
-import { Bot, Cpu, Zap, CheckCircle2, ShieldCheck, Wrench } from "lucide-react";
+import { Bot } from "lucide-react";
 import { AgentInfo } from "../api/useAgentsData";
 
 interface AgentCardProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Cpu, Lock, CheckCircle2, Sliders } from "lucide-react";
+import { X, Cpu, Lock, CheckCircle2 } from "lucide-react";
 
 interface AddProviderModalProps {
   open: boolean;

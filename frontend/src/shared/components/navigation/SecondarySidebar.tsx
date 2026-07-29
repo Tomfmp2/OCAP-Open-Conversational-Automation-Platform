@@ -7,8 +7,6 @@ import {
   ChevronDown,
   Search,
   CheckCircle2,
-  FolderTree,
-  FileText,
   Building2,
   Radio,
   SlidersHorizontal,
