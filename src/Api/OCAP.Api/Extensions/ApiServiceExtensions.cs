@@ -74,6 +74,9 @@ public static class ApiServiceExtensions
         services.AddScoped<IMfaService, MfaService>();
         services.AddScoped<IWebAuthnService, WebAuthnService>();
 
+        // Registrar Enterprise Single Sign-On SAML 2.0 (CAP-18)
+        services.AddScoped<ISamlService, SamlService>();
+
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
 

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-07-29
+
+### Added
+- **Enterprise Single Sign-On SAML 2.0 (CAP-18)**: Service Provider (SP) implementation supporting SP-Initiated & IdP-Initiated SSO, Assertion Consumer Service (ACS), Single Logout (SLO), XML Metadata export/import, NameID & Claims mapping, and IdP certificate validation.
+- **SAML 2.0 Engine (`ISamlService`, `SamlService`)**: SP Metadata XML generator, `AuthnRequest` Base64 builder, SAML Assertion validator (StatusCode, Issuer, AudienceRestriction, Timestamps), and IdP XML importer.
+- **REST API Endpoints**: Production-ready controller `/api/auth/saml/*` (`metadata`, `metadata/import`, `config`, `login`, `acs`, `slo`, `status`).
+- **Security & Multi-Tenant**: Tenant-isolated `SamlProviderConfig` entity, XML Signature & XML Wrapping protection, audit logging, and ADR-007 created in `docs/adr/ADR-007-enterprise-sso-saml2.md`.
+
 ## [1.8.0] - 2026-07-29
 
 ### Added
