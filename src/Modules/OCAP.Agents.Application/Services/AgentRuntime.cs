@@ -62,6 +62,6 @@ public class AgentRuntime : IAgentRuntime
             return "Lo sentimos, ocurrió un inconveniente durante el procesamiento del agente.";
         }
 
-        return result.OutputMessage;
+        return result.OutputMessage ?? string.Empty;
     }
 }

@@ -46,7 +46,7 @@ public class TelegramMessageReceiver : IMessageReceiver
                 await _eventBus.PublishAsync(new MessageReceivedEvent("Telegram", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
             }
 
-            await _receiveMessageUseCase.ExecuteAsync(userId, message.Message, "Telegram", cancellationToken);
+            await _receiveMessageUseCase.ExecuteAsync(userId, message.Message ?? string.Empty, "Telegram", cancellationToken);
             return true;
         }
         catch (Exception ex)
