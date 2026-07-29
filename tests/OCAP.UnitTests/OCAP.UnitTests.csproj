@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Core\OCAP.Core\OCAP.Core.csproj" />
     <ProjectReference Include="..\..\src\Application\OCAP.Application\OCAP.Application.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

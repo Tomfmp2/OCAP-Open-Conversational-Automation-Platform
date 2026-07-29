@@ -1,22 +1,18 @@
 namespace OCAP.Channels.WhatsApp.Configuration;
 
-// Configuración fuertemente tipada de integración con Evolution API para WhatsApp.
 public class WhatsAppSettings
 {
-    public const string SectionName = "WhatsApp";
+    public const string SectionName = "WhatsAppCloud";
 
-    // Habilita o deshabilita la integración del canal de WhatsApp.
-    public bool Enabled { get; set; } = false;
+    // Habilitar o deshabilitar el proveedor de WhatsApp
+    public bool Enabled { get; set; } = true;
 
-    // URL base del servidor de Evolution API (ej. "http://localhost:8080").
-    public string BaseUrl { get; set; } = string.Empty;
+    // Token de acceso de la aplicación (System User Token)
+    public string ApiToken { get; set; } = string.Empty;
+    
+    // Secreto de la aplicación (App Secret) usado para validar webhooks
+    public string AppSecret { get; set; } = string.Empty;
 
-    // Nombre de la instancia activa configurada en Evolution API (ej. "ocap-main").
-    public string Instance { get; set; } = string.Empty;
-
-    // API Key de autenticación asignada en Evolution API.
-    public string ApiKey { get; set; } = string.Empty;
-
-    // Token secreto opcional para validar la firma de seguridad de los webhooks recibidos.
-    public string WebhookSecret { get; set; } = string.Empty;
+    // Token arbitrario usado para verificar la configuración del Webhook
+    public string WebhookVerifyToken { get; set; } = string.Empty;
 }

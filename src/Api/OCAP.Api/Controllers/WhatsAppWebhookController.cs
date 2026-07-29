@@ -1,35 +1,58 @@
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Channels.WhatsApp.DTOs;
 using OCAP.Channels.WhatsApp.Services;
 using OCAP.Channels.WhatsApp.Webhooks;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
-[Route("api/webhooks/whatsapp")]
+[Route("api/channels/whatsapp/webhook")]
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly WhatsAppWebhookValidator _validator;
     private readonly WhatsAppMessageReceiver _receiver;
+    private readonly ILogger<WhatsAppWebhookController> _logger;
 
     public WhatsAppWebhookController(
         WhatsAppWebhookValidator validator,
-        WhatsAppMessageReceiver receiver)
+        WhatsAppMessageReceiver receiver,
+        ILogger<WhatsAppWebhookController> logger)
     {
         _validator = validator;
         _receiver = receiver;
+        _logger = logger;
     }
 
-    // Endpoint webhook para recibir notificaciones de eventos desde Evolution API (WhatsApp).
-    [HttpPost]
-    public async Task<IActionResult> ReceiveWebhook(
-        [FromBody] WhatsAppWebhookPayload payload,
-        [FromHeader(Name = "x-webhook-secret")] string? secretHeader,
-        CancellationToken cancellationToken)
+    [HttpGet]
+    public IActionResult VerifyWebhook(
+        [FromQuery(Name = "hub.mode")] string? mode,
+        [FromQuery(Name = "hub.verify_token")] string? verifyToken,
+        [FromQuery(Name = "hub.challenge")] string? challenge)
     {
-        // 1. Validar token o secreto de seguridad opcional en headers.
-        if (!_validator.ValidateSecret(secretHeader))
+        if (!string.IsNullOrWhiteSpace(mode) && !string.IsNullOrWhiteSpace(verifyToken))
         {
+            if (_validator.ValidateVerifyToken(mode, verifyToken))
+            {
+                return Ok(challenge);
+            }
+        }
+
+        return Forbid();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ReceiveWebhook(CancellationToken cancellationToken)
+    {
+        var signatureHeader = Request.Headers["X-Hub-Signature-256"].FirstOrDefault();
+
+        using var reader = new StreamReader(Request.Body);
+        var rawBody = await reader.ReadToEndAsync(cancellationToken);
+
+        // 1. Validar token o secreto de seguridad en headers.
+        if (!_validator.ValidateSignature(rawBody, signatureHeader))
+        {
+            _logger.LogWarning("Token secreto de Webhook de WhatsApp no válido o ausente.");
             return Unauthorized(new ApiResponse<object>
             {
                 Success = false,
@@ -38,31 +61,40 @@ public class WhatsAppWebhookController : ControllerBase
             });
         }
 
+        WhatsAppCloudWebhookPayload? payload = null;
+        try
+        {
+            payload = System.Text.Json.JsonSerializer.Deserialize<WhatsAppCloudWebhookPayload>(
+                rawBody, 
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.LogError(ex, "Error deserializando payload de WhatsApp.");
+        }
+
+        if (payload == null)
+        {
+            return BadRequest();
+        }
+
         // 2. Validar estructura del payload recibido.
         if (!_validator.ValidatePayload(payload))
         {
-            return BadRequest(new ApiResponse<object>
-            {
-                Success = false,
-                Message = "Payload de webhook de WhatsApp inválido o no procesable.",
-                Data = null
-            });
+            return Ok(); // WhatsApp requiere 200 OK incluso si no se procesa
         }
 
-        // 3. Mapear payload de Evolution API al modelo interno agnóstico de OCAP.
+        // 3. Mapear payload de WhatsApp Cloud API al modelo interno agnóstico de OCAP.
         var incomingMessage = WhatsAppWebhookMapper.ToIncomingMessage(payload);
-
-        // 4. Entregar al receptor del canal WhatsApp.
-        var processed = await _receiver.ReceiveMessageAsync(incomingMessage, cancellationToken);
-
-        if (!processed)
+        
+        if (incomingMessage != null)
         {
-            return StatusCode(500, new ApiResponse<object>
+            // 4. Entregar al receptor del canal WhatsApp.
+            var processed = await _receiver.ReceiveMessageAsync(incomingMessage, cancellationToken);
+            if (!processed)
             {
-                Success = false,
-                Message = "Falló el procesamiento interno del mensaje de WhatsApp.",
-                Data = null
-            });
+                _logger.LogWarning("Falló el procesamiento interno del mensaje de WhatsApp.");
+            }
         }
 
         return Ok(new ApiResponse<object>

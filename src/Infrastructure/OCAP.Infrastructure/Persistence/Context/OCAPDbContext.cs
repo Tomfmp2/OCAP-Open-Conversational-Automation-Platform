@@ -29,6 +29,8 @@ public class OCAPDbContext : DbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<UserClaim> UserClaims => Set<UserClaim>();
+    public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -45,10 +47,13 @@ public class OCAPDbContext : DbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
     public DbSet<ChannelConnection> ChannelConnections => Set<ChannelConnection>();
+    public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
+    public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs => Set<WebhookDeliveryLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(OCAPDbContext).Assembly);
+        modelBuilder.UseOpenIddict();
         base.OnModelCreating(modelBuilder);
     }
 }

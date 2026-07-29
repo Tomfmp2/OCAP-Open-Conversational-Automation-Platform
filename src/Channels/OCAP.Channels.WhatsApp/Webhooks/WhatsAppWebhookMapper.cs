@@ -1,42 +1,54 @@
 using OCAP.Channels.Abstractions.Models;
+using OCAP.Channels.WhatsApp.DTOs;
 
 namespace OCAP.Channels.WhatsApp.Webhooks;
 
-// Mapeador para transformar payloads específicos de Evolution API a IncomingChannelMessage de OCAP.
 public static class WhatsAppWebhookMapper
 {
-    // Transforma un payload validado de Evolution API al modelo interno agnóstico de OCAP.
-    public static IncomingChannelMessage ToIncomingMessage(WhatsAppWebhookPayload payload)
+    public static IncomingChannelMessage? ToIncomingMessage(WhatsAppCloudWebhookPayload payload)
     {
-        var rawJid = payload.Data?.Key?.RemoteJid ?? string.Empty;
-        var cleanUserId = ExtractPhoneNumber(rawJid);
-        var messageText = WhatsAppWebhookValidator.GetMessageText(payload);
+        var change = payload.Entry?.FirstOrDefault()?.Changes?.FirstOrDefault();
+        if (change == null || change.Value == null) return null;
 
-        var timestamp = payload.Data?.MessageTimestamp > 0
-            ? DateTimeOffset.FromUnixTimeSeconds(payload.Data.MessageTimestamp).UtcDateTime
-            : DateTime.UtcNow;
-
-        return new IncomingChannelMessage
+        var value = change.Value;
+        
+        // Si no hay mensajes entrantes, podría ser un evento de estado (delivery status)
+        if (value.Messages == null || !value.Messages.Any())
         {
-            ExternalUserId = cleanUserId,
-            Message = messageText.Trim(),
-            ChannelName = "WhatsApp",
-            ReceivedAt = timestamp,
-            Metadata = new Dictionary<string, string>
-            {
-                ["RemoteJid"] = rawJid,
-                ["PushName"] = payload.Data?.PushName ?? string.Empty,
-                ["MessageId"] = payload.Data?.Key?.Id ?? string.Empty,
-                ["Instance"] = payload.Instance ?? string.Empty
-            }
-        };
-    }
+            return null; // O manejar actualizaciones de estado aquí si la abstracción lo soporta
+        }
 
-    // Limpia el RemoteJid de WhatsApp para obtener únicamente el número telefónico.
-    private static string ExtractPhoneNumber(string remoteJid)
-    {
-        if (string.IsNullOrWhiteSpace(remoteJid)) return string.Empty;
-        var part = remoteJid.Split('@')[0];
-        return new string(part.Where(char.IsDigit).ToArray());
+        var message = value.Messages.First();
+        var contact = value.Contacts?.FirstOrDefault();
+        var metadata = value.Metadata;
+
+        var incoming = new IncomingChannelMessage
+        {
+            ExternalUserId = message.From,
+            ChannelName = "WhatsApp",
+            Message = message.Text?.Body ?? string.Empty
+        };
+
+        if (long.TryParse(message.Timestamp, out long timestamp))
+        {
+            incoming.ReceivedAt = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
+        }
+
+        incoming.Metadata["MessageId"] = message.Id;
+        incoming.Metadata["MessageType"] = message.Type;
+        
+        if (contact != null)
+        {
+            incoming.Metadata["SenderName"] = contact.Profile?.Name ?? string.Empty;
+            incoming.Metadata["WaId"] = contact.WaId;
+        }
+
+        if (metadata != null)
+        {
+            incoming.Metadata["PhoneNumberId"] = metadata.PhoneNumberId;
+            incoming.Metadata["DisplayPhoneNumber"] = metadata.DisplayPhoneNumber;
+        }
+
+        return incoming;
     }
 }

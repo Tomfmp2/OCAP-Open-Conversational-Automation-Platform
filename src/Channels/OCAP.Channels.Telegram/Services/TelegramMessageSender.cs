@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Models;
 using OCAP.Channels.Telegram.Webhooks;
+using OCAP.Core.Events;
 
 namespace OCAP.Channels.Telegram.Services;
 
@@ -10,13 +11,16 @@ public class TelegramMessageSender : IMessageSender
 {
     private readonly TelegramApiClient _apiClient;
     private readonly ILogger<TelegramMessageSender> _logger;
+    private readonly IEventBus? _eventBus;
 
     public TelegramMessageSender(
         TelegramApiClient apiClient,
-        ILogger<TelegramMessageSender> logger)
+        ILogger<TelegramMessageSender> logger,
+        IEventBus? eventBus = null)
     {
         _apiClient = apiClient;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
     public async Task<bool> SendMessageAsync(OutgoingChannelMessage message, CancellationToken cancellationToken = default)
@@ -31,6 +35,11 @@ public class TelegramMessageSender : IMessageSender
         {
             var request = TelegramWebhookMapper.ToSendMessageRequest(message);
             var success = await _apiClient.SendMessageAsync(request, cancellationToken: cancellationToken);
+
+            if (_eventBus != null)
+            {
+                await _eventBus.PublishAsync(new MessageSentEvent("Telegram", message.DestinationUserId, message.Message, success, Guid.Empty), cancellationToken);
+            }
 
             if (success)
             {

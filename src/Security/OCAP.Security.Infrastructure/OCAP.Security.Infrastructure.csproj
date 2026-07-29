@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.21.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.21.0" />
+    <PackageReference Include="OpenIddict.AspNetCore" Version="6.1.0" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="6.1.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,8 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
     <ProjectReference Include="..\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
+    <ProjectReference Include="..\..\Core\OCAP.Core\OCAP.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

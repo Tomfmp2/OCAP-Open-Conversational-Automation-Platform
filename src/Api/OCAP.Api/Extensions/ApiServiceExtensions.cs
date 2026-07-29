@@ -41,7 +41,10 @@ public static class ApiServiceExtensions
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenService>(sp => new JwtTokenService(
             configuration["Jwt:SecretKey"] ?? "OCAP_SUPER_SECRET_SECURITY_KEY_FOR_JWT_SIGNING_2026_PRODUCTION"));
-        services.AddSingleton<IApiKeyService, ApiKeyService>();
+        services.AddScoped<IApiKeyService, ApiKeyService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        services.AddScoped<IIdentityService, IdentityService>();
+        services.AddOcapOpenIddict();
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
         services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();
         services.AddSingleton<ICredentialVault, AesDbCredentialVault>();
@@ -54,6 +57,16 @@ public static class ApiServiceExtensions
         services.AddScoped<AuthenticateUserUseCase>();
         services.AddScoped<CreateTenantUseCase>();
         services.AddScoped<CreateApiKeyUseCase>();
+        services.AddScoped<RevokeApiKeyUseCase>();
+
+        // Registrar Webhooks Platform (HMAC SHA-256, Delivery Engine y Suscriptor de Event Bus)
+        services.AddSingleton<IWebhookSigner, HmacSha256WebhookSigner>();
+        services.AddHttpClient<IWebhookService, WebhookService>();
+        services.AddHostedService<WebhookEventSubscriber>();
+
+        // Registrar Live Gateway (SignalR e integración con IEventBus para streaming en vivo)
+        services.AddSignalR();
+        services.AddHostedService<OCAP.Api.Services.LiveGatewayEventSubscriber>();
 
         // Registrar clientes HTTP y proveedores de IA Generativa con Resilience (Polly).
         services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler();
@@ -96,28 +109,8 @@ public static class ApiServiceExtensions
         services.AddScoped<IAgentReasoningService, AgentReasoningService>();
         services.AddSingleton<IAiUsageTracker, AiUsageTracker>();
 
-        // Registrar Nodos y Motor de Workflow
-        services.AddSingleton<IWorkflowNode, StartNode>();
-        services.AddSingleton<IWorkflowNode, EndNode>();
-        services.AddSingleton<IWorkflowNode, ConditionNode>();
-        services.AddSingleton<IWorkflowNode, LLMNode>();
-        services.AddSingleton<IWorkflowNode, ToolNode>();
-        services.AddSingleton<IWorkflowNode, DelayNode>();
-        services.AddSingleton<IWorkflowNode, WaitNode>();
-        services.AddSingleton<IWorkflowNode, HumanApprovalNode>();
-        services.AddSingleton<IWorkflowNode, LoopNode>();
-        services.AddSingleton<IWorkflowNode, SwitchNode>();
-        services.AddSingleton<IWorkflowNode, ParallelNode>();
-        services.AddSingleton<IWorkflowNode, MergeNode>();
-        services.AddSingleton<IWorkflowNode, WebhookNode>();
-        services.AddSingleton<IWorkflowNode, ApiRequestNode>();
-        services.AddSingleton<IWorkflowNode, ScriptNode>();
-        services.AddSingleton<IWorkflowNode, SubWorkflowNode>();
-        services.AddSingleton<IWorkflowNode, ErrorHandlerNode>();
-
-        services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
-        services.AddSingleton<IWorkflowValidator, WorkflowValidator>();
-        services.AddSingleton<IWorkflowDesignerMapper, WorkflowDesignerMapper>();
+        // Registrar Nodos y Motor de Workflow mediante capa de Aplicación
+        OCAP.Workflow.Application.DependencyInjection.AddWorkflowApplication(services);
         
         services.AddSingleton<OCAP.Tools.Abstractions.IToolRegistry, OCAP.Agents.Application.Services.ToolRegistry>();
         services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, OCAP.Agents.Application.Persistence.Repositories.AgentRepository>();
@@ -126,6 +119,9 @@ public static class ApiServiceExtensions
         services.AddScoped<OCAP.Agents.Abstractions.Ports.IActionDispatcher, OCAP.Agents.Application.Services.ActionDispatcher>();
         services.AddSingleton<OCAP.Core.Ports.IMessageSender, OCAP.Infrastructure.Services.CoreMessageSenderMock>();
         services.AddSingleton<OCAP.Security.Abstractions.IPermissionValidator, OCAP.Security.Abstractions.DefaultPermissionValidator>();
+
+        // Registramos infrastructura de workflows
+        OCAP.Workflow.Infrastructure.DependencyInjection.AddWorkflowInfrastructure(services);
 
         // Swagger / OpenAPI habilitado únicamente en desarrollo.
         services.AddSwaggerGen(c =>
