@@ -17,6 +17,7 @@ public class ProcessAgentMessageUseCase
     private readonly IActionDispatcher _actionDispatcher;
     private readonly IAgentResolver? _agentResolver;
     private readonly IAgentRuntime? _agentRuntime;
+    private readonly OCAP.Core.Events.IEventBus? _eventBus;
     private readonly ILogger<ProcessAgentMessageUseCase> _logger;
 
     public ProcessAgentMessageUseCase(
@@ -26,7 +27,8 @@ public class ProcessAgentMessageUseCase
         IActionDispatcher actionDispatcher,
         ILogger<ProcessAgentMessageUseCase> logger,
         IAgentResolver? agentResolver = null,
-        IAgentRuntime? agentRuntime = null)
+        IAgentRuntime? agentRuntime = null,
+        OCAP.Core.Events.IEventBus? eventBus = null)
     {
         _agentRepository = agentRepository;
         _contextRepository = contextRepository;
@@ -35,6 +37,7 @@ public class ProcessAgentMessageUseCase
         _logger = logger;
         _agentResolver = agentResolver;
         _agentRuntime = agentRuntime;
+        _eventBus = eventBus;
     }
 
     public async Task<string> ExecuteAsync(Guid conversationId, string userMessage, CancellationToken cancellationToken = default)

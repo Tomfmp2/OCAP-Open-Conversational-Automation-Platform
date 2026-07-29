@@ -8,7 +8,7 @@ using OCAP.Workflow.Domain.Enums;
 
 namespace OCAP.Workflow.Application.Nodes;
 
-public class KnowledgeSearchNode : IWorkflowNode
+public class KnowledgeSearchNode : IWorkflowNodeExecutor
 {
     private readonly IKnowledgeRetriever _retriever;
 
@@ -19,14 +19,14 @@ public class KnowledgeSearchNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.KnowledgeSearch;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         var results = await _retriever.SearchAsync(context.TenantId, null, "Búsqueda en base de conocimiento", SearchStrategyType.Keyword, 5, 0.5, cancellationToken);
         return new WorkflowStepResult(true, "next", $"{{\"searchCount\": {results.Count}}}");
     }
 }
 
-public class SemanticSearchNode : IWorkflowNode
+public class SemanticSearchNode : IWorkflowNodeExecutor
 {
     private readonly IKnowledgeRetriever _retriever;
 
@@ -37,14 +37,14 @@ public class SemanticSearchNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.SemanticSearch;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         var results = await _retriever.SearchAsync(context.TenantId, null, "Búsqueda semántica vectorial", SearchStrategyType.Semantic, 5, 0.5, cancellationToken);
         return new WorkflowStepResult(true, "next", $"{{\"semanticMatches\": {results.Count}}}");
     }
 }
 
-public class RetrieveContextNode : IWorkflowNode
+public class RetrieveContextNode : IWorkflowNodeExecutor
 {
     private readonly IKnowledgeRetriever _retriever;
 
@@ -55,7 +55,7 @@ public class RetrieveContextNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.RetrieveContext;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         var results = await _retriever.SearchAsync(context.TenantId, null, "Recuperar contexto RAG", SearchStrategyType.Hybrid, 3, 0.5, cancellationToken);
         var contextText = string.Join("\n\n", results.Select(r => r.Content));
@@ -63,7 +63,7 @@ public class RetrieveContextNode : IWorkflowNode
     }
 }
 
-public class AskKnowledgeBaseNode : IWorkflowNode
+public class AskKnowledgeBaseNode : IWorkflowNodeExecutor
 {
     private readonly IKnowledgeRetriever _retriever;
     private readonly IAiProviderSelector _aiSelector;
@@ -76,7 +76,7 @@ public class AskKnowledgeBaseNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.AskKnowledgeBase;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         var query = "Consulta sobre la base de conocimiento";
         var docs = await _retriever.SearchAsync(context.TenantId, null, query, SearchStrategyType.Hybrid, 3, 0.5, cancellationToken);
@@ -89,7 +89,7 @@ public class AskKnowledgeBaseNode : IWorkflowNode
     }
 }
 
-public class DocumentUploadNode : IWorkflowNode
+public class DocumentUploadNode : IWorkflowNodeExecutor
 {
     private readonly KnowledgeService _knowledgeService;
 
@@ -100,7 +100,7 @@ public class DocumentUploadNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.DocumentUpload;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Contenido simulado de subida en workflow."));
         var doc = await _knowledgeService.UploadDocumentAsync(context.TenantId, Guid.NewGuid(), stream, "workflow_upload.txt", DocumentType.Txt, DocumentCategory.General, "WorkflowNode", cancellationToken);
@@ -108,7 +108,7 @@ public class DocumentUploadNode : IWorkflowNode
     }
 }
 
-public class ReindexNode : IWorkflowNode
+public class ReindexNode : IWorkflowNodeExecutor
 {
     private readonly KnowledgeService _knowledgeService;
 
@@ -119,7 +119,7 @@ public class ReindexNode : IWorkflowNode
 
     public WorkflowNodeType NodeType => WorkflowNodeType.Reindex;
 
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
+    public async Task<NodeExecutionResult> ExecuteAsync(WorkflowStep step, WorkflowContext context, CancellationToken cancellationToken = default)
     {
         await _knowledgeService.ReindexAsync(context.TenantId, Guid.NewGuid(), cancellationToken);
         return new WorkflowStepResult(true, "next", "{\"reindexed\": true}");

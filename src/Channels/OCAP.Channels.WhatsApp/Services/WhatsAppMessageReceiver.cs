@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using OCAP.Application.UseCases;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Models;
+using OCAP.Core.Events;
 
 namespace OCAP.Channels.WhatsApp.Services;
 
@@ -11,13 +12,16 @@ public class WhatsAppMessageReceiver : IMessageReceiver
 {
     private readonly ReceiveMessageUseCase _receiveMessageUseCase;
     private readonly ILogger<WhatsAppMessageReceiver> _logger;
+    private readonly IEventBus? _eventBus;
 
     public WhatsAppMessageReceiver(
         ReceiveMessageUseCase receiveMessageUseCase,
-        ILogger<WhatsAppMessageReceiver> logger)
+        ILogger<WhatsAppMessageReceiver> logger,
+        IEventBus? eventBus = null)
     {
         _receiveMessageUseCase = receiveMessageUseCase;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
     // Procesa un mensaje entrante ya convertido a IncomingChannelMessage y delega a la capa Application.
@@ -36,6 +40,11 @@ public class WhatsAppMessageReceiver : IMessageReceiver
 
             _logger.LogInformation("Entregando mensaje WhatsApp de usuario externo {ExternalUser} (Guid: {UserId}) a ReceiveMessageUseCase.",
                 message.ExternalUserId, userId);
+
+            if (_eventBus != null)
+            {
+                await _eventBus.PublishAsync(new MessageReceivedEvent("WhatsApp", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
+            }
 
             await _receiveMessageUseCase.ExecuteAsync(userId, message.Message, "WhatsApp", cancellationToken);
             return true;

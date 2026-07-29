@@ -54,6 +54,9 @@ public static class InfrastructureServiceExtensions
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
+        // Real-Time Event Bus Foundation
+        services.AddSingleton<OCAP.Core.Events.IEventBus, OCAP.Infrastructure.Events.InMemoryEventBus>();
+
         return services;
     }
 

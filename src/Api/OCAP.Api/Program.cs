@@ -88,8 +88,9 @@ if (enableRateLimiting)
 
 app.UseRouting();
 
-// Mapeo de controladores y health checks.
+// Mapeo de controladores, SignalR hubs y health checks.
 app.MapControllers();
+app.MapHub<OCAP.Api.Hubs.EventsHub>("/hubs/events");
 // Serilog Request Logging middleware for structured HTTP logging
 app.UseSerilogRequestLogging();
 

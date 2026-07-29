@@ -1,43 +1,75 @@
 using Microsoft.Extensions.Logging;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Models;
-using OCAP.Channels.WhatsApp.Evolution;
+using OCAP.Channels.WhatsApp.DTOs;
+using OCAP.Core.Events;
 
 namespace OCAP.Channels.WhatsApp.Services;
 
-// Adaptador para canal WhatsApp que implementa IMessageSender.
-// Despacha mensajes salientes generados por OCAP utilizando EvolutionApiClient.
 public class WhatsAppMessageSender : IMessageSender
 {
-    private readonly EvolutionApiClient _apiClient;
+    private readonly WhatsAppApiClient _apiClient;
     private readonly ILogger<WhatsAppMessageSender> _logger;
+    private readonly IEventBus? _eventBus;
 
     public WhatsAppMessageSender(
-        EvolutionApiClient apiClient,
-        ILogger<WhatsAppMessageSender> logger)
+        WhatsAppApiClient apiClient,
+        ILogger<WhatsAppMessageSender> logger,
+        IEventBus? eventBus = null)
     {
         _apiClient = apiClient;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
-    // Transmite un mensaje saliente hacia Evolution API.
     public async Task<bool> SendMessageAsync(OutgoingChannelMessage message, CancellationToken cancellationToken = default)
     {
-        if (message == null || string.IsNullOrWhiteSpace(message.DestinationUserId))
+        if (message == null || string.IsNullOrWhiteSpace(message.DestinationUserId) || string.IsNullOrWhiteSpace(message.Message))
         {
-            _logger.LogWarning("Intento de envío con mensaje saliente nulo o destino vacío en WhatsAppMessageSender.");
+            _logger.LogWarning("Se intentó enviar un OutgoingChannelMessage nulo o inválido en WhatsAppMessageSender.");
             return false;
         }
 
-        _logger.LogInformation("Enviando mensaje WhatsApp saliente hacia destinatario {Destination}", message.DestinationUserId);
-
-        var success = await _apiClient.SendTextMessageAsync(message.DestinationUserId, message.Message, cancellationToken);
-        
-        if (!success)
+        try
         {
-            _logger.LogError("Falló el envío de respuesta WhatsApp hacia destinatario {Destination}", message.DestinationUserId);
-        }
+            var request = new WhatsAppCloudSendMessageRequest
+            {
+                To = message.DestinationUserId,
+                Text = new WhatsAppCloudText { Body = message.Message }
+            };
 
-        return success;
+            // Intentar extraer de metadatos si OCAP enruta los secretos en este contexto
+            message.Metadata.TryGetValue("PhoneNumberId", out string? phoneNumberId);
+            message.Metadata.TryGetValue("ApiToken", out string? overrideToken);
+
+            if (string.IsNullOrWhiteSpace(phoneNumberId))
+            {
+                _logger.LogError("No se pudo obtener el PhoneNumberId desde Metadata al despachar el mensaje de WhatsApp.");
+                return false;
+            }
+
+            var success = await _apiClient.SendMessageAsync(phoneNumberId, request, overrideToken, cancellationToken);
+
+            if (_eventBus != null)
+            {
+                await _eventBus.PublishAsync(new MessageSentEvent("WhatsApp", message.DestinationUserId, message.Message, success, Guid.Empty), cancellationToken);
+            }
+
+            if (success)
+            {
+                _logger.LogInformation("Mensaje de respuesta despachado exitosamente a WhatsApp para To {To}.", message.DestinationUserId);
+            }
+            else
+            {
+                _logger.LogWarning("Falló el despacho del mensaje de respuesta a WhatsApp para To {To}.", message.DestinationUserId);
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error no controlado al despachar mensaje WhatsApp a {Destination}.", message.DestinationUserId);
+            return false;
+        }
     }
 }

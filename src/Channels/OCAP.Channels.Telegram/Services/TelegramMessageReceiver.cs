@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OCAP.Application.UseCases;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Models;
+using OCAP.Core.Events;
 
 namespace OCAP.Channels.Telegram.Services;
 
@@ -13,13 +14,16 @@ public class TelegramMessageReceiver : IMessageReceiver
 {
     private readonly ReceiveMessageUseCase _receiveMessageUseCase;
     private readonly ILogger<TelegramMessageReceiver> _logger;
+    private readonly IEventBus? _eventBus;
 
     public TelegramMessageReceiver(
         ReceiveMessageUseCase receiveMessageUseCase,
-        ILogger<TelegramMessageReceiver> logger)
+        ILogger<TelegramMessageReceiver> logger,
+        IEventBus? eventBus = null)
     {
         _receiveMessageUseCase = receiveMessageUseCase;
         _logger = logger;
+        _eventBus = eventBus;
     }
 
     public async Task<bool> ReceiveMessageAsync(IncomingChannelMessage message, CancellationToken cancellationToken = default)
@@ -36,6 +40,11 @@ public class TelegramMessageReceiver : IMessageReceiver
 
             _logger.LogInformation("Entregando mensaje Telegram de usuario externo {ExternalUser} (Guid: {UserId}) a ReceiveMessageUseCase.",
                 message.ExternalUserId, userId);
+
+            if (_eventBus != null)
+            {
+                await _eventBus.PublishAsync(new MessageReceivedEvent("Telegram", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
+            }
 
             await _receiveMessageUseCase.ExecuteAsync(userId, message.Message, "Telegram", cancellationToken);
             return true;
