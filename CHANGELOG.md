@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-07-29
+
+### Added
+- **Multi-Factor Authentication & Passkeys (CAP-17)**: Production-ready MFA module featuring TOTP (RFC 6238 / RFC 4226), encrypted secrets (AES-256-GCM via `ICredentialVault`), QR Code URI generation, single-use hashed recovery codes, and WebAuthn / FIDO2 Passkey device registration & assertion.
+- **TOTP Engine (`ITotpService`, `TotpService`)**: Base32 secret generation, HMAC-SHA1 dynamic truncation, constant-time validation, and $\pm 1$ time-step drift tolerance.
+- **Passkeys Engine (`IWebAuthnService`, `WebAuthnService`)**: Registration challenge options, credential persistence (`WebAuthnCredential`), sign counter anti-replay protection, assertion verification, and device management.
+- **REST API Endpoints**: Production-ready controllers `/api/auth/mfa/*` and `/api/auth/webauthn/*`.
+- **Security Audit & ADR**: Full security audit logging and ADR-006 created in `docs/adr/ADR-006-mfa-totp-webauthn-passkeys.md`.
+
 ## [1.7.0] - 2026-07-29
 
 ### Added

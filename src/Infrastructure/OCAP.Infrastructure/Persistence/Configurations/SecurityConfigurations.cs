@@ -115,4 +115,37 @@ public class GroupRoleConfiguration : IEntityTypeConfiguration<GroupRole>
     }
 }
 
+public class UserMfaSettingsConfiguration : IEntityTypeConfiguration<UserMfaSettings>
+{
+    public void Configure(EntityTypeBuilder<UserMfaSettings> builder)
+    {
+        builder.ToTable("UserMfaSettings");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.UserId }).IsUnique();
+        builder.Property(x => x.EncryptedTotpSecret).IsRequired().HasMaxLength(2000);
+    }
+}
+
+public class UserRecoveryCodeConfiguration : IEntityTypeConfiguration<UserRecoveryCode>
+{
+    public void Configure(EntityTypeBuilder<UserRecoveryCode> builder)
+    {
+        builder.ToTable("UserRecoveryCodes");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.UserId });
+    }
+}
+
+public class WebAuthnCredentialConfiguration : IEntityTypeConfiguration<WebAuthnCredential>
+{
+    public void Configure(EntityTypeBuilder<WebAuthnCredential> builder)
+    {
+        builder.ToTable("WebAuthnCredentials");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.CredentialId }).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.UserId });
+        builder.Property(x => x.DeviceName).HasMaxLength(256);
+    }
+}
+
 
