@@ -18,17 +18,18 @@ Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap
 - [x] **CAP-15**: External Identity Providers (Google, Microsoft Entra ID, GitHub, Generic OIDC) & Account Linking/Auto-Provisioning.
 - [x] **CAP-16**: Identity & Administration Management (Users, Roles, Permissions, Groups, Tenants, Profile, Lock/Unlock, Activation, Invites).
 - [x] **CAP-17**: Multi-Factor Authentication (MFA / TOTP RFC 6238) & Passkeys (WebAuthn / FIDO2 Level 2).
+- [x] **CAP-18**: Enterprise Single Sign-On SAML 2.0 (SP Metadata, ACS, SLO, AuthnRequest, Claims Mapping).
 
 ---
 
 ## 🚀 Próximos CAPs
 
-- [ ] **CAP-18**: Enterprise SSO SAML2 & Directory Synchronization (SCIM).
-- [ ] **CAP-19**: Distributed Event Bus (RabbitMQ / NATS) & High Availability Cluster.
+- [ ] **CAP-19**: Enterprise Directory Synchronization (SCIM 2.0 RFC 7644 & LDAP / Active Directory).
+- [ ] **CAP-20**: Distributed Event Bus (RabbitMQ / NATS) & High Availability Cluster.
 
 ---
 
 ## 📊 Estado de Progreso General
 - **Fase Actual**: Fase 7 — Seguridad & Escalabilidad Empresarial
-- **Progreso CAPs**: 17 / 19 completados (**89.5%**)
+- **Progreso CAPs**: 18 / 20 completados (**90.0%**)
 - **Dependencias**: .NET 10, OpenIddict, EF Core, PostgreSQL, SignalR, Next.js, TanStack Query.

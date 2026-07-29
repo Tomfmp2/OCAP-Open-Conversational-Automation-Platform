@@ -148,4 +148,18 @@ public class WebAuthnCredentialConfiguration : IEntityTypeConfiguration<WebAuthn
     }
 }
 
+public class SamlProviderConfigConfiguration : IEntityTypeConfiguration<SamlProviderConfig>
+{
+    public void Configure(EntityTypeBuilder<SamlProviderConfig> builder)
+    {
+        builder.ToTable("SamlProviderConfigs");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => x.TenantId).IsUnique();
+        builder.Property(x => x.EntityId).IsRequired().HasMaxLength(512);
+        builder.Property(x => x.SsoServiceUrl).IsRequired().HasMaxLength(1024);
+        builder.Property(x => x.SloServiceUrl).HasMaxLength(1024);
+        builder.Property(x => x.IdpCertificatePem).HasMaxLength(4000);
+    }
+}
+
 
