@@ -46,7 +46,7 @@ public class WhatsAppMessageReceiver : IMessageReceiver
                 await _eventBus.PublishAsync(new MessageReceivedEvent("WhatsApp", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
             }
 
-            await _receiveMessageUseCase.ExecuteAsync(userId, message.Message, "WhatsApp", cancellationToken);
+            await _receiveMessageUseCase.ExecuteAsync(userId, message.Message ?? string.Empty, "WhatsApp", cancellationToken);
             return true;
         }
         catch (Exception ex)
