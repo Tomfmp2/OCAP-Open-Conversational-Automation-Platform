@@ -8,6 +8,7 @@ using OCAP.Workflow.Application.Services;
 using OCAP.Workflow.Designer.Models;
 using OCAP.Workflow.Designer.DTOs;
 using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
@@ -19,23 +20,37 @@ public class WorkflowsController : ControllerBase
     private readonly IWorkflowValidator _workflowValidator;
     private readonly IWorkflowDesignerMapper _workflowDesignerMapper;
     private readonly OCAPDbContext _dbContext;
+    private readonly ITenantContext _tenantContext;
+    private readonly IUserContext _userContext;
 
     public WorkflowsController(
         IWorkflowEngine workflowEngine,
         IWorkflowValidator workflowValidator,
         IWorkflowDesignerMapper workflowDesignerMapper,
-        OCAPDbContext dbContext)
+        OCAPDbContext dbContext,
+        ITenantContext tenantContext,
+        IUserContext userContext)
     {
         _workflowEngine = workflowEngine ?? throw new ArgumentNullException(nameof(workflowEngine));
         _workflowValidator = workflowValidator ?? throw new ArgumentNullException(nameof(workflowValidator));
         _workflowDesignerMapper = workflowDesignerMapper ?? throw new ArgumentNullException(nameof(workflowDesignerMapper));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
+        _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
     }
 
     [HttpGet]
     public async Task<ActionResult<List<WorkflowDefinitionDto>>> GetWorkflows(CancellationToken cancellationToken)
     {
-        var workflows = await _dbContext.WorkflowDefinitions
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(w => w.TenantId == tenantId);
+        }
+
+        var workflows = await query
             .Select(w => new WorkflowDefinitionDto(w.Id, w.TenantId, w.Name, w.Description, w.CurrentVersion, w.Status.ToString(), w.Steps.Count, w.CreatedAtUtc))
             .ToListAsync(cancellationToken);
         
@@ -45,8 +60,15 @@ public class WorkflowsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<WorkflowDefinitionDto>> GetWorkflowById(Guid id, CancellationToken cancellationToken)
     {
-        var w = await _dbContext.WorkflowDefinitions
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        var w = await query.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
             
         if (w == null) return NotFound();
 
@@ -57,7 +79,15 @@ public class WorkflowsController : ControllerBase
     [HttpGet("{id}/status")]
     public async Task<ActionResult<object>> GetWorkflowStatus(Guid id, CancellationToken cancellationToken)
     {
-        var w = await _dbContext.WorkflowDefinitions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        var w = await query.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (w == null) return NotFound();
 
         var totalExec = await _dbContext.WorkflowExecutions.CountAsync(e => e.WorkflowDefinitionId == id, cancellationToken);
@@ -101,7 +131,12 @@ public class WorkflowsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<WorkflowDefinitionDto>> CreateWorkflow([FromBody] CreateWorkflowRequestDto request, CancellationToken cancellationToken)
     {
-        var tenantId = Guid.NewGuid();
+        if (request == null || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { message = "El nombre del workflow es obligatorio." });
+        }
+
+        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
         var definition = new WorkflowDefinition(Guid.NewGuid(), tenantId, request.Name, request.Description);
         
         _dbContext.WorkflowDefinitions.Add(definition);
@@ -112,17 +147,52 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public ActionResult<WorkflowDefinitionDto> UpdateWorkflow(Guid id, [FromBody] CreateWorkflowRequestDto request)
+    public async Task<ActionResult<WorkflowDefinitionDto>> UpdateWorkflow(Guid id, [FromBody] CreateWorkflowRequestDto request, CancellationToken cancellationToken)
     {
-        // For GA, domain-driven update logic should be implemented.
-        // Currently returning 501 Not Implemented.
-        return StatusCode(501, "Update logic is not implemented in the domain yet.");
+        if (request == null || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { message = "El nombre del workflow es obligatorio." });
+        }
+
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        var definition = await query.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (definition == null) return NotFound();
+
+        definition.UpdateDetails(request.Name, request.Description);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var dto = new WorkflowDefinitionDto(
+            definition.Id,
+            definition.TenantId,
+            definition.Name,
+            definition.Description,
+            definition.CurrentVersion,
+            definition.Status.ToString(),
+            definition.Steps.Count,
+            definition.CreatedAtUtc);
+
+        return Ok(dto);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteWorkflow(Guid id, CancellationToken cancellationToken)
     {
-        var definition = await _dbContext.WorkflowDefinitions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        var definition = await query.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (definition == null) return NotFound();
 
         _dbContext.WorkflowDefinitions.Remove(definition);
@@ -134,10 +204,13 @@ public class WorkflowsController : ControllerBase
     [HttpPost("{id}/execute")]
     public async Task<ActionResult<WorkflowExecutionDto>> ExecuteWorkflow(Guid id, CancellationToken cancellationToken)
     {
+        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var userId = _userContext.UserId != Guid.Empty ? _userContext.UserId : Guid.NewGuid();
+
         var context = new WorkflowContext
         {
-            TenantId = Guid.NewGuid(),
-            UserId = Guid.NewGuid()
+            TenantId = tenantId,
+            UserId = userId
         };
 
         var execution = await _workflowEngine.StartWorkflowAsync(id, context, cancellationToken);
@@ -208,7 +281,7 @@ public class WorkflowsController : ControllerBase
             return BadRequest(validationResult);
         }
 
-        var tenantId = Guid.NewGuid(); // Simplified
+        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
         var definition = _workflowDesignerMapper.MapToDomain(graph, tenantId);
 
         _dbContext.WorkflowDefinitions.Add(definition);
@@ -228,4 +301,3 @@ public class WorkflowsController : ControllerBase
         return Ok(dto);
     }
 }
-

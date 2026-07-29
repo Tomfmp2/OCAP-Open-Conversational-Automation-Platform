@@ -79,9 +79,11 @@ public class DashboardIntegrationTests
         var engineMock = new Mock<IWorkflowEngine>();
         var validatorMock = new Mock<IWorkflowValidator>();
         var mapperMock = new Mock<IWorkflowDesignerMapper>();
+        var tenantContextMock = new Mock<OCAP.Security.Abstractions.ITenantContext>();
+        var userContextMock = new Mock<OCAP.Security.Abstractions.IUserContext>();
         using var dbContext = CreateDbContext();
 
-        var controller = new WorkflowsController(engineMock.Object, validatorMock.Object, mapperMock.Object, dbContext);
+        var controller = new WorkflowsController(engineMock.Object, validatorMock.Object, mapperMock.Object, dbContext, tenantContextMock.Object, userContextMock.Object);
         var workflowId = Guid.NewGuid();
         
         var definition = new OCAP.Workflow.Domain.Entities.WorkflowDefinition(workflowId, Guid.NewGuid(), "Test");
@@ -91,6 +93,10 @@ public class DashboardIntegrationTests
         // Act - GetById
         var getByIdResult = await controller.GetWorkflowById(workflowId, CancellationToken.None);
         getByIdResult.Result.Should().BeOfType<OkObjectResult>();
+
+        // Act - Update (PUT)
+        var updateResult = await controller.UpdateWorkflow(workflowId, new CreateWorkflowRequestDto { Name = "Test Updated", Description = "Desc Updated" }, CancellationToken.None);
+        updateResult.Result.Should().BeOfType<OkObjectResult>();
 
         // Act - Status
         var statusResult = await controller.GetWorkflowStatus(workflowId, CancellationToken.None);
