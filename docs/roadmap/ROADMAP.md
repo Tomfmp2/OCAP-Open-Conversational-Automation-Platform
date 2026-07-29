@@ -1,39 +1,33 @@
-# ROADMAP OCAP
+# ROADMAP OCAP (Open Conversational Automation Platform)
 
-Este es el plan de evolución trazado para el desarrollo y consolidación de la Open Conversational Automation Platform.
+Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap).
 
-## Fase 1: Arquitectura Base
-- [x] Definición de la estructura del proyecto.
-- [x] Establecimiento de la Arquitectura Hexagonal y Modular Monolith.
-- [x] Creación de proyectos .NET e interconexión de referencias.
-- [x] Documentación base (Visión, Arquitectura, Principios).
-- [ ] Configuración inicial de pipelines CI/CD y plantillas de GitHub.
+---
 
-## Fase 2: Core Conversacional
-- Diseño e implementación de las entidades del Domain (Conversation, Message, User, Session).
-- Definición de los Puertos (Ports) de entrada y salida.
-- Implementación de los flujos principales (Application Use Cases) independientes de infraestructura.
+## 🏆 CAPs Completados
 
-## Fase 3: Canales Iniciales
-- Desarrollo del adaptador de canal para Telegram.
-- Desarrollo del adaptador de canal para WhatsApp (vía Evolution API o Meta Cloud API).
-- Pruebas End-to-End validando la independencia del canal respecto al dominio.
+- [x] **CAP-01 a CAP-06**: Core Hexagonal, Persistencia EF Core PostgreSQL, Canales Telegram/WhatsApp, Agentes IA e Inteligencia Multi-Provider.
+- [x] **CAP-07**: Workflow Node Execution Framework & Runtime State Machine.
+- [x] **CAP-08**: Real-Time Event Bus In-Memory & Distributed System.
+- [x] **CAP-09**: API Keys Platform & Webhook Delivery Engine (HMAC SHA-256).
+- [x] **CAP-10**: Identity Foundation & OpenIddict OAuth2/OIDC Authorization Server.
+- [x] **CAP-11**: SignalR Live Gateway (`/hubs/events`) con Aislamiento Multi-Tenant.
+- [x] **CAP-12**: Dashboard Backend Integration REST API (Overview, Workflows, Agents, Channels, Security, Diagnostics).
+- [x] **CAP-13**: Frontend Live Integration Next.js SPA + SignalR Streaming + React Query.
+- [x] **CAP-14**: OAuth2 Authorization Code Flow + PKCE (RFC 7636) & User Consent Management.
+- [x] **CAP-15**: External Identity Providers (Google, Microsoft Entra ID, GitHub, Generic OIDC) & Account Linking/Auto-Provisioning.
 
-## Fase 4: Dashboard
-- Diseño de la API administrativa.
-- Desarrollo de la aplicación frontend (Dashboard Web) para monitorización en tiempo real.
-- Gestión básica de configuraciones y revisión de conversaciones.
+---
 
-## Fase 5: Deployment Manager
-- Creación de la herramienta CLI para validación de entornos.
-- Automatización de la generación de configuraciones (`docker-compose.yml`, `.env`).
-- Automatización del seed de la base de datos y migraciones de PostgreSQL.
+## 🚀 Próximos CAPs
 
-## Fase 6: Sistema de Plugins
-- Refinamiento de la arquitectura Modular Monolith para permitir la carga dinámica de DLLs / módulos en tiempo de ejecución.
-- Marketplace comunitario y documentación para terceros.
+- [ ] **CAP-16**: Enterprise SSO SAML2 & Directory Synchronization (SCIM).
+- [ ] **CAP-17**: Multi-Factor Authentication (MFA / TOTP) & Passkeys (WebAuthn).
+- [ ] **CAP-18**: Distributed Event Bus (RabbitMQ / NATS) & High Availability Cluster.
 
-## Fase 7: Escalabilidad Empresarial
-- Implementación de caché distribuida (Redis).
-- Colas de mensajería (RabbitMQ / Kafka) para procesamiento asíncrono y masivo.
-- Preparación para arquitecturas de alta disponibilidad (High Availability) y orquestación con Kubernetes.
+---
+
+## 📊 Estado de Progreso General
+- **Fase Actual**: Fase 7 — Seguridad & Escalabilidad Empresarial
+- **Progreso CAPs**: 15 / 18 completados (**83.3%**)
+- **Dependencias**: .NET 10, OpenIddict, EF Core, PostgreSQL, SignalR, Next.js, TanStack Query.

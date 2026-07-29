@@ -52,6 +52,19 @@ public static class ApiServiceExtensions
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();
         services.AddScoped<IChannelConnectionManager, ChannelConnectionManager>();
 
+        // Registrar Proveedores de Identidad Externos (CAP-15)
+        services.Configure<OCAP.Security.Abstractions.DTOs.ExternalAuthenticationSettings>(configuration.GetSection("Authentication"));
+        services.AddHttpClient<OCAP.Security.Infrastructure.Services.Providers.GoogleExternalAuthProvider>();
+        services.AddHttpClient<OCAP.Security.Infrastructure.Services.Providers.MicrosoftExternalAuthProvider>();
+        services.AddHttpClient<OCAP.Security.Infrastructure.Services.Providers.GitHubExternalAuthProvider>();
+        services.AddHttpClient<OCAP.Security.Infrastructure.Services.Providers.GenericOidcExternalAuthProvider>();
+
+        services.AddScoped<IExternalAuthProvider, OCAP.Security.Infrastructure.Services.Providers.GoogleExternalAuthProvider>();
+        services.AddScoped<IExternalAuthProvider, OCAP.Security.Infrastructure.Services.Providers.MicrosoftExternalAuthProvider>();
+        services.AddScoped<IExternalAuthProvider, OCAP.Security.Infrastructure.Services.Providers.GitHubExternalAuthProvider>();
+        services.AddScoped<IExternalAuthProvider, OCAP.Security.Infrastructure.Services.Providers.GenericOidcExternalAuthProvider>();
+        services.AddScoped<IExternalAuthenticationService, ExternalAuthenticationService>();
+
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
 
