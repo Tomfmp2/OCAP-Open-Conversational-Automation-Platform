@@ -70,3 +70,17 @@ public class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
     }
 }
 
+public class UserConsentConfiguration : IEntityTypeConfiguration<UserConsent>
+{
+    public void Configure(EntityTypeBuilder<UserConsent> builder)
+    {
+        builder.ToTable("UserConsents");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.ClientId).IsRequired().HasMaxLength(256);
+        builder.Property(x => x.GrantedScopes).HasMaxLength(2000);
+        builder.HasIndex(x => new { x.UserId, x.ClientId, x.TenantId });
+        builder.HasIndex(x => x.TenantId);
+    }
+}
+
+
