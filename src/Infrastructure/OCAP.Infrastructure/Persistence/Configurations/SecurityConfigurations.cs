@@ -205,4 +205,34 @@ public class ScimExternalMappingConfiguration : IEntityTypeConfiguration<ScimExt
     }
 }
 
+public class OutboxMessageConfiguration : IEntityTypeConfiguration<OCAP.Core.Events.Distributed.OutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<OCAP.Core.Events.Distributed.OutboxMessage> builder)
+    {
+        builder.ToTable("OutboxMessages");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.Status, x.CreatedAtUtc });
+    }
+}
+
+public class InboxMessageConfiguration : IEntityTypeConfiguration<OCAP.Core.Events.Distributed.InboxMessage>
+{
+    public void Configure(EntityTypeBuilder<OCAP.Core.Events.Distributed.InboxMessage> builder)
+    {
+        builder.ToTable("InboxMessages");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.MessageId, x.ConsumerGroup }).IsUnique();
+    }
+}
+
+public class DeadLetterMessageConfiguration : IEntityTypeConfiguration<OCAP.Core.Events.Distributed.DeadLetterMessage>
+{
+    public void Configure(EntityTypeBuilder<OCAP.Core.Events.Distributed.DeadLetterMessage> builder)
+    {
+        builder.ToTable("DeadLetterMessages");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.EventType });
+    }
+}
+
 

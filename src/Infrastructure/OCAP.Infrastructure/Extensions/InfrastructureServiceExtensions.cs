@@ -54,8 +54,14 @@ public static class InfrastructureServiceExtensions
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
-        // Real-Time Event Bus Foundation
-        services.AddSingleton<OCAP.Core.Events.IEventBus, OCAP.Infrastructure.Events.InMemoryEventBus>();
+        // Real-Time Distributed Event Bus Foundation (CAP-20)
+        services.AddSingleton<OCAP.Core.Events.Distributed.IEventSerializer, OCAP.Infrastructure.Events.Distributed.JsonEventSerializer>();
+        services.AddSingleton<OCAP.Core.Events.Distributed.IEventTransport, OCAP.Infrastructure.Events.Distributed.InMemoryEventTransport>();
+        services.AddScoped<OCAP.Core.Events.Distributed.IOutboxStore, OCAP.Infrastructure.Events.Distributed.EfOutboxStore>();
+        services.AddScoped<OCAP.Core.Events.Distributed.IInboxStore, OCAP.Infrastructure.Events.Distributed.EfInboxStore>();
+        services.AddScoped<OCAP.Core.Events.Distributed.IMessageDeadLetterHandler, OCAP.Infrastructure.Events.Distributed.MessageDeadLetterHandler>();
+        services.AddSingleton<OCAP.Core.Events.IEventBus, OCAP.Infrastructure.Events.Distributed.DistributedEventBus>();
+        services.AddHostedService<OCAP.Infrastructure.Events.Distributed.OutboxProcessorBackgroundService>();
 
         return services;
     }

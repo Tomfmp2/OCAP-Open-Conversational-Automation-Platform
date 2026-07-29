@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-07-29
+
+### Added
+- **Distributed Event Bus & HA Cluster (CAP-20)**: Complete distributed event bus implementation supporting horizontal scaling, multi-node cluster execution, and provider-agnostic message transports.
+- **Message Bus Abstractions (`IEventTransport`, `IEventSerializer`, `IEventPublisher`, `IEventConsumer`, `IMessageDeadLetterHandler`)**: Decoupled framework supporting RabbitMQ, NATS JetStream, InMemory, and future cloud adapters (Azure Service Bus, AWS SQS, Kafka, Redis Streams, Google PubSub).
+- **Reliability & Idempotency**: Outbox Pattern (`OutboxMessage`, `EfOutboxStore`, `OutboxProcessorBackgroundService`), Inbox Pattern (`InboxMessage`, `EfInboxStore`), Dead Letter Queue (`DeadLetterMessage`, `MessageDeadLetterHandler`), and exponential backoff retry policy.
+- **REST Administration API**: Controller `/api/eventbus/*` (`status`, `metrics`, `retries`, `deadletters`, `deadletters/retry`, `connections`, `providers`).
+- **Documentation & ADR**: Created `ADR-009-distributed-event-bus.md`, `DISTRIBUTED_EVENT_BUS.md`, `RABBITMQ_CLUSTER.md`, and `NATS_CLUSTER.md`.
+
 ## [2.0.0] - 2026-07-29
 
 ### Added
