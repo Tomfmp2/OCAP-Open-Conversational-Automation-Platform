@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-29
+
+### Added
+- **External Identity Providers (CAP-15)**: Added OAuth2/OIDC authentication providers for Google, Microsoft Entra ID (Azure AD / Office 365), GitHub, and Generic OIDC.
+- **External Auth Abstractions & Service (`IExternalAuthProvider`, `IExternalAuthenticationService`)**: Extensible hexagonal architecture for external identity providers (`GoogleExternalAuthProvider`, `MicrosoftExternalAuthProvider`, `GitHubExternalAuthProvider`, `GenericOidcExternalAuthProvider`).
+- **Account Linking & Auto-Provisioning (`IExternalIdentityResolver`)**: Account linking, unlinking, querying linked providers, and configurable automatic user provisioning (`AutoProvisionUsers`).
+- **REST API Endpoints (`ExternalAuthController`)**: Endpoints `/api/auth/external/providers`, `/api/auth/external/challenge/{provider}`, `/api/auth/external/callback/{provider}`, `/api/auth/external/linked`, `/api/auth/external/linked/{provider}`.
+- **Security & Multi-Tenant**: Multi-tenant data isolation, OAuth state validation, security audit logging for external login, account link and unlink events.
+- **Architecture Decision Record**: Created `docs/adr/ADR-004-external-identity-providers.md`.
+
 ## [1.5.2] - 2026-07-28
 
 ### Added

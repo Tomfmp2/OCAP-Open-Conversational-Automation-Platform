@@ -5,17 +5,16 @@ using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Security.Infrastructure.Services;
 
-// Servicio de infraestructura para resolver y vincular identidades externas (Telegram, WhatsApp, Slack, etc.) con usuarios globales de OCAP.
+// Servicio de infraestructura para resolver, vincular y desvincular identidades externas (Google, Microsoft, GitHub, OIDC, etc.) con usuarios globales de OCAP (CAP-15).
 public class ExternalIdentityResolver : IExternalIdentityResolver
 {
     private readonly OCAPDbContext _dbContext;
 
     public ExternalIdentityResolver(OCAPDbContext dbContext)
     {
-        _dbContext = dbContext;
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    // Busca el UserId interno asociado a una identidad de canal externo para un Tenant específico.
     public async Task<Guid?> ResolveUserIdAsync(
         Guid tenantId,
         string provider,
@@ -27,21 +26,20 @@ public class ExternalIdentityResolver : IExternalIdentityResolver
             return null;
         }
 
-        var normalizedProvider = provider.Trim();
+        var normalizedProvider = provider.Trim().ToLowerInvariant();
         var normalizedExternalId = externalId.Trim();
 
         var identity = await _dbContext.ExternalIdentities
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
                 x.TenantId == tenantId &&
-                x.Provider == normalizedProvider &&
+                x.Provider.ToLower() == normalizedProvider &&
                 x.ExternalId == normalizedExternalId,
                 cancellationToken);
 
         return identity?.UserId;
     }
 
-    // Vincula una identidad externa a un UserId interno de OCAP dentro de un Tenant.
     public async Task<bool> LinkExternalIdentityAsync(
         Guid tenantId,
         Guid userId,
@@ -62,13 +60,12 @@ public class ExternalIdentityResolver : IExternalIdentityResolver
         var existing = await _dbContext.ExternalIdentities
             .FirstOrDefaultAsync(x =>
                 x.TenantId == tenantId &&
-                x.Provider == normalizedProvider &&
+                x.Provider.ToLower() == normalizedProvider.ToLower() &&
                 x.ExternalId == normalizedExternalId,
                 cancellationToken);
 
         if (existing != null)
         {
-            // Ya está vinculada esta identidad externa a este u otro usuario.
             return existing.UserId == userId;
         }
 
@@ -84,5 +81,52 @@ public class ExternalIdentityResolver : IExternalIdentityResolver
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+
+    public async Task<bool> UnlinkExternalIdentityAsync(
+        Guid tenantId,
+        Guid userId,
+        string provider,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId == Guid.Empty || userId == Guid.Empty || string.IsNullOrWhiteSpace(provider))
+        {
+            return false;
+        }
+
+        var normalizedProvider = provider.Trim().ToLowerInvariant();
+
+        var existing = await _dbContext.ExternalIdentities
+            .FirstOrDefaultAsync(x =>
+                x.TenantId == tenantId &&
+                x.UserId == userId &&
+                x.Provider.ToLower() == normalizedProvider,
+                cancellationToken);
+
+        if (existing == null)
+        {
+            return false;
+        }
+
+        _dbContext.ExternalIdentities.Remove(existing);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task<IReadOnlyList<ExternalIdentity>> GetLinkedIdentitiesAsync(
+        Guid tenantId,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId == Guid.Empty || userId == Guid.Empty)
+        {
+            return Array.Empty<ExternalIdentity>();
+        }
+
+        return await _dbContext.ExternalIdentities
+            .AsNoTracking()
+            .Where(x => x.TenantId == tenantId && x.UserId == userId)
+            .ToListAsync(cancellationToken);
     }
 }
