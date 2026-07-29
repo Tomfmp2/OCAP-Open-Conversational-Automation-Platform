@@ -69,6 +69,11 @@ public static class ApiServiceExtensions
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IGroupService, GroupService>();
 
+        // Registrar MFA (TOTP / Recovery Codes) y WebAuthn / Passkeys (CAP-17)
+        services.AddSingleton<ITotpService, TotpService>();
+        services.AddScoped<IMfaService, MfaService>();
+        services.AddScoped<IWebAuthnService, WebAuthnService>();
+
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
 

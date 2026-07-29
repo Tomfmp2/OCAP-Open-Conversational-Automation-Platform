@@ -53,6 +53,9 @@ public class OCAPDbContext : DbContext
     public DbSet<Group> Groups => Set<Group>();
     public DbSet<UserGroup> UserGroups => Set<UserGroup>();
     public DbSet<GroupRole> GroupRoles => Set<GroupRole>();
+    public DbSet<UserMfaSettings> UserMfaSettings => Set<UserMfaSettings>();
+    public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
+    public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
