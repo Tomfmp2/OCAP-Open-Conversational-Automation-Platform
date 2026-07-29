@@ -44,6 +44,7 @@ public static class ApiServiceExtensions
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IConsentService, ConsentService>();
         services.AddOcapOpenIddict();
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
         services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();

@@ -22,7 +22,9 @@ public static class OpenIddictExtensions
                        .SetAuthorizationEndpointUris("/connect/authorize");
 
                 options.AllowClientCredentialsFlow()
-                       .AllowRefreshTokenFlow();
+                       .AllowRefreshTokenFlow()
+                       .AllowAuthorizationCodeFlow()
+                       .RequireProofKeyForCodeExchange();
 
                 // Certificados de firma y cifrado de desarrollo para Tokens JWT / OIDC
                 options.AddDevelopmentEncryptionCertificate()
