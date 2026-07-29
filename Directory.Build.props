@@ -1,5 +1,5 @@
 <Project>
   <PropertyGroup>
-    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <Version>2.1.0</Version>    <NoWarn>$(NoWarn);MSB3277</NoWarn>
   </PropertyGroup>
 </Project>
