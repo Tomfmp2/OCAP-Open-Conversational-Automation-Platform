@@ -5,7 +5,6 @@ using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Domain.Entities;
 using OCAP.Agents.Domain.ValueObjects;
 using OCAP.Intelligence.Application.Services;
-using OCAP.Intelligence.Mock;
 using OCAP.Prompts;
 using OCAP.Providers.Google.Calendar;
 using OCAP.Tools.Abstractions;
@@ -36,7 +35,11 @@ public class AgentReasoningServiceTests
             .Returns(new List<ITool> { tool });
 
         var promptBuilder = new SystemPromptBuilder();
-        var aiProvider = new MockAiProvider();
+        var aiProvider = new Mock<OCAP.Intelligence.Abstractions.IAiProvider>();
+        aiProvider.Setup(p => p.AnalyzeIntentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(new Intent(Intent.CreateReminder, 0.95));
+        aiProvider.Setup(p => p.GenerateResponseAsync(It.IsAny<OCAP.Intelligence.Abstractions.AiRequest>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(new OCAP.Intelligence.Abstractions.AiResponse { ProviderName = "Mock", GeneratedText = "Acción Ejecutada con éxito: Evento de prueba agendado exitosamente en Google Calendar." });
 
         var mockDispatcher = new Mock<IActionDispatcher>();
         mockDispatcher.Setup(d => d.DispatchActionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<AgentAction>(), It.IsAny<CancellationToken>()))
@@ -49,7 +52,7 @@ public class AgentReasoningServiceTests
             mockAgentRepo.Object,
             mockToolRegistry.Object,
             promptBuilder,
-            aiProvider,
+            aiProvider.Object,
             mockDispatcher.Object,
             usageTracker,
             logger

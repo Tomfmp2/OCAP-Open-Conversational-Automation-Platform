@@ -3,6 +3,8 @@ using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Domain.Entities;
 using OCAP.Security.Abstractions;
 using OCAP.Tools.Abstractions;
+using OCAP.Core.Ports;
+using OCAP.Core.Entities;
 
 namespace OCAP.Agents.Application.Services;
 
@@ -12,15 +14,18 @@ public class ActionDispatcher : IActionDispatcher
     private readonly IToolRegistry _toolRegistry;
     private readonly IPermissionValidator _permissionValidator;
     private readonly ILogger<ActionDispatcher> _logger;
+    private readonly IToolExecutionRepository? _repository;
 
     public ActionDispatcher(
         IToolRegistry toolRegistry,
         IPermissionValidator permissionValidator,
-        ILogger<ActionDispatcher> logger)
+        ILogger<ActionDispatcher> logger,
+        IToolExecutionRepository? repository = null)
     {
         _toolRegistry = toolRegistry;
         _permissionValidator = permissionValidator;
         _logger = logger;
+        _repository = repository;
     }
 
     public async Task<ToolResult> DispatchActionAsync(
@@ -60,7 +65,23 @@ public class ActionDispatcher : IActionDispatcher
             var execContext = new ToolExecutionContext(agentId, userId, conversationId, parameters);
 
             // 3. Ejecutar la herramienta
-            return await tool.ExecuteAsync(execContext, cancellationToken);
+            var result = await tool.ExecuteAsync(execContext, cancellationToken);
+
+            if (_repository != null)
+            {
+                var toolExecution = new ToolExecution(
+                    Guid.NewGuid(),
+                    agentId,
+                    userId,
+                    conversationId,
+                    action.TargetToolName,
+                    result.Success,
+                    result.Success ? null : result.ErrorCode
+                );
+                await _repository.SaveAsync(toolExecution, cancellationToken);
+            }
+
+            return result;
         }
 
         return ToolResult.Ok(null, $"Acción '{action.ActionType}' procesada internamente sin herramientas.");

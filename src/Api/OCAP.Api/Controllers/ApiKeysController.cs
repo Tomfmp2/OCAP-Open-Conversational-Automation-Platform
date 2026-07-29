@@ -32,16 +32,6 @@ public class ApiKeysController : ControllerBase
         var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
         var entities = await _apiKeyService.GetApiKeysForTenantAsync(tenantId, cancellationToken);
 
-        if (entities.Count == 0)
-        {
-            var fallback = new List<ApiKeyDto>
-            {
-                new(Guid.NewGuid(), tenantId, Guid.NewGuid(), "ocap_live_", "Integración WhatsApp", DateTime.UtcNow.AddYears(1), false, DateTime.UtcNow.AddHours(-2)),
-                new(Guid.NewGuid(), tenantId, Guid.NewGuid(), "ocap_live_", "Servicio Zapier", DateTime.UtcNow.AddMonths(6), false, DateTime.UtcNow.AddDays(-1))
-            };
-            return Ok(fallback);
-        }
-
         var dtos = entities.Select(e => new ApiKeyDto(
             e.Id, e.TenantId, e.UserId, e.Prefix, e.Name, e.ExpiresAtUtc, e.IsRevoked, e.CreatedAtUtc
         )).ToList();

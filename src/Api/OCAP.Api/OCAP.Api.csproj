@@ -22,6 +22,9 @@
     <ProjectReference Include="..\..\Channels\OCAP.Channels.MicrosoftTeams\OCAP.Channels.MicrosoftTeams.csproj" />
     <ProjectReference Include="..\..\Channels\OCAP.Channels.WebChat\OCAP.Channels.WebChat.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Google\OCAP.Providers.Google.csproj" />
+    <ProjectReference Include="..\..\Providers\Google\OCAP.Providers.Google.Calendar\OCAP.Providers.Google.Calendar.csproj" />
+    <ProjectReference Include="..\..\Providers\Google\OCAP.Providers.Google.Gmail\OCAP.Providers.Google.Gmail.csproj" />
+    <ProjectReference Include="..\..\Providers\Google\OCAP.Providers.Google.Sheets\OCAP.Providers.Google.Sheets.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Microsoft365\OCAP.Providers.Microsoft365.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.OpenAI\OCAP.Providers.OpenAI.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Gemini\OCAP.Providers.Gemini.csproj" />
@@ -35,7 +38,6 @@
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Domain\OCAP.Intelligence.Domain.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Abstractions\OCAP.Intelligence.Abstractions.csproj" />
     <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Application\OCAP.Intelligence.Application.csproj" />
-    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Mock\OCAP.Intelligence.Mock.csproj" />
     <ProjectReference Include="..\..\Prompts\OCAP.Prompts\OCAP.Prompts.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Domain\OCAP.Security.Domain.csproj" />
     <ProjectReference Include="..\..\Security\OCAP.Security.Application\OCAP.Security.Application.csproj" />
@@ -45,10 +47,14 @@
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Designer\OCAP.Workflow.Designer.csproj" />
     <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Application\OCAP.Knowledge.Application.csproj" />
     <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Infrastructure\OCAP.Knowledge.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\Channels\OCAP.Channels.Mock\OCAP.Channels.Mock.csproj" />
+    <ProjectReference Include="..\..\Tools\OCAP.Tools.Google\OCAP.Tools.Google.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />

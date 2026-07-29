@@ -30,3 +30,8 @@ public interface IMessageRepository
     Task SaveAsync(Message message, CancellationToken cancellationToken = default);
     Task<IEnumerable<Message>> GetByConversationIdAsync(Guid conversationId, CancellationToken cancellationToken = default);
 }
+
+public interface IToolExecutionRepository
+{
+    Task SaveAsync(ToolExecution toolExecution, CancellationToken cancellationToken = default);
+}

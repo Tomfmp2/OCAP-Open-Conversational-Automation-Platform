@@ -50,6 +50,9 @@ public class DashboardController : ControllerBase
         var telegramConnected = await _dbContext.ChannelConnections.AnyAsync(c => c.Provider == "Telegram" && c.Enabled, cancellationToken);
         var whatsappConnected = await _dbContext.ChannelConnections.AnyAsync(c => c.Provider == "WhatsApp" && c.Enabled, cancellationToken);
 
+        var totalAgents = await _dbContext.Agents.CountAsync(cancellationToken);
+        var activeAgents = await _dbContext.Agents.CountAsync(a => a.Status == OCAP.Agents.Domain.Entities.AgentStatus.Active, cancellationToken);
+
         var recentAuditLogs = await _dbContext.AuditLogs
             .OrderByDescending(a => a.TimestampUtc)
             .Take(10)
@@ -75,33 +78,33 @@ public class DashboardController : ControllerBase
             },
             Workflows = new WorkflowOverviewSummaryDto
             {
-                TotalCount = totalWorkflows > 0 ? totalWorkflows : 3,
-                ActiveCount = activeWorkflows > 0 ? activeWorkflows : 3,
+                TotalCount = totalWorkflows,
+                ActiveCount = activeWorkflows,
                 FailedCount = failedExecutionsToday,
                 ExecutionsToday = totalExecutionsToday
             },
             Agents = new AgentOverviewSummaryDto
             {
-                TotalCount = 2,
-                ActiveCount = 2,
+                TotalCount = totalAgents,
+                ActiveCount = activeAgents,
                 RuntimeStatus = "Operational"
             },
             Channels = new ChannelOverviewSummaryDto
             {
-                TotalCount = totalChannels > 0 ? totalChannels : 2,
-                ConnectedCount = connectedChannels > 0 ? connectedChannels : 2,
-                TelegramConnected = telegramConnected || true,
-                WhatsappConnected = whatsappConnected || true
+                TotalCount = totalChannels,
+                ConnectedCount = connectedChannels,
+                TelegramConnected = telegramConnected,
+                WhatsappConnected = whatsappConnected
             },
             Tenants = new TenantOverviewSummaryDto
             {
-                TotalCount = totalTenants > 0 ? totalTenants : 1,
-                ActiveCount = activeTenants > 0 ? activeTenants : 1
+                TotalCount = totalTenants,
+                ActiveCount = activeTenants
             },
             Users = new UserOverviewSummaryDto
             {
-                TotalCount = totalUsers > 0 ? totalUsers : 1,
-                ActiveCount = activeUsers > 0 ? activeUsers : 1
+                TotalCount = totalUsers,
+                ActiveCount = activeUsers
             },
             ApiKeys = new ApiKeyOverviewSummaryDto
             {
@@ -123,15 +126,20 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("status")]
-    public ActionResult<DashboardStatusDto> GetStatus()
+    public async Task<ActionResult<DashboardStatusDto>> GetStatus(CancellationToken cancellationToken)
     {
+        var activeAgents = await _dbContext.Agents.CountAsync(a => a.Status == OCAP.Agents.Domain.Entities.AgentStatus.Active, cancellationToken);
+        var connectedChannels = await _dbContext.ChannelConnections.CountAsync(c => c.Enabled, cancellationToken);
+        var totalTools = await _dbContext.ToolExecutions.CountAsync(cancellationToken);
+        var totalConvos = await _dbContext.Conversations.CountAsync(cancellationToken);
+
         var status = new DashboardStatusDto
         {
             SystemStatus = "Healthy",
-            ActiveAgentsCount = 2,
-            ConnectedChannelsCount = 2,
-            TotalToolExecutions = 28,
-            TotalConversations = 14,
+            ActiveAgentsCount = activeAgents,
+            ConnectedChannelsCount = connectedChannels,
+            TotalToolExecutions = totalTools,
+            TotalConversations = totalConvos,
             ServerTimeUtc = DateTime.UtcNow
         };
 
@@ -139,14 +147,33 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("metrics")]
-    public ActionResult<DashboardMetricsDto> GetMetrics()
+    public async Task<ActionResult<DashboardMetricsDto>> GetMetrics(CancellationToken cancellationToken)
     {
+        var now = DateTime.UtcNow;
+        var activeConvosToday = await _dbContext.Conversations.CountAsync(c => c.CreatedAt >= now.Date, cancellationToken);
+        var msgsToday = await _dbContext.Messages.CountAsync(m => m.CreatedAt >= now.Date, cancellationToken);
+
+        var todayExecutions = await _dbContext.WorkflowExecutions
+            .Where(e => e.StartedAtUtc >= now.Date && e.CompletedAtUtc.HasValue)
+            .Select(e => new { e.Status, e.StartedAtUtc, e.CompletedAtUtc })
+            .ToListAsync(cancellationToken);
+
+        double avgResponseTime = 0;
+        double successRate = 100.0;
+
+        if (todayExecutions.Any())
+        {
+            avgResponseTime = todayExecutions.Average(e => (e.CompletedAtUtc!.Value - e.StartedAtUtc).TotalMilliseconds);
+            var successful = todayExecutions.Count(e => e.Status == WorkflowStatus.Completed);
+            successRate = (successful / (double)todayExecutions.Count) * 100;
+        }
+
         var metrics = new DashboardMetricsDto
         {
-            AverageResponseTimeMs = 38.2,
-            SuccessRatePercentage = 99.9,
-            ActiveConversationsToday = 14,
-            MessagesProcessedToday = 210
+            AverageResponseTimeMs = avgResponseTime,
+            SuccessRatePercentage = successRate,
+            ActiveConversationsToday = activeConvosToday,
+            MessagesProcessedToday = msgsToday
         };
 
         return Ok(metrics);

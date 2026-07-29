@@ -209,7 +209,7 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OCAP.Core.Eve
 {
     public void Configure(EntityTypeBuilder<OCAP.Core.Events.Distributed.OutboxMessage> builder)
     {
-        builder.ToTable("OutboxMessages");
+        builder.ToTable("DistributedOutboxMessages");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => new { x.Status, x.CreatedAtUtc });
     }

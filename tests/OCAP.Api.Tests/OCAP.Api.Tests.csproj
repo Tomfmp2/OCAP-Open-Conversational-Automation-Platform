@@ -35,6 +35,7 @@
     <ProjectReference Include="..\..\src\Application\OCAP.Application\OCAP.Application.csproj" />
     <ProjectReference Include="..\..\src\Core\OCAP.Core\OCAP.Core.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Workflow\OCAP.Workflow.Domain\OCAP.Workflow.Domain.csproj" />
   </ItemGroup>
 
 </Project>

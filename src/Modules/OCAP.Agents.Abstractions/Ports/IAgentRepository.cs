@@ -13,4 +13,9 @@ public interface IAgentRepository
 
     // Guarda o actualiza un agente en la base de datos.
     Task SaveAsync(Agent agent, CancellationToken cancellationToken = default);
+
+    Task<IEnumerable<Agent>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task AddAsync(Agent agent, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Agent agent, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Agent agent, CancellationToken cancellationToken = default);
 }

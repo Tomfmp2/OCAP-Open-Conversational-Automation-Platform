@@ -12,7 +12,6 @@
     <ProjectReference Include="..\..\Providers\OCAP.Providers.OpenAI\OCAP.Providers.OpenAI.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Gemini\OCAP.Providers.Gemini.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Ollama\OCAP.Providers.Ollama.csproj" />
-    <ProjectReference Include="..\..\Intelligence\OCAP.Intelligence.Mock\OCAP.Intelligence.Mock.csproj" />
   </ItemGroup>
 
   <ItemGroup>

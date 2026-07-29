@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OCAP.Core.Ports;
+using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Infrastructure.Persistence.Repositories;
 
@@ -40,6 +41,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<SessionRepository>(); // Registered directly as no port currently exists in Core
+        services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, AgentRepository>();
+        services.AddScoped<IToolExecutionRepository, ToolExecutionRepository>();
+        services.AddScoped<IAiExecutionLogRepository, AiExecutionLogRepository>();
+        services.AddScoped<IAiConversationMemoryRepository, AiConversationMemoryRepository>();
 
         // Caching Foundation
         services.AddDistributedMemoryCache();

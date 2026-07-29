@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Security;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
@@ -7,16 +9,19 @@ namespace OCAP.Api.Controllers;
 [Route("api/[controller]")]
 public class SessionsController : ControllerBase
 {
-    [HttpGet]
-    public ActionResult<List<UserSessionDto>> GetSessions()
+    private readonly OCAPDbContext _dbContext;
+
+    public SessionsController(OCAPDbContext dbContext)
     {
-        var tenantId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var sessions = new List<UserSessionDto>
-        {
-            new(Guid.NewGuid(), userId, tenantId, "192.168.1.50", "Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0.0.0", DateTime.UtcNow.AddMinutes(-45), true),
-            new(Guid.NewGuid(), userId, tenantId, "10.0.0.12", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X)", DateTime.UtcNow.AddHours(-5), false)
-        };
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<List<UserSessionDto>>> GetSessions(CancellationToken cancellationToken)
+    {
+        var sessions = await _dbContext.UserSessions
+            .Select(s => new UserSessionDto(s.Id, s.UserId, s.TenantId, s.IpAddress, s.UserAgent, s.LoginAtUtc, s.IsActive))
+            .ToListAsync(cancellationToken);
         return Ok(sessions);
     }
 }

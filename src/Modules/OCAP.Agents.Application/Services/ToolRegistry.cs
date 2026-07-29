@@ -7,6 +7,17 @@ public class ToolRegistry : IToolRegistry
 {
     private readonly Dictionary<string, ITool> _tools = new(StringComparer.OrdinalIgnoreCase);
 
+    public ToolRegistry(IEnumerable<ITool>? tools = null)
+    {
+        if (tools != null)
+        {
+            foreach (var tool in tools)
+            {
+                RegisterTool(tool);
+            }
+        }
+    }
+
     public void RegisterTool(ITool tool)
     {
         if (tool == null) throw new ArgumentNullException(nameof(tool));

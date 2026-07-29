@@ -1,37 +1,37 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// Controlador de API para consultar el historial de ejecuciones de herramientas.
 public class ExecutionsController : ControllerBase
 {
-    [HttpGet]
-    public ActionResult<IEnumerable<ExecutionDto>> GetExecutions()
+    private readonly OCAPDbContext _dbContext;
+
+    public ExecutionsController(OCAPDbContext dbContext)
     {
-        var executions = new List<ExecutionDto>
-        {
-            new ExecutionDto
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ExecutionDto>>> GetExecutions(CancellationToken cancellationToken)
+    {
+        var executions = await _dbContext.ToolExecutions
+            .OrderByDescending(e => e.ExecutedAt)
+            .Take(50)
+            .Select(e => new ExecutionDto
             {
-                Id = Guid.NewGuid(),
-                AgentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                ConversationId = Guid.NewGuid(),
-                ToolName = "CreateCalendarEventTool",
-                Success = true,
-                ExecutedAt = DateTime.UtcNow.AddMinutes(-15)
-            },
-            new ExecutionDto
-            {
-                Id = Guid.NewGuid(),
-                AgentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                ConversationId = Guid.NewGuid(),
-                ToolName = "SendEmailTool",
-                Success = true,
-                ExecutedAt = DateTime.UtcNow.AddHours(-1)
-            }
-        };
+                Id = e.Id,
+                AgentId = e.AgentId,
+                ConversationId = e.ConversationId,
+                ToolName = e.ToolName,
+                Success = e.Success,
+                ExecutedAt = e.ExecutedAt
+            })
+            .ToListAsync(cancellationToken);
 
         return Ok(executions);
     }

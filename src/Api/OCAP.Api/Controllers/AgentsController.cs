@@ -1,94 +1,158 @@
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Agents.Application.Services;
+using OCAP.Agents.Domain.Entities;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// Controlador de API para administrar y consultar los agentes inteligentes registrados (CAP-12).
 public class AgentsController : ControllerBase
 {
-    private static readonly List<AgentDto> SeedAgents = new()
+    private readonly AgentService _agentService;
+
+    public AgentsController(AgentService agentService)
     {
-        new AgentDto
-        {
-            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            Name = "Asistente Principal OCAP",
-            Description = "Agente para atención general e intenciones del usuario.",
-            Status = "Active",
-            EnabledTools = new List<string> { "CreateCalendarEventTool", "SendEmailTool" },
-            CreatedAt = DateTime.UtcNow.AddDays(-10)
-        },
-        new AgentDto
-        {
-            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            Name = "Agente de Automatización",
-            Description = "Agente para actualización de hojas de cálculo e informes.",
-            Status = "Active",
-            EnabledTools = new List<string> { "AppendSpreadsheetRowTool" },
-            CreatedAt = DateTime.UtcNow.AddDays(-5)
-        }
-    };
+        _agentService = agentService ?? throw new ArgumentNullException(nameof(agentService));
+    }
 
     [HttpGet]
-    public ActionResult<IEnumerable<AgentDto>> GetAgents()
+    public async Task<ActionResult<IEnumerable<AgentDto>>> GetAgents(CancellationToken cancellationToken)
     {
-        return Ok(SeedAgents);
+        var agents = await _agentService.GetAllAgentsAsync(cancellationToken);
+        var dtos = agents.Select(a => new AgentDto
+        {
+            Id = a.Id,
+            Name = a.Name.Value,
+            Description = a.Description,
+            Status = a.Status.ToString(),
+            EnabledTools = a.Configuration.AllowedToolNames.ToList(),
+            CreatedAt = a.CreatedAt
+        }).ToList();
+
+        return Ok(dtos);
     }
 
     [HttpGet("{id}")]
-    public ActionResult<AgentDto> GetAgentById(Guid id)
+    public async Task<ActionResult<AgentDto>> GetAgentById(Guid id, CancellationToken cancellationToken)
     {
-        var agent = SeedAgents.FirstOrDefault(a => a.Id == id);
-        if (agent == null)
+        try
         {
-            var fallback = new AgentDto
+            var agent = await _agentService.GetAgentAsync(id, cancellationToken);
+            return Ok(new AgentDto
             {
-                Id = id,
-                Name = "Agente Dinámico OCAP",
-                Description = "Agente para tareas configurables del usuario.",
-                Status = "Active",
-                EnabledTools = new List<string> { "GenericTool" },
-                CreatedAt = DateTime.UtcNow.AddDays(-1)
-            };
-            return Ok(fallback);
+                Id = agent.Id,
+                Name = agent.Name.Value,
+                Description = agent.Description,
+                Status = agent.Status.ToString(),
+                EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
+                CreatedAt = agent.CreatedAt
+            });
         }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 
-        return Ok(agent);
+    [HttpPost]
+    public async Task<ActionResult<AgentDto>> CreateAgent([FromBody] CreateAgentRequest request, CancellationToken cancellationToken)
+    {
+        var agent = await _agentService.CreateAgentAsync(
+            request.Name, 
+            request.Description, 
+            request.SystemPrompt, 
+            request.AllowedTools ?? new List<string>(), 
+            cancellationToken);
+
+        var dto = new AgentDto
+        {
+            Id = agent.Id,
+            Name = agent.Name.Value,
+            Description = agent.Description,
+            Status = agent.Status.ToString(),
+            EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
+            CreatedAt = agent.CreatedAt
+        };
+
+        return CreatedAtAction(nameof(GetAgentById), new { id = agent.Id }, dto);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _agentService.UpdateAgentAsync(id, request.Name, request.Description, request.SystemPrompt, request.AllowedTools ?? new List<string>(), cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteAgent(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _agentService.DeleteAgentAsync(id, cancellationToken);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpGet("{id}/status")]
-    public ActionResult<AgentRuntimeStatusDto> GetAgentRuntimeStatus(Guid id)
+    public async Task<ActionResult<AgentRuntimeStatusDto>> GetAgentRuntimeStatus(Guid id, CancellationToken cancellationToken)
     {
-        var status = new AgentRuntimeStatusDto
+        try
         {
-            AgentId = id,
-            Status = "Operational",
-            ActiveConversationsCount = 3,
-            MessagesProcessedTotal = 156,
-            AverageResponseTimeMs = 320.5,
-            LastExecutedAtUtc = DateTime.UtcNow.AddMinutes(-2)
-        };
+            var agent = await _agentService.GetAgentAsync(id, cancellationToken);
+            
+            // Currently returns the operational status based on the real agent.
+            // Runtime stats are not currently tracked at the agent level in this version.
+            var status = new AgentRuntimeStatusDto
+            {
+                AgentId = id,
+                Status = agent.Status.ToString(),
+                ActiveConversationsCount = 0,
+                MessagesProcessedTotal = 0,
+                AverageResponseTimeMs = 0,
+                LastExecutedAtUtc = agent.UpdatedAt ?? agent.CreatedAt
+            };
 
-        return Ok(status);
+            return Ok(status);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpGet("status")]
-    public ActionResult<List<AgentRuntimeStatusDto>> GetAllAgentsRuntimeStatus()
+    public async Task<ActionResult<List<AgentRuntimeStatusDto>>> GetAllAgentsRuntimeStatus(CancellationToken cancellationToken)
     {
-        var statuses = SeedAgents.Select(a => new AgentRuntimeStatusDto
+        var agents = await _agentService.GetAllAgentsAsync(cancellationToken);
+        var statuses = agents.Select(agent => new AgentRuntimeStatusDto
         {
-            AgentId = a.Id,
-            Status = "Operational",
-            ActiveConversationsCount = 2,
-            MessagesProcessedTotal = 98,
-            AverageResponseTimeMs = 285.0,
-            LastExecutedAtUtc = DateTime.UtcNow.AddMinutes(-5)
+            AgentId = agent.Id,
+            Status = agent.Status.ToString(),
+            ActiveConversationsCount = 0,
+            MessagesProcessedTotal = 0,
+            AverageResponseTimeMs = 0,
+            LastExecutedAtUtc = agent.UpdatedAt ?? agent.CreatedAt
         }).ToList();
 
         return Ok(statuses);
     }
 }
+
+public record CreateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools);
+public record UpdateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools);
 
 public class AgentRuntimeStatusDto
 {

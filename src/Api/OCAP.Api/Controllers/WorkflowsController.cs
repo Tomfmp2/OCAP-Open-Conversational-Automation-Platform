@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Workflow;
 using OCAP.Workflow.Abstractions;
 using OCAP.Workflow.Domain.Entities;
@@ -6,6 +7,8 @@ using OCAP.Workflow.Domain.Enums;
 using OCAP.Workflow.Application.Services;
 using OCAP.Workflow.Designer.Models;
 using OCAP.Workflow.Designer.DTOs;
+using OCAP.Infrastructure.Persistence.Context;
+
 namespace OCAP.Api.Controllers;
 
 [ApiController]
@@ -15,84 +18,118 @@ public class WorkflowsController : ControllerBase
     private readonly IWorkflowEngine _workflowEngine;
     private readonly IWorkflowValidator _workflowValidator;
     private readonly IWorkflowDesignerMapper _workflowDesignerMapper;
+    private readonly OCAPDbContext _dbContext;
 
     public WorkflowsController(
         IWorkflowEngine workflowEngine,
         IWorkflowValidator workflowValidator,
-        IWorkflowDesignerMapper workflowDesignerMapper)
+        IWorkflowDesignerMapper workflowDesignerMapper,
+        OCAPDbContext dbContext)
     {
         _workflowEngine = workflowEngine ?? throw new ArgumentNullException(nameof(workflowEngine));
         _workflowValidator = workflowValidator ?? throw new ArgumentNullException(nameof(workflowValidator));
         _workflowDesignerMapper = workflowDesignerMapper ?? throw new ArgumentNullException(nameof(workflowDesignerMapper));
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     [HttpGet]
-    public ActionResult<List<WorkflowDefinitionDto>> GetWorkflows()
+    public async Task<ActionResult<List<WorkflowDefinitionDto>>> GetWorkflows(CancellationToken cancellationToken)
     {
-        var tenantId = Guid.NewGuid();
-        var workflows = new List<WorkflowDefinitionDto>
-        {
-            new(Guid.NewGuid(), tenantId, "Automatización de Bienvenida a Clientes", "Workflow para enviar mensaje de WhatsApp y agendar reunión de bienvenida.", 1, "Active", 4, DateTime.UtcNow.AddDays(-10)),
-            new(Guid.NewGuid(), tenantId, "Generación de Reporte Semanal AI", "Workflow para consultar métricas, procesar con LLM y enviar por correo.", 2, "Active", 5, DateTime.UtcNow.AddDays(-5))
-        };
+        var workflows = await _dbContext.WorkflowDefinitions
+            .Select(w => new WorkflowDefinitionDto(w.Id, w.TenantId, w.Name, w.Description, w.CurrentVersion, w.Status.ToString(), w.Steps.Count, w.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+        
         return Ok(workflows);
     }
 
     [HttpGet("{id}")]
-    public ActionResult<WorkflowDefinitionDto> GetWorkflowById(Guid id)
+    public async Task<ActionResult<WorkflowDefinitionDto>> GetWorkflowById(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = Guid.NewGuid();
-        var workflow = new WorkflowDefinitionDto(id, tenantId, "Automatización de Bienvenida a Clientes", "Workflow para enviar mensaje de WhatsApp y agendar reunión de bienvenida.", 1, "Active", 4, DateTime.UtcNow.AddDays(-10));
+        var w = await _dbContext.WorkflowDefinitions
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            
+        if (w == null) return NotFound();
+
+        var workflow = new WorkflowDefinitionDto(w.Id, w.TenantId, w.Name, w.Description, w.CurrentVersion, w.Status.ToString(), w.Steps.Count, w.CreatedAtUtc);
         return Ok(workflow);
     }
 
     [HttpGet("{id}/status")]
-    public ActionResult<object> GetWorkflowStatus(Guid id)
+    public async Task<ActionResult<object>> GetWorkflowStatus(Guid id, CancellationToken cancellationToken)
     {
+        var w = await _dbContext.WorkflowDefinitions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (w == null) return NotFound();
+
+        var totalExec = await _dbContext.WorkflowExecutions.CountAsync(e => e.WorkflowDefinitionId == id, cancellationToken);
+        var successExec = await _dbContext.WorkflowExecutions.CountAsync(e => e.WorkflowDefinitionId == id && e.Status == WorkflowStatus.Completed, cancellationToken);
+        var failedExec = await _dbContext.WorkflowExecutions.CountAsync(e => e.WorkflowDefinitionId == id && e.Status == WorkflowStatus.Failed, cancellationToken);
+        
+        var rate = totalExec > 0 ? (double)successExec / totalExec * 100 : 0;
+        var lastExec = await _dbContext.WorkflowExecutions
+            .Where(e => e.WorkflowDefinitionId == id)
+            .OrderByDescending(e => e.StartedAtUtc)
+            .Select(e => e.StartedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
         var status = new
         {
             WorkflowId = id,
-            Status = "Active",
-            TotalExecutions = 142,
-            SuccessfulExecutions = 140,
-            FailedExecutions = 2,
-            SuccessRatePercentage = 98.59,
-            LastExecutedAtUtc = DateTime.UtcNow.AddMinutes(-12)
+            Status = w.Status.ToString(),
+            TotalExecutions = totalExec,
+            SuccessfulExecutions = successExec,
+            FailedExecutions = failedExec,
+            SuccessRatePercentage = Math.Round(rate, 2),
+            LastExecutedAtUtc = lastExec == default ? (DateTime?)null : lastExec
         };
         return Ok(status);
     }
 
     [HttpGet("{id}/executions")]
-    public ActionResult<List<WorkflowExecutionDto>> GetExecutionsForWorkflow(Guid id)
+    public async Task<ActionResult<List<WorkflowExecutionDto>>> GetExecutionsForWorkflow(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-
-        var executions = new List<WorkflowExecutionDto>
-        {
-            new(Guid.NewGuid(), id, tenantId, userId, null, "end", "Completed", DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow.AddMinutes(-29), "{\"status\": \"success\"}", null),
-            new(Guid.NewGuid(), id, tenantId, userId, null, "tool_step_1", "Completed", DateTime.UtcNow.AddMinutes(-120), DateTime.UtcNow.AddMinutes(-119), "{\"status\": \"success\"}", null)
-        };
+        var executions = await _dbContext.WorkflowExecutions
+            .Where(e => e.WorkflowDefinitionId == id)
+            .OrderByDescending(e => e.StartedAtUtc)
+            .Select(e => new WorkflowExecutionDto(
+                e.Id, e.WorkflowDefinitionId, e.TenantId, e.UserId, e.AgentId,
+                e.CurrentStepId, e.Status.ToString(), e.StartedAtUtc, e.CompletedAtUtc, e.OutputJson, e.ErrorMessage))
+            .ToListAsync(cancellationToken);
 
         return Ok(executions);
     }
 
     [HttpPost]
-    public ActionResult<WorkflowDefinitionDto> CreateWorkflow([FromBody] CreateWorkflowRequestDto request)
+    public async Task<ActionResult<WorkflowDefinitionDto>> CreateWorkflow([FromBody] CreateWorkflowRequestDto request, CancellationToken cancellationToken)
     {
-        var definition = new WorkflowDefinitionDto(Guid.NewGuid(), Guid.NewGuid(), request.Name, request.Description, 1, "Active", 3, DateTime.UtcNow);
-        return Ok(definition);
+        var tenantId = Guid.NewGuid();
+        var definition = new WorkflowDefinition(Guid.NewGuid(), tenantId, request.Name, request.Description);
+        
+        _dbContext.WorkflowDefinitions.Add(definition);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var dto = new WorkflowDefinitionDto(definition.Id, definition.TenantId, definition.Name, definition.Description, definition.CurrentVersion, definition.Status.ToString(), definition.Steps.Count, definition.CreatedAtUtc);
+        return Ok(dto);
     }
 
     [HttpPut("{id}")]
     public ActionResult<WorkflowDefinitionDto> UpdateWorkflow(Guid id, [FromBody] CreateWorkflowRequestDto request)
     {
-        var definition = new WorkflowDefinitionDto(id, Guid.NewGuid(), request.Name, request.Description, 2, "Active", 4, DateTime.UtcNow);
-        return Ok(definition);
+        // For GA, domain-driven update logic should be implemented.
+        // Currently returning 501 Not Implemented.
+        return StatusCode(501, "Update logic is not implemented in the domain yet.");
     }
 
     [HttpDelete("{id}")]
-    public IActionResult DeleteWorkflow(Guid id) => Ok(new { message = $"Workflow {id} eliminado correctamente." });
+    public async Task<IActionResult> DeleteWorkflow(Guid id, CancellationToken cancellationToken)
+    {
+        var definition = await _dbContext.WorkflowDefinitions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (definition == null) return NotFound();
+
+        _dbContext.WorkflowDefinitions.Remove(definition);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        
+        return Ok(new { message = $"Workflow {id} eliminado correctamente." });
+    }
 
     [HttpPost("{id}/execute")]
     public async Task<ActionResult<WorkflowExecutionDto>> ExecuteWorkflow(Guid id, CancellationToken cancellationToken)
@@ -125,17 +162,15 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpGet("executions")]
-    public ActionResult<List<WorkflowExecutionDto>> GetExecutions()
+    public async Task<ActionResult<List<WorkflowExecutionDto>>> GetExecutions(CancellationToken cancellationToken)
     {
-        var tenantId = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var defId = Guid.NewGuid();
-
-        var executions = new List<WorkflowExecutionDto>
-        {
-            new(Guid.NewGuid(), defId, tenantId, userId, null, "end", "Completed", DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow.AddMinutes(-29), "{\"status\": \"success\"}", null),
-            new(Guid.NewGuid(), defId, tenantId, userId, null, "tool_step_1", "Running", DateTime.UtcNow.AddMinutes(-5), null, "{}", null)
-        };
+        var executions = await _dbContext.WorkflowExecutions
+            .OrderByDescending(e => e.StartedAtUtc)
+            .Take(100)
+            .Select(e => new WorkflowExecutionDto(
+                e.Id, e.WorkflowDefinitionId, e.TenantId, e.UserId, e.AgentId,
+                e.CurrentStepId, e.Status.ToString(), e.StartedAtUtc, e.CompletedAtUtc, e.OutputJson, e.ErrorMessage))
+            .ToListAsync(cancellationToken);
 
         return Ok(executions);
     }
@@ -146,10 +181,7 @@ public class WorkflowsController : ControllerBase
         var execution = await _workflowEngine.GetExecutionAsync(id, cancellationToken);
         if (execution == null)
         {
-            var fallback = new WorkflowExecutionDto(
-                id, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, "end", "Completed", DateTime.UtcNow.AddMinutes(-10), DateTime.UtcNow.AddMinutes(-9), "{\"output\": \"OK\"}", null
-            );
-            return Ok(fallback);
+            return NotFound();
         }
 
         var dto = new WorkflowExecutionDto(
@@ -168,7 +200,7 @@ public class WorkflowsController : ControllerBase
     }
 
     [HttpPost("designer/save")]
-    public ActionResult<WorkflowDefinitionDto> SaveWorkflow([FromBody] VisualWorkflowGraph graph)
+    public async Task<ActionResult<WorkflowDefinitionDto>> SaveWorkflow([FromBody] VisualWorkflowGraph graph, CancellationToken cancellationToken)
     {
         var validationResult = _workflowValidator.Validate(graph);
         if (!validationResult.IsValid)
@@ -176,11 +208,11 @@ public class WorkflowsController : ControllerBase
             return BadRequest(validationResult);
         }
 
-        var tenantId = Guid.NewGuid(); // Simplified for mock
+        var tenantId = Guid.NewGuid(); // Simplified
         var definition = _workflowDesignerMapper.MapToDomain(graph, tenantId);
 
-        // Here it would typically save the definition to the database and generate a version.
-        // For now we just return a dto.
+        _dbContext.WorkflowDefinitions.Add(definition);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         var dto = new WorkflowDefinitionDto(
             definition.Id,
@@ -196,3 +228,4 @@ public class WorkflowsController : ControllerBase
         return Ok(dto);
     }
 }
+

@@ -23,6 +23,7 @@ public class OCAPDbContext : DbContext
     public DbSet<AiConversationMemory> AiConversationMemories => Set<AiConversationMemory>();
     public DbSet<AiExecutionLog> AiExecutionLogs => Set<AiExecutionLog>();
     public DbSet<AiProviderConfiguration> AiProviderConfigurations => Set<AiProviderConfiguration>();
+    public DbSet<OCAP.Agents.Domain.Entities.Agent> Agents => Set<OCAP.Agents.Domain.Entities.Agent>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();

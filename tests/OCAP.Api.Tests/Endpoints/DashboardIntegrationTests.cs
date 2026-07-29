@@ -73,50 +73,62 @@ public class DashboardIntegrationTests
     }
 
     [Fact]
-    public void WorkflowsController_ExposesManagementAndStatusEndpoints()
+    public async Task WorkflowsController_ExposesManagementAndStatusEndpoints()
     {
         // Arrange
         var engineMock = new Mock<IWorkflowEngine>();
         var validatorMock = new Mock<IWorkflowValidator>();
         var mapperMock = new Mock<IWorkflowDesignerMapper>();
+        using var dbContext = CreateDbContext();
 
-        var controller = new WorkflowsController(engineMock.Object, validatorMock.Object, mapperMock.Object);
+        var controller = new WorkflowsController(engineMock.Object, validatorMock.Object, mapperMock.Object, dbContext);
         var workflowId = Guid.NewGuid();
+        
+        var definition = new OCAP.Workflow.Domain.Entities.WorkflowDefinition(workflowId, Guid.NewGuid(), "Test");
+        dbContext.WorkflowDefinitions.Add(definition);
+        await dbContext.SaveChangesAsync();
 
         // Act - GetById
-        var getByIdResult = controller.GetWorkflowById(workflowId);
+        var getByIdResult = await controller.GetWorkflowById(workflowId, CancellationToken.None);
         getByIdResult.Result.Should().BeOfType<OkObjectResult>();
 
         // Act - Status
-        var statusResult = controller.GetWorkflowStatus(workflowId);
+        var statusResult = await controller.GetWorkflowStatus(workflowId, CancellationToken.None);
         statusResult.Result.Should().BeOfType<OkObjectResult>();
 
         // Act - Executions
-        var executionsResult = controller.GetExecutionsForWorkflow(workflowId);
+        var executionsResult = await controller.GetExecutionsForWorkflow(workflowId, CancellationToken.None);
         executionsResult.Result.Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]
-    public void AgentsController_ExposesAgentListDetailsAndRuntimeStatus()
+    public async Task AgentsController_ExposesAgentListDetailsAndRuntimeStatus()
     {
         // Arrange
-        var controller = new AgentsController();
+        var repoMock = new Mock<OCAP.Agents.Abstractions.Ports.IAgentRepository>();
+        // Mock data to prevent nulls
+        repoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<OCAP.Agents.Domain.Entities.Agent>());
+        var agent = new OCAP.Agents.Domain.Entities.Agent(Guid.Parse("11111111-1111-1111-1111-111111111111"), new OCAP.Agents.Domain.ValueObjects.AgentName("Test"), "Desc", new OCAP.Agents.Domain.ValueObjects.AgentConfiguration("sys", null, new List<string>()));
+        repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(agent);
+
+        var agentService = new OCAP.Agents.Application.Services.AgentService(repoMock.Object);
+        var controller = new AgentsController(agentService);
         var agentId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         // Act - List
-        var listResult = controller.GetAgents();
+        var listResult = await controller.GetAgents(CancellationToken.None);
         listResult.Result.Should().BeOfType<OkObjectResult>();
 
         // Act - Details
-        var detailsResult = controller.GetAgentById(agentId);
+        var detailsResult = await controller.GetAgentById(agentId, CancellationToken.None);
         detailsResult.Result.Should().BeOfType<OkObjectResult>();
 
         // Act - Runtime Status
-        var statusResult = controller.GetAgentRuntimeStatus(agentId);
+        var statusResult = await controller.GetAgentRuntimeStatus(agentId, CancellationToken.None);
         statusResult.Result.Should().BeOfType<OkObjectResult>();
         var okStatus = (OkObjectResult)statusResult.Result!;
         var statusDto = okStatus.Value.Should().BeOfType<AgentRuntimeStatusDto>().Subject;
-        statusDto.Status.Should().Be("Operational");
+        statusDto.Status.Should().Be("Active");
     }
 
     [Fact]

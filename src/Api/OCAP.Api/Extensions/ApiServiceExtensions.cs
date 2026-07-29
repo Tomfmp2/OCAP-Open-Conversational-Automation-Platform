@@ -6,7 +6,7 @@ using OCAP.Api.Configuration;
 using System.Threading.RateLimiting;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
-using OCAP.Intelligence.Mock;
+
 using OCAP.Prompts;
 using OCAP.Providers.Gemini;
 using OCAP.Providers.Ollama;
@@ -20,6 +20,12 @@ using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Registry;
 using OCAP.Infrastructure.Services;
 using OCAP.Workflow.Application.Services;
+using OCAP.Providers.Google.Abstractions;
+using OCAP.Providers.Google.Calendar;
+using OCAP.Providers.Google.Gmail;
+using OCAP.Providers.Google.Sheets;
+using OCAP.Tools.Google;
+using OCAP.Tools.Abstractions;
 
 namespace OCAP.Api.Extensions;
 
@@ -127,7 +133,6 @@ public static class ApiServiceExtensions
         services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(sp.GetRequiredService<HttpClient>(), openAiSettings));
         services.AddSingleton<IAiProvider>(sp => new GeminiAiProvider(sp.GetRequiredService<HttpClient>(), geminiSettings));
         services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(sp.GetRequiredService<HttpClient>(), ollamaSettings));
-        services.AddSingleton<IAiProvider, MockAiProvider>();
 
         // Registro de Proveedores de IA y Servicio de Configuración por Tenant
         services.AddSingleton<IAiProviderRegistry, AiProviderRegistry>();
@@ -144,13 +149,21 @@ public static class ApiServiceExtensions
         // Registrar Nodos y Motor de Workflow mediante capa de Aplicación
         OCAP.Workflow.Application.DependencyInjection.AddWorkflowApplication(services);
         
-        services.AddSingleton<OCAP.Tools.Abstractions.IToolRegistry, OCAP.Agents.Application.Services.ToolRegistry>();
-        services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, OCAP.Agents.Application.Persistence.Repositories.AgentRepository>();
-        
+        // Registrar servicios de Agentes
+        OCAP.Agents.Application.Extensions.AgentServiceExtensions.AddAgentEngineServices(services);
+
+        // Registrar In-Memory Google Providers
+        services.AddSingleton<ICalendarProvider, InMemoryCalendarProvider>();
+        services.AddSingleton<IEmailProvider, InMemoryEmailProvider>();
+        services.AddSingleton<ISpreadsheetProvider, InMemorySpreadsheetProvider>();
+
+        // Registrar Google Tools en DI
+        services.AddTransient<ITool, CreateCalendarEventTool>();
+        services.AddTransient<ITool, SendEmailTool>();
+        services.AddTransient<ITool, AppendSpreadsheetRowTool>();
+
         // Registrar missing services
-        services.AddScoped<OCAP.Agents.Abstractions.Ports.IActionDispatcher, OCAP.Agents.Application.Services.ActionDispatcher>();
-        services.AddSingleton<OCAP.Core.Ports.IMessageSender, OCAP.Infrastructure.Services.CoreMessageSenderMock>();
-        services.AddSingleton<OCAP.Security.Abstractions.IPermissionValidator, OCAP.Security.Abstractions.DefaultPermissionValidator>();
+        services.AddScoped<OCAP.Core.Ports.IMessageSender, OCAP.Infrastructure.Services.CoreMessageSender>();
 
         // Registramos infrastructura de workflows
         OCAP.Workflow.Infrastructure.DependencyInjection.AddWorkflowInfrastructure(services);

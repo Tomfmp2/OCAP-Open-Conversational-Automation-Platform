@@ -10,7 +10,6 @@
     <Project Path="src/Channels/OCAP.Channels.Abstractions/OCAP.Channels.Abstractions.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Discord/OCAP.Channels.Discord.csproj" />
     <Project Path="src/Channels/OCAP.Channels.MicrosoftTeams/OCAP.Channels.MicrosoftTeams.csproj" />
-    <Project Path="src/Channels/OCAP.Channels.Mock/OCAP.Channels.Mock.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Slack/OCAP.Channels.Slack.csproj" />
     <Project Path="src/Channels/OCAP.Channels.Telegram/OCAP.Channels.Telegram.csproj" />
     <Project Path="src/Channels/OCAP.Channels.WebChat/OCAP.Channels.WebChat.csproj" />
@@ -32,7 +31,6 @@
     <Project Path="src/Intelligence/OCAP.Intelligence.Abstractions/OCAP.Intelligence.Abstractions.csproj" />
     <Project Path="src/Intelligence/OCAP.Intelligence.Application/OCAP.Intelligence.Application.csproj" />
     <Project Path="src/Intelligence/OCAP.Intelligence.Domain/OCAP.Intelligence.Domain.csproj" />
-    <Project Path="src/Intelligence/OCAP.Intelligence.Mock/OCAP.Intelligence.Mock.csproj" />
   </Folder>
   <Folder Name="/src/Modules/">
     <Project Path="src/Modules/OCAP.Agents.Abstractions/OCAP.Agents.Abstractions.csproj" />

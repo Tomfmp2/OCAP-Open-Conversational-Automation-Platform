@@ -37,27 +37,18 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
         }
 
         // 2. Resolver desde lista estática de proveedores registrados
-        var targetName = preferredProvider ?? "Mock";
-        var selected = _staticProviders.FirstOrDefault(p => string.Equals(p.ProviderName, targetName, StringComparison.OrdinalIgnoreCase))
-            ?? _staticProviders.FirstOrDefault()
-            ?? new FallbackLanguageModelProvider();
+        var selected = _staticProviders.FirstOrDefault();
+        if (!string.IsNullOrEmpty(preferredProvider))
+        {
+            selected = _staticProviders.FirstOrDefault(p => string.Equals(p.ProviderName, preferredProvider, StringComparison.OrdinalIgnoreCase))
+                       ?? _staticProviders.FirstOrDefault();
+        }
+
+        if (selected == null)
+        {
+            throw new InvalidOperationException($"No LanguageModelProvider is available to process the request.");
+        }
 
         return selected;
-    }
-}
-
-public class FallbackLanguageModelProvider : ILanguageModelProvider
-{
-    public string ProviderName => "Fallback";
-
-    public Task<LanguageModelResponse> GenerateAsync(LanguageModelRequest request, CancellationToken cancellationToken = default)
-    {
-        var userMsg = request.Messages.LastOrDefault(m => m.Role == MessageRole.User)?.Content ?? "";
-
-        return Task.FromResult(new LanguageModelResponse(
-            $"[OCAP Core Response]: Procesado exitosamente ('{userMsg}').",
-            ProviderName,
-            "fallback-v1",
-            15));
     }
 }
