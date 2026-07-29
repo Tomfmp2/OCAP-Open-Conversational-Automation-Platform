@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-29
+
+### Added
+- **Enterprise Directory Synchronization (CAP-19)**: Full support for SCIM 2.0 (RFC 7643 & RFC 7644) and LDAP / Active Directory synchronization engine across Microsoft Entra ID, Okta, Keycloak, FreeIPA, OpenLDAP, Google Workspace, JumpCloud, OneLogin, and Ping Identity.
+- **SCIM 2.0 Protocol Engine (`IScimService`, `ScimService`)**: Users & Groups endpoints (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`), Bulk API (`POST /scim/v2/Bulk`), `ServiceProviderConfig`, `ResourceTypes`, `Schemas`, and RFC 7644 error format.
+- **LDAP Connector & Sync Engine (`ILdapService`, `LdapService`, `DirectorySyncEngine`)**: TLS/LDAPS connection pooling, Bind authentication, Paged Search, Full/Incremental/Delta sync jobs, background execution service (`DirectorySyncBackgroundService`), and sync history audit trail.
+- **EF Core Persistence & Architecture**: Created `LdapProviderConfig`, `DirectorySyncJob`, `DirectorySyncHistory`, and `ScimExternalMapping` entities with multi-tenant isolation, index optimizations, and ADR-008 created in `docs/adr/ADR-008-enterprise-directory-synchronization.md`.
+
 ## [1.9.0] - 2026-07-29
 
 ### Added

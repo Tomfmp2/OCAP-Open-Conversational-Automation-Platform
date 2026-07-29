@@ -57,6 +57,10 @@ public class OCAPDbContext : DbContext
     public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<SamlProviderConfig> SamlProviderConfigs => Set<SamlProviderConfig>();
+    public DbSet<LdapProviderConfig> LdapProviderConfigs => Set<LdapProviderConfig>();
+    public DbSet<DirectorySyncJob> DirectorySyncJobs => Set<DirectorySyncJob>();
+    public DbSet<DirectorySyncHistory> DirectorySyncHistories => Set<DirectorySyncHistory>();
+    public DbSet<ScimExternalMapping> ScimExternalMappings => Set<ScimExternalMapping>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

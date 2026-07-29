@@ -162,4 +162,47 @@ public class SamlProviderConfigConfiguration : IEntityTypeConfiguration<SamlProv
     }
 }
 
+public class LdapProviderConfigConfiguration : IEntityTypeConfiguration<LdapProviderConfig>
+{
+    public void Configure(EntityTypeBuilder<LdapProviderConfig> builder)
+    {
+        builder.ToTable("LdapProviderConfigs");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => x.TenantId).IsUnique();
+        builder.Property(x => x.Server).IsRequired().HasMaxLength(256);
+        builder.Property(x => x.BaseDn).IsRequired().HasMaxLength(512);
+    }
+}
+
+public class DirectorySyncJobConfiguration : IEntityTypeConfiguration<DirectorySyncJob>
+{
+    public void Configure(EntityTypeBuilder<DirectorySyncJob> builder)
+    {
+        builder.ToTable("DirectorySyncJobs");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.ProviderType });
+    }
+}
+
+public class DirectorySyncHistoryConfiguration : IEntityTypeConfiguration<DirectorySyncHistory>
+{
+    public void Configure(EntityTypeBuilder<DirectorySyncHistory> builder)
+    {
+        builder.ToTable("DirectorySyncHistories");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.JobId });
+    }
+}
+
+public class ScimExternalMappingConfiguration : IEntityTypeConfiguration<ScimExternalMapping>
+{
+    public void Configure(EntityTypeBuilder<ScimExternalMapping> builder)
+    {
+        builder.ToTable("ScimExternalMappings");
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TenantId, x.ResourceType, x.ExternalId }).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.ResourceType, x.LocalId });
+    }
+}
+
 
