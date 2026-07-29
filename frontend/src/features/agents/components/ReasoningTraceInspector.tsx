@@ -1,5 +1,5 @@
 import React from "react";
-import { Terminal, CheckCircle2, Cpu, Wrench, Clock } from "lucide-react";
+import { Terminal, Wrench, Clock } from "lucide-react";
 import { ReasoningStep } from "../api/useAgentsData";
 
 interface ReasoningTraceInspectorProps {

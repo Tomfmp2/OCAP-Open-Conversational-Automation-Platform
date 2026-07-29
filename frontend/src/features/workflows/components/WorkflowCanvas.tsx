@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { GitFork, ArrowRight, Play, CheckCircle2, Zap, Radio, Bot } from "lucide-react";
+import { GitFork, ArrowRight, Play, CheckCircle2 } from "lucide-react";
 import { WorkflowNode } from "../api/useWorkflowsData";
 
 interface WorkflowCanvasProps {

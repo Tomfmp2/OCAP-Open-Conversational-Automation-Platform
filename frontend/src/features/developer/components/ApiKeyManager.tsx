@@ -1,5 +1,5 @@
 import React from "react";
-import { Key, Plus, Trash2, CheckCircle2, Lock } from "lucide-react";
+import { Key, Plus, Trash2 } from "lucide-react";
 import { ApiKeyItem } from "../api/useDeveloperData";
 
 interface ApiKeyManagerProps {

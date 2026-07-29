@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldCheck, Users, Lock, Key } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { RbacRole } from "../api/useSecurityData";
 
 interface RbacMatrixTableProps {

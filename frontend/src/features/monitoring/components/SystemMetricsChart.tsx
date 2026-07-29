@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { Activity, Cpu, HardDrive } from "lucide-react";
+import { Cpu, HardDrive } from "lucide-react";
 import { SystemMetricPoint } from "../api/useMonitoringData";
 
 interface SystemMetricsChartProps {

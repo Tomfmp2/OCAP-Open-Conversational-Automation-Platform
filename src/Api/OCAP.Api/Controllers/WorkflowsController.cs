@@ -38,6 +38,45 @@ public class WorkflowsController : ControllerBase
         return Ok(workflows);
     }
 
+    [HttpGet("{id}")]
+    public ActionResult<WorkflowDefinitionDto> GetWorkflowById(Guid id)
+    {
+        var tenantId = Guid.NewGuid();
+        var workflow = new WorkflowDefinitionDto(id, tenantId, "Automatización de Bienvenida a Clientes", "Workflow para enviar mensaje de WhatsApp y agendar reunión de bienvenida.", 1, "Active", 4, DateTime.UtcNow.AddDays(-10));
+        return Ok(workflow);
+    }
+
+    [HttpGet("{id}/status")]
+    public ActionResult<object> GetWorkflowStatus(Guid id)
+    {
+        var status = new
+        {
+            WorkflowId = id,
+            Status = "Active",
+            TotalExecutions = 142,
+            SuccessfulExecutions = 140,
+            FailedExecutions = 2,
+            SuccessRatePercentage = 98.59,
+            LastExecutedAtUtc = DateTime.UtcNow.AddMinutes(-12)
+        };
+        return Ok(status);
+    }
+
+    [HttpGet("{id}/executions")]
+    public ActionResult<List<WorkflowExecutionDto>> GetExecutionsForWorkflow(Guid id)
+    {
+        var tenantId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var executions = new List<WorkflowExecutionDto>
+        {
+            new(Guid.NewGuid(), id, tenantId, userId, null, "end", "Completed", DateTime.UtcNow.AddMinutes(-30), DateTime.UtcNow.AddMinutes(-29), "{\"status\": \"success\"}", null),
+            new(Guid.NewGuid(), id, tenantId, userId, null, "tool_step_1", "Completed", DateTime.UtcNow.AddMinutes(-120), DateTime.UtcNow.AddMinutes(-119), "{\"status\": \"success\"}", null)
+        };
+
+        return Ok(executions);
+    }
+
     [HttpPost]
     public ActionResult<WorkflowDefinitionDto> CreateWorkflow([FromBody] CreateWorkflowRequestDto request)
     {

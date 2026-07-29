@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Activity, RefreshCw, Cpu, HardDrive, ShieldCheck, Zap } from "lucide-react";
+import { Activity, RefreshCw } from "lucide-react";
 import { useMonitoringData } from "@/features/monitoring/api/useMonitoringData";
 import { SystemMetricsChart } from "@/features/monitoring/components/SystemMetricsChart";
 import { AuditLogViewer } from "@/features/monitoring/components/AuditLogViewer";

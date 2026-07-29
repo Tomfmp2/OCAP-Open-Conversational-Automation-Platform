@@ -1,5 +1,5 @@
 import React from "react";
-import { Lock, ShieldCheck, RefreshCw, KeyRound } from "lucide-react";
+import { Lock, ShieldCheck } from "lucide-react";
 import { VaultStatus } from "../api/useSecurityData";
 
 interface VaultSecurityStatusProps {

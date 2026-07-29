@@ -1,5 +1,5 @@
 import React from "react";
-import { Cpu, ShieldCheck, Lock, CheckCircle2, AlertTriangle, RefreshCw, Zap, Sliders } from "lucide-react";
+import { Cpu, Lock, CheckCircle2, RefreshCw } from "lucide-react";
 import { AiProviderConfig } from "../api/useIntelligenceData";
 
 interface ProviderCardProps {

@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, CheckCircle2, AlertCircle, RefreshCw, Power, Radio, Shield } from "lucide-react";
+import { MessageSquare, CheckCircle2, RefreshCw, Power } from "lucide-react";
 import { ChannelConnection } from "../api/useChannelsData";
 
 interface ChannelCardProps {

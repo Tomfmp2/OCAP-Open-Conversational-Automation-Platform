@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, Play, RefreshCw, ShieldCheck, Database, Cpu, MessageSquare } from "lucide-react";
+import { CheckCircle2, Play } from "lucide-react";
 import { InstallerStep } from "../api/useInstallerData";
 
 interface InstallerWizardStepsProps {
