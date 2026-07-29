@@ -61,6 +61,9 @@ public class OCAPDbContext : DbContext
     public DbSet<DirectorySyncJob> DirectorySyncJobs => Set<DirectorySyncJob>();
     public DbSet<DirectorySyncHistory> DirectorySyncHistories => Set<DirectorySyncHistory>();
     public DbSet<ScimExternalMapping> ScimExternalMappings => Set<ScimExternalMapping>();
+    public DbSet<OCAP.Core.Events.Distributed.OutboxMessage> DistributedOutboxMessages => Set<OCAP.Core.Events.Distributed.OutboxMessage>();
+    public DbSet<OCAP.Core.Events.Distributed.InboxMessage> InboxMessages => Set<OCAP.Core.Events.Distributed.InboxMessage>();
+    public DbSet<OCAP.Core.Events.Distributed.DeadLetterMessage> DeadLetterMessages => Set<OCAP.Core.Events.Distributed.DeadLetterMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
