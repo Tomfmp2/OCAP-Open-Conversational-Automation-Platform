@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Providers;
 using OCAP.Intelligence.Abstractions;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
@@ -10,23 +12,44 @@ namespace OCAP.Api.Controllers;
 public class ProvidersController : ControllerBase
 {
     private readonly IAiProviderSelector _selector;
+    private readonly IAiProviderRegistry _registry;
+    private readonly OCAPDbContext _dbContext;
 
-    public ProvidersController(IAiProviderSelector selector)
+    public ProvidersController(IAiProviderSelector selector, IAiProviderRegistry registry, OCAPDbContext dbContext)
     {
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     [HttpGet]
-    public ActionResult<List<ProviderInfoDto>> GetProviders()
+    public async Task<ActionResult<List<ProviderInfoDto>>> GetProviders(CancellationToken cancellationToken)
     {
         var active = _selector.ActiveProviderName;
-        var list = new List<ProviderInfoDto>
+        var configs = await _dbContext.AiProviderConfigurations
+            .Where(c => c.IsEnabled)
+            .OrderBy(c => c.ProviderName)
+            .ToListAsync(cancellationToken);
+
+        var list = configs
+            .GroupBy(c => c.ProviderName)
+            .Select((g, i) => 
+            {
+                var c = g.First();
+                return new ProviderInfoDto(
+                    c.ProviderName, 
+                    c.ModelName, 
+                    active.Equals(c.ProviderName, StringComparison.OrdinalIgnoreCase), 
+                    i + 1);
+            }).ToList();
+
+        if (!list.Any())
         {
-            new("OpenAI", "gpt-4o", active.Equals("OpenAI", StringComparison.OrdinalIgnoreCase), 1),
-            new("Gemini", "gemini-1.5-flash", active.Equals("Gemini", StringComparison.OrdinalIgnoreCase), 2),
-            new("Ollama", "llama3", active.Equals("Ollama", StringComparison.OrdinalIgnoreCase), 3),
-            new("MockAI", "mock-gpt-4o", active.Equals("MockAI", StringComparison.OrdinalIgnoreCase), 4)
-        };
+            var registeredNames = _registry.GetRegisteredProviderNames();
+            list = registeredNames.Select((name, i) => 
+                new ProviderInfoDto(name, "default", active.Equals(name, StringComparison.OrdinalIgnoreCase), i + 1)).ToList();
+        }
+
         return Ok(list);
     }
 
@@ -38,15 +61,28 @@ public class ProvidersController : ControllerBase
     }
 
     [HttpGet("models")]
-    public ActionResult<Dictionary<string, List<string>>> GetModels()
+    public async Task<ActionResult<Dictionary<string, List<string>>>> GetModels(CancellationToken cancellationToken)
     {
-        var dict = new Dictionary<string, List<string>>
+        var dict = new Dictionary<string, List<string>>();
+        var names = _registry.GetRegisteredProviderNames();
+        
+        foreach (var name in names)
         {
-            ["OpenAI"] = new() { "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo" },
-            ["Gemini"] = new() { "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro" },
-            ["Ollama"] = new() { "llama3", "mistral", "phi3", "codellama" },
-            ["MockAI"] = new() { "mock-gpt-4o", "mock-gpt-3.5-turbo" }
-        };
+            var provider = _registry.GetProvider(name);
+            if (provider != null)
+            {
+                try
+                {
+                    var models = await provider.GetAvailableModelsAsync(cancellationToken);
+                    dict[name] = models.ToList();
+                }
+                catch
+                {
+                    dict[name] = new List<string>();
+                }
+            }
+        }
+        
         return Ok(dict);
     }
 
@@ -82,8 +118,23 @@ public class ProvidersController : ControllerBase
         var response = await _selector.ExecuteWithFailoverAsync(aiRequest, cancellationToken);
         stopwatch.Stop();
 
-        // Estimación de costo simulada basada en tokens usados ($0.002 por cada 1K tokens)
-        var estimatedCost = (response.TokensUsed / 1000.0) * 0.002;
+        double estimatedCost = 0;
+        
+        var config = await _dbContext.AiProviderConfigurations
+            .FirstOrDefaultAsync(c => c.ProviderName == response.ProviderName && c.IsEnabled, cancellationToken);
+
+        if (config != null && !string.IsNullOrWhiteSpace(config.SettingsJson))
+        {
+            try 
+            {
+                var settings = System.Text.Json.JsonDocument.Parse(config.SettingsJson);
+                if (settings.RootElement.TryGetProperty("CostPer1kTokens", out var costProp) && costProp.TryGetDouble(out var costPer1k))
+                {
+                    estimatedCost = (response.TokensUsed / 1000.0) * costPer1k;
+                }
+            }
+            catch { /* Ignore parsing errors */ }
+        }
 
         var dto = new TestProviderResponseDto(
             ProviderUsed: response.ProviderName,

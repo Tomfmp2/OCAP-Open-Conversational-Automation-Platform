@@ -174,8 +174,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         if (config == null)
         {
-            _logger.LogWarning("No se encontró configuración activa de proveedor de IA para Tenant {TenantId}. Usando Mock/Local fallback.", tenantId);
-            return _providerRegistry.CreateDynamicProvider("Local", "local-llama3", "mock-key");
+            _logger.LogError("No se encontró configuración activa de proveedor de IA para Tenant {TenantId}.", tenantId);
+            throw new InvalidOperationException($"No se encontró configuración activa de proveedor de IA para Tenant {tenantId}.");
         }
 
         // 2. Recuperar la API key cifrada desde Credential Vault

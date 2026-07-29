@@ -24,9 +24,9 @@ public static class AgentServiceExtensions
         // CAP-03: Agent Runtime & Enterprise Assistant Agent Core
         services.AddScoped<IAgentResolver, AgentResolver>();
         services.AddScoped<IEnterpriseAssistantAgent, EnterpriseAssistantAgent>();
+        services.AddScoped<AgentService>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<ILanguageModelProviderSelector, DefaultLanguageModelProviderSelector>();
-        services.AddSingleton<ILanguageModelProvider, FallbackLanguageModelProvider>();
 
         return services;
     }

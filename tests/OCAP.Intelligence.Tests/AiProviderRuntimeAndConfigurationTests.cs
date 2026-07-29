@@ -98,9 +98,9 @@ public class AiProviderRuntimeAndConfigurationTests
         var statusResult = await service.SetStatusAsync(tenantId, created.Id, false);
         statusResult.Should().BeTrue();
 
-        // Fallback cuando está deshabilitado
-        var fallbackProvider = await service.GetRuntimeProviderForTenantAsync(tenantId);
-        fallbackProvider.Name.Should().Be("Local");
+        // Fallback cuando está deshabilitado lanza excepcion
+        var action = async () => await service.GetRuntimeProviderForTenantAsync(tenantId);
+        await action.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public class AiProviderRuntimeAndConfigurationTests
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
         var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
-        var httpClient = new HttpClient();
+        var httpClient = new HttpClient(new FakeHttpMessageHandler());
         var registry = new AiProviderRegistry(Array.Empty<IAiProvider>(), httpClient);
         var logger = NullLogger<AiProviderConfigurationService>.Instance;
         var service = new AiProviderConfigurationService(dbContext, vault, registry, logger);
@@ -134,5 +134,17 @@ public class AiProviderRuntimeAndConfigurationTests
 
         var response = await resolvedProvider.GenerateAsync(new LanguageModelRequest(new[] { new PromptMessage(MessageRole.User, "Hola OCAP") }));
         response.Content.Should().Contain("Hola OCAP");
+    }
+
+    private class FakeHttpMessageHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"choices\": [{\"text\": \"Hola OCAP\"}]}")
+            };
+            return Task.FromResult(response);
+        }
     }
 }

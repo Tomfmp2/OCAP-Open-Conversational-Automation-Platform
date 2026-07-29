@@ -4,13 +4,20 @@ namespace OCAP.Agents.Domain.ValueObjects;
 public class AgentConfiguration
 {
     // Instrucción o prompt de sistema que guía el comportamiento del agente.
-    public string SystemPrompt { get; }
+    public string SystemPrompt { get; private set; }
 
     // Parámetros de configuración adicionales (ej. temperatura, max_tokens, idioma).
-    public IReadOnlyDictionary<string, string> Parameters { get; }
+    public IReadOnlyDictionary<string, string> Parameters { get; private set; }
 
     // Lista de herramientas o capacidades habilitadas para este agente.
-    public IReadOnlyCollection<string> AllowedToolNames { get; }
+    public IReadOnlyCollection<string> AllowedToolNames { get; private set; }
+
+    private AgentConfiguration()
+    {
+        SystemPrompt = string.Empty;
+        Parameters = new Dictionary<string, string>();
+        AllowedToolNames = new List<string>();
+    }
 
     public AgentConfiguration(
         string systemPrompt,

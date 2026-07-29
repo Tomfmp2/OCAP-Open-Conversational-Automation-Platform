@@ -93,7 +93,7 @@
 
     private VisualNode? _selectedNode => _graph.Nodes.FirstOrDefault(n => n.Id == _selectedNodeId);
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (!Id.HasValue)
         {
@@ -116,8 +116,20 @@
         }
         else
         {
-            // TODO: Load from API
-            _savedWorkflowId = Id;
+            try
+            {
+                var graph = await Http.GetFromJsonAsync<VisualWorkflowGraph>($"api/workflows/{Id}/graph");
+                if (graph != null)
+                {
+                    _graph = graph;
+                    _savedWorkflowId = Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                _validationMessage = $"Error al cargar el flujo: {ex.Message}";
+                _validationIsError = true;
+            }
         }
     }
 

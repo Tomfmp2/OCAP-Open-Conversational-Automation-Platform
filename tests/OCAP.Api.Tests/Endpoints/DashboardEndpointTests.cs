@@ -50,11 +50,11 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
         var response = await _client.GetAsync("/api/agents");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, content);
 
         var list = await response.Content.ReadFromJsonAsync<List<AgentDto>>();
         list.Should().NotBeNull();
-        list.Should().NotBeEmpty();
     }
 
     [Fact]

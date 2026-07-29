@@ -10,6 +10,8 @@
     <ProjectReference Include="..\..\Channels\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />
     <ProjectReference Include="..\..\Workflow\OCAP.Workflow.Domain\OCAP.Workflow.Domain.csproj" />
     <ProjectReference Include="..\..\Knowledge\OCAP.Knowledge.Domain\OCAP.Knowledge.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Domain\OCAP.Agents.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\OCAP.Agents.Abstractions\OCAP.Agents.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

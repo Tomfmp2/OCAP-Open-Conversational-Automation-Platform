@@ -62,7 +62,8 @@ public class ProcessAgentMessageUseCase
         if (_agentResolver != null && _agentRuntime != null)
         {
             var resolvedAgentId = await _agentResolver.ResolveAgentIdAsync(tenantId, userId, userMessage, cancellationToken);
-            var agentContext = new AgentContext(resolvedAgentId, tenantId, userId, userMessage);
+            var envVars = new Dictionary<string, object> { ["ConversationId"] = conversationId };
+            var agentContext = new AgentContext(resolvedAgentId, tenantId, userId, userMessage, envVars);
 
             return await _agentRuntime.ExecuteAgentAsync(agentContext, cancellationToken);
         }

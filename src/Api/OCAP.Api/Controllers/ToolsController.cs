@@ -1,46 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Tools.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-// Controlador de API que expone el catálogo de herramientas disponibles en OCAP.
 public class ToolsController : ControllerBase
 {
+    private readonly IToolRegistry _toolRegistry;
+
+    public ToolsController(IToolRegistry toolRegistry)
+    {
+        _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
+    }
+
     [HttpGet]
     public ActionResult<IEnumerable<ToolDto>> GetTools()
     {
-        var tools = new List<ToolDto>
+        var tools = _toolRegistry.GetAllTools().Select(t => new ToolDto
         {
-            new ToolDto
-            {
-                Id = "google.calendar.create_event",
-                Name = "CreateCalendarEventTool",
-                Description = "Crea un evento en Google Calendar.",
-                Version = "1.0.0",
-                Status = "Active",
-                RequiredPermissions = new List<string> { "Calendar.Create" }
-            },
-            new ToolDto
-            {
-                Id = "google.gmail.send_email",
-                Name = "SendEmailTool",
-                Description = "Envía correos electrónicos mediante Gmail.",
-                Version = "1.0.0",
-                Status = "Active",
-                RequiredPermissions = new List<string> { "Gmail.Send" }
-            },
-            new ToolDto
-            {
-                Id = "google.sheets.append_row",
-                Name = "AppendSpreadsheetRowTool",
-                Description = "Anexa datos a hojas de cálculo en Google Sheets.",
-                Version = "1.0.0",
-                Status = "Active",
-                RequiredPermissions = new List<string> { "Sheets.Append" }
-            }
-        };
+            Id = t.Definition.Id,
+            Name = t.Definition.Name,
+            Description = t.Definition.Description,
+            Version = t.Definition.Version,
+            Status = t.Definition.Status.ToString(),
+            RequiredPermissions = t.Definition.RequiredPermissions?.ToList() ?? new List<string>()
+        }).ToList();
 
         return Ok(tools);
     }

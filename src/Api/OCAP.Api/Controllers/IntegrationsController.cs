@@ -1,23 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/integrations")]
-// Controlador de API para consultar el estado de integraciones empresariales externas.
 public class IntegrationsController : ControllerBase
 {
-    [HttpGet("google")]
-    public ActionResult<GoogleIntegrationDto> GetGoogleIntegration()
+    private readonly OCAPDbContext _dbContext;
+
+    public IntegrationsController(OCAPDbContext dbContext)
     {
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    }
+
+    [HttpGet("google")]
+    public async Task<ActionResult<GoogleIntegrationDto>> GetGoogleIntegration(CancellationToken cancellationToken)
+    {
+        var conn = await _dbContext.OAuthConnections.FirstOrDefaultAsync(c => c.Provider == "Google", cancellationToken);
         var integration = new GoogleIntegrationDto
         {
-            IsConnected = true,
-            AccountEmail = "workspace-admin@ocap.org",
-            OAuthStatus = "Authorized",
-            GrantedScopes = new List<string> { "Calendar.Create", "Gmail.Send", "Sheets.Append" },
-            LastSyncedAt = DateTime.UtcNow
+            IsConnected = conn != null,
+            AccountEmail = conn != null ? "connected@google" : "not-connected",
+            OAuthStatus = conn != null ? "Authorized" : "Not Authorized",
+            GrantedScopes = conn != null && !string.IsNullOrEmpty(conn.Scopes) ? conn.Scopes.Split(',').ToList() : new List<string>(),
+            LastSyncedAt = conn?.UpdatedAt ?? DateTime.UtcNow
         };
 
         return Ok(integration);
