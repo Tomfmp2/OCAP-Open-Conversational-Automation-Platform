@@ -3,9 +3,9 @@ using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
+/// <summary>Administración de suscripciones e historial de entregas de Webhooks (CAP-12).</summary>
 [ApiController]
 [Route("api/[controller]")]
-// Controlador para la administración de suscripciones e historial de entregas de Webhooks (CAP-12).
 public class WebhooksController : ControllerBase
 {
     private readonly IWebhookService _webhookService;
@@ -22,10 +22,20 @@ public class WebhooksController : ControllerBase
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
     }
 
+    private Guid RequireTenantId()
+    {
+        if (_tenantContext.TenantId == Guid.Empty)
+        {
+            throw new UnauthorizedAccessException("Contexto de tenant requerido.");
+        }
+
+        return _tenantContext.TenantId;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetWebhooks(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = RequireTenantId();
         var subscriptions = await _webhookService.GetSubscriptionsForTenantAsync(tenantId, cancellationToken);
         return Ok(subscriptions);
     }
@@ -33,9 +43,19 @@ public class WebhooksController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateWebhook([FromBody] CreateWebhookRequestDto request, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = RequireTenantId();
+        if (string.IsNullOrWhiteSpace(request.Secret))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Secret requerido",
+                Detail = "Debe proporcionar un secret HMAC para la suscripción."
+            });
+        }
+
         var subscription = await _webhookService.CreateSubscriptionAsync(
-            tenantId, request.Name, request.TargetUrl, request.Secret ?? Guid.NewGuid().ToString("N"), request.SubscribedEvents, cancellationToken);
+            tenantId, request.Name, request.TargetUrl, request.Secret, request.SubscribedEvents, cancellationToken);
 
         await _auditService.LogSecurityEventAsync(tenantId, Guid.NewGuid(), "Webhook.Created", $"Webhook {request.Name} registrado", "WebhooksController", true, cancellationToken);
         return CreatedAtAction(nameof(GetWebhooks), new { id = subscription.Id }, subscription);
@@ -44,20 +64,20 @@ public class WebhooksController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateWebhook(Guid id, [FromBody] UpdateWebhookRequestDto request, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = RequireTenantId();
         var updated = await _webhookService.UpdateSubscriptionAsync(
             id, tenantId, request.Name, request.TargetUrl, request.Secret, request.SubscribedEvents, request.IsActive, cancellationToken);
 
-        if (updated == null) return NotFound(new { message = "Suscripción de Webhook no encontrada." });
+        if (updated == null) return NotFound(new ProblemDetails { Title = "No encontrado", Detail = "Suscripción de Webhook no encontrada.", Status = 404 });
         return Ok(updated);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteWebhook(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = RequireTenantId();
         var success = await _webhookService.DeleteSubscriptionAsync(id, tenantId, cancellationToken);
-        if (!success) return NotFound(new { message = "Suscripción no encontrada." });
+        if (!success) return NotFound(new ProblemDetails { Title = "No encontrado", Detail = "Suscripción no encontrada.", Status = 404 });
 
         return Ok(new { message = "Webhook eliminado correctamente." });
     }
@@ -65,7 +85,7 @@ public class WebhooksController : ControllerBase
     [HttpGet("{id}/deliveries")]
     public async Task<IActionResult> GetDeliveryHistory(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = RequireTenantId();
         var logs = await _webhookService.GetDeliveryHistoryAsync(id, tenantId, cancellationToken);
         return Ok(logs);
     }

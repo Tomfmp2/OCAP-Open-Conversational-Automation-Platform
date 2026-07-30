@@ -30,34 +30,44 @@ public class AuthController : ControllerBase
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
+    /// <summary>Autentica usuario y emite access + refresh tokens.</summary>
     [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-        {
-            return BadRequest(new { message = "Email y contraseña son obligatorios." });
-        }
-
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
         var result = await _authUseCase.ExecuteAsync(request.Email, request.Password, ip, cancellationToken);
 
-        if (result == null) return Unauthorized(new { message = "Credenciales inválidas." });
+        if (result == null)
+        {
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Credenciales inválidas",
+                Detail = "Email o contraseña incorrectos."
+            });
+        }
 
         return Ok(new LoginResponseDto(result.AccessToken, result.RefreshToken, result.UserId, result.TenantId, result.Email, result.RoleName));
     }
 
+    /// <summary>Rota refresh token y emite nuevo access token.</summary>
     [HttpPost("refresh")]
+    [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<LoginResponseDto>> Refresh([FromBody] RefreshTokenRequestDto request, CancellationToken cancellationToken)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.RefreshToken))
-        {
-            return BadRequest(new { message = "Refresh token requerido." });
-        }
-
         var newRefreshToken = await _refreshTokenService.ValidateAndRotateRefreshTokenAsync(request.RefreshToken, null, cancellationToken);
         if (newRefreshToken == null)
         {
-            return Unauthorized(new { message = "Refresh token inválido o expirado." });
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Refresh inválido",
+                Detail = "Refresh token inválido o expirado."
+            });
         }
 
         var user = await _dbContext.UserIdentities
@@ -67,7 +77,12 @@ public class AuthController : ControllerBase
         if (user is null)
         {
             await _refreshTokenService.RevokeRefreshTokenAsync(newRefreshToken.Token, cancellationToken: cancellationToken);
-            return Unauthorized(new { message = "Usuario no encontrado o inactivo." });
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Usuario inválido",
+                Detail = "Usuario no encontrado o inactivo."
+            });
         }
 
         var tenant = await _dbContext.Tenants
@@ -76,7 +91,12 @@ public class AuthController : ControllerBase
 
         if (tenant is null)
         {
-            return Unauthorized(new { message = "Tenant no encontrado o inactivo." });
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Tenant inválido",
+                Detail = "Tenant no encontrado o inactivo."
+            });
         }
 
         var userRole = await _dbContext.UserRoles
@@ -85,7 +105,12 @@ public class AuthController : ControllerBase
 
         if (userRole is null)
         {
-            return Unauthorized(new { message = "El usuario no tiene roles asignados." });
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Sin roles",
+                Detail = "El usuario no tiene roles asignados."
+            });
         }
 
         var role = await _dbContext.Roles
@@ -94,17 +119,24 @@ public class AuthController : ControllerBase
 
         if (role is null)
         {
-            return Unauthorized(new { message = "Rol de usuario no encontrado." });
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Rol inválido",
+                Detail = "Rol de usuario no encontrado."
+            });
         }
 
         var newAccessToken = _jwtTokenService.GenerateAccessToken(user, tenant, role, role.Permissions);
         return Ok(new LoginResponseDto(newAccessToken, newRefreshToken.Token, user.Id, tenant.Id, user.Email, role.Name));
     }
 
+    /// <summary>Revoca el refresh token de la sesión actual.</summary>
     [HttpPost("logout")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto? request, CancellationToken cancellationToken)
     {
-        if (request is not null && !string.IsNullOrWhiteSpace(request.RefreshToken))
+        if (!string.IsNullOrWhiteSpace(request?.RefreshToken))
         {
             await _refreshTokenService.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken: cancellationToken);
         }

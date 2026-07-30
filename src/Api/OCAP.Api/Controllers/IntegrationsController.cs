@@ -62,10 +62,10 @@ public class IntegrationsController : ControllerBase
             return new IntegrationStatusDto(
                 Provider: p,
                 IsConnected: conn != null,
-                AccountEmail: conn != null ? $"connected@{p.ToLowerInvariant()}.org" : "disconnected",
+                AccountEmail: conn != null ? string.Empty : string.Empty,
                 OAuthStatus: conn != null ? (conn.TokenExpiration > DateTime.UtcNow ? "Active" : "Expired") : "Not Authorized",
                 GrantedScopes: conn != null && !string.IsNullOrEmpty(conn.Scopes) ? conn.Scopes.Split(',').ToList() : new List<string>(),
-                LastSyncedAt: conn?.UpdatedAt ?? DateTime.UtcNow
+                LastSyncedAt: conn?.UpdatedAt ?? DateTime.MinValue
             );
         }).ToList();
 
@@ -79,10 +79,10 @@ public class IntegrationsController : ControllerBase
         var integration = new GoogleIntegrationDto
         {
             IsConnected = conn != null,
-            AccountEmail = conn != null ? "connected@google.com" : "not-connected",
+            AccountEmail = string.Empty,
             OAuthStatus = conn != null ? (conn.TokenExpiration > DateTime.UtcNow ? "Authorized" : "Expired") : "Not Authorized",
             GrantedScopes = conn != null && !string.IsNullOrEmpty(conn.Scopes) ? conn.Scopes.Split(',').ToList() : new List<string>(),
-            LastSyncedAt = conn?.UpdatedAt ?? DateTime.UtcNow
+            LastSyncedAt = conn?.UpdatedAt ?? DateTime.MinValue
         };
 
         return Ok(integration);
@@ -97,10 +97,10 @@ public class IntegrationsController : ControllerBase
         var dto = new IntegrationStatusDto(
             Provider: provider,
             IsConnected: conn != null,
-            AccountEmail: conn != null ? $"user@{provider.ToLower()}.com" : "not-connected",
+            AccountEmail: string.Empty,
             OAuthStatus: conn != null ? (conn.TokenExpiration > DateTime.UtcNow ? "Authorized" : "Expired") : "Not Authorized",
             GrantedScopes: conn != null && !string.IsNullOrEmpty(conn.Scopes) ? conn.Scopes.Split(',').ToList() : new List<string>(),
-            LastSyncedAt: conn?.UpdatedAt ?? DateTime.UtcNow
+            LastSyncedAt: conn?.UpdatedAt ?? DateTime.MinValue
         );
 
         return Ok(dto);

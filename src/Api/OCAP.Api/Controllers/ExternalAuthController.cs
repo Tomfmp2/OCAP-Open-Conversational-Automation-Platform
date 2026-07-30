@@ -68,7 +68,7 @@ public class ExternalAuthController : ControllerBase
         var fallbackRedirect = redirectUri ?? $"{Request.Scheme}://{Request.Host}/api/auth/external/callback/{provider}";
         var callbackRequest = new ExternalAuthCallbackRequestDto(provider, code, state ?? string.Empty, fallbackRedirect);
 
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = OCAP.Api.Security.TenantSecurity.RequireTenantId(_tenantContext);
         var result = await _externalAuthService.ProcessCallbackAsync(callbackRequest, tenantId, cancellationToken);
 
         if (!result.IsSuccess)
