@@ -7,13 +7,12 @@ import { InstallerWizardSteps } from "@/features/installer/components/InstallerW
 import { InstallerSkeleton } from "@/features/installer/components/InstallerSkeleton";
 
 export default function InstallerPage() {
-  const { data, isLoading, refetch, isFetching } = useInstallerData();
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useInstallerData();
 
   if (isLoading) {
     return <InstallerSkeleton />;
   }
-
-  const steps = data?.steps || [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -27,7 +26,7 @@ export default function InstallerPage() {
             </h1>
           </div>
           <p className="text-xs text-zinc-500 mt-1">
-            Verifica conexiones PostgreSQL, Credential Vault, IA y canales de comunicación.
+            Diagnóstico público de PostgreSQL, Event Bus, almacenamiento y health checks agregados.
           </p>
         </div>
 
@@ -43,14 +42,43 @@ export default function InstallerPage() {
         </div>
       </div>
 
-      {steps.length === 0 ? (
+      {isError ? (
+        <div
+          role="alert"
+          className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900 rounded-xl p-12 text-center space-y-3"
+        >
+          <Inbox className="w-6 h-6 text-red-500 mx-auto" />
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+            No se pudo ejecutar el diagnóstico
+          </h3>
+          <p className="text-xs text-zinc-500">
+            {error instanceof Error
+              ? error.message
+              : "El servicio de diagnóstico no está disponible."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : !data || data.steps.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-3">
           <Inbox className="w-6 h-6 text-zinc-400 mx-auto" />
           <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">No hay información de instalación disponible</h3>
-          <p className="text-xs text-zinc-500">Ejecuta el asistente de verificación para validar las dependencias del servidor.</p>
+          <p className="text-xs text-zinc-500">El diagnóstico respondió sin componentes registrados.</p>
         </div>
       ) : (
-        <InstallerWizardSteps initialSteps={steps} />
+        <InstallerWizardSteps
+          steps={data.steps}
+          isSystemReady={data.isSystemReady}
+          isValidating={isFetching}
+          lastCheckedAt={data.timestamp}
+          onValidate={() => void refetch()}
+        />
       )}
     </div>
   );
