@@ -1,10 +1,14 @@
 # OCAP — Arquitectura del Motor de Workflows
 
 ## Visión General
-El módulo `OCAP.Workflow` implementa un motor de automatización de procesos empresariales declarativo y desacoplado, diseñado bajo los principios de Arquitectura Hexagonal y DDD.
+El módulo `OCAP.Workflow` implementa un motor de automatización declarativo bajo Clean Architecture / Hexagonal / DDD.
 
 ## Estructura Modular
-- `OCAP.Workflow.Domain`: Entidades DDD puras (`Workflow`, `WorkflowDefinition`, `WorkflowExecution`, `WorkflowStep`, `WorkflowTransition`).
-- `OCAP.Workflow.Abstractions`: Abstracciones agnósticas (`IWorkflowNode`, `IWorkflowEngine`, `WorkflowStepResult`).
-- `OCAP.Workflow.Application`: Implementación del motor (`WorkflowEngine`), tipos de nodos y máquina de estados.
-- `OCAP.Workflow.Infrastructure`: Persistencia en EF Core y PostgreSQL.
+- `OCAP.Workflow.Domain`: entidades (`WorkflowDefinition`, `WorkflowExecution`, `WorkflowStep`, `WorkflowTransition`, `WorkflowVariable`, `WorkflowVersion`).
+- `OCAP.Workflow.Abstractions`: puertos (`IWorkflowEngine`, `IWorkflowNodeExecutor`, `IWorkflowExpressionEvaluator`, `IWorkflowDatabaseExecutor`, `IWorkflowEmailSender`, `IWorkflowScheduler`, repositorios).
+- `OCAP.Workflow.Application`: `WorkflowEngine`, evaluador de expresiones, ejecutores de nodos, validación/designer mapping.
+- `OCAP.Workflow.Infrastructure`: repositorios EF, adaptadores DB/Email, scheduler hosted service.
+- `OCAP.Workflow.Designer`: contratos visuales del builder.
+
+## Runtime
+El engine orquesta nodos registrados por `WorkflowNodeType`, persiste estado/historial/variables, soporta retry/timeout/compensation/resume por señal y versionado de definiciones.
