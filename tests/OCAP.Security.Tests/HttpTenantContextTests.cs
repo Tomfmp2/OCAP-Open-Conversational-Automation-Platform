@@ -28,7 +28,7 @@ public class HttpTenantContextTests
     }
 
     [Fact]
-    public void TenantId_WhenAnonymousInProduction_IgnoresHeaderAndUsesDefault()
+    public void TenantId_WhenAnonymousInProduction_IgnoresHeaderAndReturnsEmpty()
     {
         var spoofedTenant = Guid.NewGuid();
         var accessor = CreateAccessor(
@@ -38,7 +38,20 @@ public class HttpTenantContextTests
 
         var context = new HttpTenantContext(accessor, new TestHostEnvironment(Environments.Production));
 
-        context.TenantId.Should().Be(DefaultTenantId);
+        context.TenantId.Should().Be(Guid.Empty);
+    }
+
+    [Fact]
+    public void TenantId_WhenAuthenticatedWithoutClaim_ReturnsEmpty()
+    {
+        var accessor = CreateAccessor(
+            isAuthenticated: true,
+            tenantClaim: null,
+            headerTenant: Guid.NewGuid());
+
+        var context = new HttpTenantContext(accessor, new TestHostEnvironment(Environments.Production));
+
+        context.TenantId.Should().Be(Guid.Empty);
     }
 
     [Fact]

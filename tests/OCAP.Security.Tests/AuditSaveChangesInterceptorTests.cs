@@ -47,7 +47,7 @@ public class AuditSaveChangesInterceptorTests
         await dbContext.SaveChangesAsync();
 
         // Assert
-        var auditLog = await dbContext.AuditLogs.FirstOrDefaultAsync();
+        var auditLog = await dbContext.AuditLogs.IgnoreQueryFilters().FirstOrDefaultAsync();
         auditLog.Should().NotBeNull();
         auditLog!.TenantId.Should().Be(tenantId);
         auditLog.UserId.Should().Be(userId);

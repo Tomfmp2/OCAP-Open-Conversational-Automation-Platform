@@ -205,6 +205,7 @@ public class DashboardIntegrationTests
         {
             Name = "Test Hook",
             TargetUrl = "https://example.com/webhook",
+            Secret = "test-webhook-secret-16",
             SubscribedEvents = new List<string> { "WorkflowStarted" }
         }, CancellationToken.None);
         createResult.Should().BeOfType<CreatedAtActionResult>();
