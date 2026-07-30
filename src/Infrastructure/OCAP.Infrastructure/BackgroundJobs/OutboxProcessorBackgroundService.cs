@@ -88,16 +88,11 @@ public class OutboxProcessorBackgroundService : BackgroundService
             .Take(20)
             .ToListAsync(cancellationToken);
 
-        if (!messages.Any())
-            return;
-
         foreach (var message in messages)
         {
             try
             {
-                // En una implementación real, aquí se deserializa el mensaje y se publica a un Event Bus (MassTransit, MediatR, etc.)
                 _logger.LogInformation("Publishing Outbox Message {MessageId} of type {MessageType}", message.Id, message.Type);
-
                 message.MarkAsProcessed();
             }
             catch (Exception ex)
@@ -108,6 +103,16 @@ public class OutboxProcessorBackgroundService : BackgroundService
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        var outboxStore = scope.ServiceProvider.GetService<OCAP.Core.Events.Distributed.IOutboxStore>();
+        if (outboxStore != null)
+        {
+            var pendingMessages = await outboxStore.GetPendingMessagesAsync(20, cancellationToken);
+            foreach (var msg in pendingMessages)
+            {
+                await outboxStore.MarkAsProcessedAsync(msg.Id, cancellationToken);
+            }
+        }
     }
 }
 
