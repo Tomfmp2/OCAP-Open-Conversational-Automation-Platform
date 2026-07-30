@@ -1,8 +1,9 @@
 # OCAP — Arquitectura Multi-Tenant
 
 ## Aislamiento de Organizaciones
-OCAP implementa la estrategia de aislamiento por `TenantId`.
-Todas las consultas de dominio, almacenamiento en PostgreSQL y ejecución de agentes incluyen el filtro explícito de `TenantId` para prevenir fugas de datos entre empresas.
+OCAP implementa la estrategia de aislamiento por `TenantId` en la capa de persistencia (EF Core `HasQueryFilter` + interceptor de escritura).
+
+Detalle operativo: [TENANT_ISOLATION.md](./TENANT_ISOLATION.md).
 
 ## Agregado Tenant
 - `Tenant`: Representa la empresa u organización cliente.
