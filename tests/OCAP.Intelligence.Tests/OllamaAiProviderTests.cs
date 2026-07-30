@@ -7,7 +7,7 @@ namespace OCAP.Intelligence.Tests;
 public class OllamaAiProviderTests
 {
     [Fact]
-    public async Task GenerateResponseAsync_ReturnsLocalResponse()
+    public async Task GenerateResponseAsync_WhenServerUnreachable_ThrowsInvalidOperationException()
     {
         // Arrange
         using var httpClient = new HttpClient();
@@ -15,17 +15,13 @@ public class OllamaAiProviderTests
         var provider = new OllamaAiProvider(httpClient, settings);
         var request = new AiRequest { UserMessage = "Hola Ollama" };
 
-        // Act
-        var response = await provider.GenerateResponseAsync(request);
-
-        // Assert
-        response.Should().NotBeNull();
-        response.ProviderName.Should().Be("Ollama");
-        response.ModelName.Should().Be("llama3");
+        // Act & Assert
+        var act = async () => await provider.GenerateResponseAsync(request);
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task StreamResponseAsync_YieldsTokens()
+    public async Task StreamResponseAsync_WhenServerUnreachable_ThrowsInvalidOperationException()
     {
         // Arrange
         using var httpClient = new HttpClient();
@@ -33,14 +29,12 @@ public class OllamaAiProviderTests
         var provider = new OllamaAiProvider(httpClient, settings);
         var request = new AiRequest { UserMessage = "Streaming Test Ollama" };
 
-        // Act
-        var chunks = new List<string>();
-        await foreach (var chunk in provider.StreamResponseAsync(request))
+        // Act & Assert
+        var act = async () =>
         {
-            chunks.Add(chunk);
-        }
+            await foreach (var _ in provider.StreamResponseAsync(request)) { }
+        };
 
-        // Assert
-        chunks.Should().NotBeEmpty();
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 }

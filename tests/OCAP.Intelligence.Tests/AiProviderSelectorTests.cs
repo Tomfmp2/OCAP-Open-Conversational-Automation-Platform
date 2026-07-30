@@ -31,7 +31,7 @@ public class AiProviderSelectorTests
 
         // Assert
         response.Should().NotBeNull();
-        response.ProviderName.Should().Be("OpenAI");
+        response.ProviderName.Should().Be("MockAI");
     }
 
     [Fact]

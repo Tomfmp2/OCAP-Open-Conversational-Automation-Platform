@@ -31,18 +31,7 @@ public class OpenAiProvider : IAiProvider
 
         if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
         {
-            return new AiResponse
-            {
-                GeneratedText = $"[OpenAI - {_settings.ModelName}]: He procesado tu solicitud de forma segura: '{request.UserMessage}'.",
-                TokensUsed = 85,
-                ModelName = _settings.ModelName ?? "gpt-4o",
-                ProviderName = Name,
-                Metadata = new Dictionary<string, object>
-                {
-                    ["LatencyMs"] = 12.0,
-                    ["OfflineSimulation"] = true
-                }
-            };
+            throw new InvalidOperationException($"No se ha configurado una API Key válida para el proveedor OpenAI ({_settings.ModelName ?? "gpt-4o"}). Proporcione un API Key real en la configuración de la plataforma.");
         }
 
         var messages = BuildMessagesPayload(request);
@@ -104,14 +93,7 @@ public class OpenAiProvider : IAiProvider
     {
         if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
         {
-            var simulatedText = $"[OpenAI Streaming]: {request.UserMessage}";
-            foreach (var chunk in simulatedText.Split(' '))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return chunk + " ";
-                await Task.Delay(20, cancellationToken);
-            }
-            yield break;
+            throw new InvalidOperationException($"No se ha configurado una API Key válida para el proveedor OpenAI ({_settings.ModelName ?? "gpt-4o"}).");
         }
 
         var messages = BuildMessagesPayload(request);
