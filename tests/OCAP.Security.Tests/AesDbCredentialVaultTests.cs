@@ -10,7 +10,7 @@ public class AesDbCredentialVaultTests
     public async Task StoreAndRetrieveSecret_WhenValidTenant_ReturnsOriginalPlainTextSecret()
     {
         // Arrange
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var tenantId = Guid.NewGuid();
         var secretKey = "BotToken";
         var originalSecret = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz_SECRET";
@@ -29,7 +29,7 @@ public class AesDbCredentialVaultTests
     public async Task RetrieveSecret_WithDifferentTenantId_EnforcesMultiTenantIsolation_ReturnsNull()
     {
         // Arrange
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var tenantA = Guid.NewGuid();
         var tenantB = Guid.NewGuid();
         var secretKey = "ApiKey";

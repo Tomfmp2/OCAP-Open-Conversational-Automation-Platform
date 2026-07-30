@@ -57,7 +57,7 @@ public class AiProviderRuntimeAndConfigurationTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var httpClient = new HttpClient();
         var registry = new AiProviderRegistry(Array.Empty<IAiProvider>(), httpClient);
         var logger = NullLogger<AiProviderConfigurationService>.Instance;
@@ -108,7 +108,7 @@ public class AiProviderRuntimeAndConfigurationTests
     {
         // Arrange
         using var dbContext = CreateInMemoryDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var httpClient = new HttpClient(new FakeHttpMessageHandler());
         var registry = new AiProviderRegistry(Array.Empty<IAiProvider>(), httpClient);
         var logger = NullLogger<AiProviderConfigurationService>.Instance;

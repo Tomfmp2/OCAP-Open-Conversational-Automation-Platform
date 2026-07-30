@@ -1,20 +1,31 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OCAP.Security.Abstractions;
+using OCAP.Security.Abstractions.Options;
 
 namespace OCAP.Security.Infrastructure.Services;
 
-// Implementación de producción de ICredentialVault que utiliza cifrado simétrico de grado militar AES-256 (CBC + IV aleatorio)
-// para proteger credenciales sensibles de canales de comunicación y proveedores externos.
+// Implementación de ICredentialVault con cifrado AES-256 (CBC + IV aleatorio).
+// La clave maestra se inyecta por configuración; no existen sales literales en código.
 public class AesDbCredentialVault : ICredentialVault
 {
     private readonly ILogger<AesDbCredentialVault> _logger;
-    private const string MasterSalt = "OCAP_Vault_Enterprise_Master_Secret_Salt_2026_V1";
+    private readonly string _masterKey;
 
-    public AesDbCredentialVault(ILogger<AesDbCredentialVault> logger)
+    public AesDbCredentialVault(ILogger<AesDbCredentialVault> logger, IOptions<VaultOptions> options)
+        : this(logger, options?.Value?.MasterKey ?? string.Empty)
     {
-        _logger = logger;
+    }
+
+    public AesDbCredentialVault(ILogger<AesDbCredentialVault> logger, string masterKey)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+        var vaultOptions = new VaultOptions { MasterKey = masterKey };
+        vaultOptions.Validate();
+        _masterKey = vaultOptions.MasterKey;
     }
 
     public Task<string> StoreSecretAsync(Guid tenantId, string secretKey, string secretValue, CancellationToken cancellationToken = default)
@@ -34,7 +45,7 @@ public class AesDbCredentialVault : ICredentialVault
 
             return Task.FromResult(secretRef);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not InvalidOperationException and not ArgumentException)
         {
             _logger.LogError(ex, "Error al cifrar y almacenar el secreto en Vault para TenantId {TenantId}.", tenantId);
             throw new InvalidOperationException("Falló el cifrado seguro de credenciales.", ex);
@@ -88,10 +99,10 @@ public class AesDbCredentialVault : ICredentialVault
         return Task.FromResult(true);
     }
 
-    private static byte[] DeriveTenantKey(Guid tenantId)
+    private byte[] DeriveTenantKey(Guid tenantId)
     {
         using var sha256 = SHA256.Create();
-        return sha256.ComputeHash(Encoding.UTF8.GetBytes($"{MasterSalt}_{tenantId:N}"));
+        return sha256.ComputeHash(Encoding.UTF8.GetBytes($"{_masterKey}_{tenantId:N}"));
     }
 
     private static string EncryptString(string plainText, byte[] key)
@@ -104,7 +115,6 @@ public class AesDbCredentialVault : ICredentialVault
         var plainBytes = Encoding.UTF8.GetBytes(plainText);
         var cipherBytes = encryptor.TransformFinalBlock(plainBytes, 0, plainBytes.Length);
 
-        // Formato payload = IV (16 bytes) + CipherText
         var payload = new byte[aes.IV.Length + cipherBytes.Length];
         Buffer.BlockCopy(aes.IV, 0, payload, 0, aes.IV.Length);
         Buffer.BlockCopy(cipherBytes, 0, payload, aes.IV.Length, cipherBytes.Length);

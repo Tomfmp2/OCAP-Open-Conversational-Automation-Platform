@@ -49,7 +49,7 @@ public class TelegramBotRuntimeManagerTests
         var apiClient = new TelegramApiClient(httpClient, options, NullLogger<TelegramApiClient>.Instance);
 
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var connectionManager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);
@@ -87,7 +87,7 @@ public class TelegramBotRuntimeManagerTests
         var apiClient = new TelegramApiClient(httpClient, options, NullLogger<TelegramApiClient>.Instance);
 
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var connectionManager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);
@@ -122,7 +122,7 @@ public class TelegramBotRuntimeManagerTests
         var apiClient = new TelegramApiClient(httpClient, options, NullLogger<TelegramApiClient>.Instance);
 
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var connectionManager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);

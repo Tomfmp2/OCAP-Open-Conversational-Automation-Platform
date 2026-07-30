@@ -24,7 +24,7 @@ public class ChannelConnectionTests
     {
         // Arrange
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
 
@@ -55,7 +55,7 @@ public class ChannelConnectionTests
     {
         // Arrange
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
 
@@ -73,7 +73,7 @@ public class ChannelConnectionTests
     {
         // Arrange
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
 
@@ -98,7 +98,7 @@ public class ChannelConnectionTests
     {
         // Arrange
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
 
@@ -125,7 +125,7 @@ public class ChannelConnectionTests
     {
         // Arrange
         using var dbContext = CreateDbContext();
-        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance);
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
         var registry = new ChannelRegistry();
         var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
 
