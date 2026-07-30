@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OCAP Enterprise Dashboard — Platform v1.6.0",
+  title: "OCAP Enterprise Control Plane",
   description: "Plataforma empresarial inteligente de gestión de agentes autónomos, canales y flujos de automatización.",
 };
 
@@ -19,8 +19,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full">
-      <body className={`${inter.variable} antialiased h-full flex overflow-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100`}>
+    <html lang="es" className="dark h-full">
+      <body
+        className={`${inter.variable} flex h-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] antialiased`}
+      >
         <Providers>{children}</Providers>
       </body>
     </html>

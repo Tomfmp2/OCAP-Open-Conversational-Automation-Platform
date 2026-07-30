@@ -1,217 +1,261 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Activity,
-  Cpu,
+  Bot,
+  BookOpen,
+  GitFork,
   MessageSquare,
-  ShieldCheck,
-  TrendingUp,
-  RefreshCw,
-  Zap,
   Radio,
-  Clock,
+  RefreshCw,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { useDashboardData } from "@/features/dashboard/api/useDashboardData";
 import { useSignalR } from "@/shared/utils/useSignalR";
+import { useAuth } from "@/features/auth/context/AuthProvider";
 import { DashboardSkeleton } from "@/features/dashboard/components/DashboardSkeleton";
-import { DashboardErrorState } from "@/features/dashboard/components/DashboardErrorState";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  MetricCard,
+  PageHeader,
+  Surface,
+} from "@/shared/components/ui";
+
+const MODULE_LINKS = [
+  { href: "/agents", label: "Agentes", icon: Bot, hint: "Catálogo y creación" },
+  { href: "/channels", label: "Canales", icon: MessageSquare, hint: "Telegram & WhatsApp" },
+  { href: "/workflows", label: "Workflows", icon: GitFork, hint: "Automatización" },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen, hint: "RAG y búsqueda" },
+];
 
 export default function OverviewPage() {
+  const { user } = useAuth();
   const { data, isLoading, isError, error, refetch, isFetching } = useDashboardData();
-  const { connectionState, liveEvents, reconnect } = useSignalR();
+  const { connectionState, liveEvents, reconnect } = useSignalR(user?.tenantId);
 
-  if (isLoading) {
-    return <DashboardSkeleton />;
-  }
+  if (isLoading) return <DashboardSkeleton />;
 
   if (isError || !data) {
-    return <DashboardErrorState onRetry={() => refetch()} errorMessage={error?.message} />;
+    return (
+      <ErrorState
+        message={error?.message}
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   const { metrics, overview } = data;
-
-  const METRIC_CARDS = [
-    {
-      title: "Ejecuciones Totales",
-      value: (metrics?.totalExecutions || overview?.workflows?.executionsToday || 0).toLocaleString(),
-      change: "+12%",
-      period: "Ejecuciones de workflows hoy",
-      icon: Activity,
-    },
-    {
-      title: "Canales Activos",
-      value: `${overview?.channels?.connectedCount || metrics?.activeChannelsCount || 0} / ${overview?.channels?.totalCount || metrics?.totalChannelsCount || 0}`,
-      change: "100%",
-      period: "Telegram & WhatsApp listos",
-      icon: MessageSquare,
-    },
-    {
-      title: "Costo Estimado IA",
-      value: `$${(metrics?.monthlyAiCostUsd || 14.5).toFixed(2)}`,
-      change: "-3%",
-      period: "Consumo mensual estimado",
-      icon: Cpu,
-    },
-    {
-      title: "Salud del Sistema",
-      value: overview?.health === "Healthy" ? "100%" : "85%",
-      change: overview?.health || "Excelente",
-      period: `Uptime: ${overview?.uptime?.uptimeFormatted || "0m"}`,
-      icon: ShieldCheck,
-    },
-  ];
+  const health = overview?.health || "Unknown";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Dashboard Enterprise SaaS
-          </h1>
-          <p className="text-xs text-zinc-500 mt-1">
-            Supervisión integral de agentes autónomos, consumo de modelos IA, canales y salud operacional.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* SignalR Connection Status Badge */}
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium ${
-              connectionState === "Connected"
-                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
-                : connectionState === "Reconnecting" || connectionState === "Connecting"
-                ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 animate-pulse"
-                : "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
-            }`}
-          >
-            <Radio className="w-3.5 h-3.5" />
-            <span>
-              {connectionState === "Connected"
-                ? "SignalR Live Gateway"
-                : connectionState === "Reconnecting"
-                ? "Reconectando Gateway..."
-                : connectionState === "Connecting"
-                ? "Conectando..."
-                : "Gateway Desconectado"}
-            </span>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        title={`Welcome back${user?.fullName ? `, ${user.fullName.split(" ")[0]}` : ""}`}
+        description="Supervisión de agentes, canales, workflows y salud operacional — solo datos reales de la API."
+        actions={
+          <>
+            <Badge
+              tone={
+                connectionState === "Connected"
+                  ? "success"
+                  : connectionState === "Disconnected"
+                    ? "danger"
+                    : "warning"
+              }
+            >
+              <Radio className="h-3 w-3" />
+              SignalR {connectionState}
+            </Badge>
             {connectionState === "Disconnected" && (
-              <button onClick={reconnect} className="underline text-[10px] ml-1 font-bold">
+              <Button size="sm" variant="secondary" onClick={() => void reconnect()}>
                 Reconectar
-              </button>
+              </Button>
             )}
-          </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void refetch()}
+              loading={isFetching}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              Sincronizar
+            </Button>
+          </>
+        }
+      />
 
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            <span>{isFetching ? "Sincronizando..." : "Sincronizar"}</span>
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Ejecuciones hoy"
+          value={(metrics?.totalExecutions || overview?.workflows?.executionsToday || 0).toLocaleString()}
+          subtitle={`${overview?.workflows?.activeCount ?? 0} workflows activos`}
+          icon={Activity}
+          tone="info"
+        />
+        <MetricCard
+          title="Canales conectados"
+          value={`${overview?.channels?.connectedCount ?? metrics?.activeChannelsCount ?? 0}/${overview?.channels?.totalCount ?? metrics?.totalChannelsCount ?? 0}`}
+          subtitle="Conexiones registradas"
+          icon={MessageSquare}
+          tone="accent"
+        />
+        <MetricCard
+          title="Agentes"
+          value={overview?.agents?.totalCount ?? 0}
+          subtitle={`${overview?.agents?.activeCount ?? 0} activos · ${overview?.agents?.runtimeStatus || "N/D"}`}
+          icon={Bot}
+          tone="neutral"
+        />
+        <MetricCard
+          title="Salud del sistema"
+          value={health}
+          subtitle={`Uptime ${overview?.uptime?.uptimeFormatted || "N/D"}`}
+          icon={ShieldCheck}
+          tone={health.toLowerCase() === "healthy" ? "success" : "warning"}
+        />
       </div>
 
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {METRIC_CARDS.map((kpi, idx) => {
-          const Icon = kpi.icon;
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {MODULE_LINKS.map((mod) => {
+          const Icon = mod.icon;
           return (
-            <div
-              key={idx}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-zinc-500">{kpi.title}</span>
-                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-                  <Icon className="w-4 h-4" />
+            <Link key={mod.href} href={mod.href}>
+              <Surface
+                variant="glass"
+                className="h-full transition-all hover:border-blue-500/40 hover:shadow-[0_0_30px_rgba(59,130,246,0.12)]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-violet-500/10 p-2 text-violet-400">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                      {mod.label}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">{mod.hint}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-3 flex items-baseline justify-between">
-                <span className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{kpi.value}</span>
-                <span className="inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  <TrendingUp className="w-3 h-3" />
-                  {kpi.change}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-zinc-400">{kpi.period}</p>
-            </div>
+              </Surface>
+            </Link>
           );
         })}
       </div>
 
-      {/* Real-time Activity and SignalR Live Feed Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Backend Audit Logs */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-500" />
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Actividad Reciente del Sistema</h3>
-              </div>
-              <span className="text-[11px] text-zinc-400">REST API / AuditLog</span>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" id="activity">
+        <Surface className="lg:col-span-2" padding="md">
+          <div className="mb-4 flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-500" />
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                Actividad reciente
+              </h3>
             </div>
+            <span className="text-[11px] text-zinc-400">AuditLog</span>
+          </div>
 
-            {overview?.lastActivity && overview.lastActivity.length > 0 ? (
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60 space-y-2">
-                {overview.lastActivity.map((log) => (
-                  <div key={log.id} className="pt-2 flex items-start justify-between gap-4 text-xs">
-                    <div>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">{log.eventType}</span>
-                      <p className="text-zinc-500 text-[11px] mt-0.5">{log.description}</p>
-                    </div>
-                    <div className="text-right text-[11px] text-zinc-400 whitespace-nowrap">
-                      <span>{new Date(log.occurredAtUtc).toLocaleTimeString()}</span>
-                      <p className="text-[10px] text-zinc-500">{log.source}</p>
-                    </div>
+          {overview?.lastActivity?.length ? (
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+              {overview.lastActivity.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between gap-4 py-3 text-xs"
+                >
+                  <div>
+                    <p className="font-semibold text-zinc-800 dark:text-zinc-200">
+                      {log.eventType}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">{log.description}</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-500 text-center py-6">
-                No hay actividad registrada en la base de datos aún.
+                  <div className="shrink-0 text-right text-[11px] text-zinc-400">
+                    <p>{new Date(log.occurredAtUtc).toLocaleString()}</p>
+                    <p className="text-[10px] text-zinc-500">{log.source}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Sin actividad registrada"
+              description="Los eventos de auditoría aparecerán aquí cuando el sistema genere actividad."
+            />
+          )}
+        </Surface>
+
+        <Surface id="live" padding="md">
+          <div className="mb-4 flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                Eventos en vivo
+              </h3>
+            </div>
+            <Badge tone="warning">{liveEvents.length}</Badge>
+          </div>
+
+          {liveEvents.length > 0 ? (
+            <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+              {liveEvents.map((evt) => (
+                <div
+                  key={evt.id}
+                  className="rounded-xl border border-zinc-100 bg-zinc-50 p-2 text-xs dark:border-zinc-800 dark:bg-zinc-800/40"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">
+                      {evt.eventName}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">
+                      {new Date(evt.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2 py-8 text-center">
+              <Radio className="mx-auto h-5 w-5 animate-pulse text-zinc-400" />
+              <p className="text-xs text-zinc-500">
+                {connectionState === "Connected"
+                  ? "Escuchando canal SignalR…"
+                  : "Tiempo real no disponible hasta reconectar."}
               </p>
-            )}
-          </div>
-        </div>
-
-        {/* SignalR Live Gateway Streaming Logs */}
-        <div className="space-y-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-amber-500" />
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Eventos en Vivo (SignalR)</h3>
-              </div>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                {liveEvents.length} eventos
-              </span>
             </div>
-
-            {liveEvents.length > 0 ? (
-              <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                {liveEvents.map((evt) => (
-                  <div key={evt.id} className="p-2 rounded bg-zinc-50 dark:bg-zinc-800/50 text-xs border border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-blue-600 dark:text-blue-400">{evt.eventName}</span>
-                      <span className="text-[10px] text-zinc-400">{new Date(evt.timestamp).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 space-y-1">
-                <Radio className="w-5 h-5 text-zinc-400 mx-auto animate-pulse" />
-                <p className="text-xs text-zinc-500">Escuchando canal SignalR...</p>
-                <p className="text-[10px] text-zinc-400">Los eventos en tiempo real aparecerán aquí instantáneamente.</p>
-              </div>
-            )}
-          </div>
-        </div>
+          )}
+        </Surface>
       </div>
+
+      <Surface variant="glass" className="grid gap-4 sm:grid-cols-3" padding="md">
+        <div>
+          <p className="text-[11px] text-zinc-500">Usuarios</p>
+          <p className="mt-1 text-xl font-bold">
+            {overview?.users?.activeCount ?? 0}
+            <span className="text-sm font-normal text-zinc-500">
+              /{overview?.users?.totalCount ?? 0}
+            </span>
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] text-zinc-500">API Keys activas</p>
+          <p className="mt-1 text-xl font-bold">
+            {overview?.apiKeys?.activeCount ?? 0}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] text-zinc-500">Webhooks</p>
+          <p className="mt-1 text-xl font-bold">
+            {overview?.webhooks?.activeSubscriptions ?? 0}
+            <span className="text-sm font-normal text-zinc-500">
+              {" "}
+              · {overview?.webhooks?.deliveriesToday ?? 0} deliveries hoy
+            </span>
+          </p>
+        </div>
+      </Surface>
     </div>
   );
 }

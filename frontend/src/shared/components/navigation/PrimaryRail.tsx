@@ -3,51 +3,35 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  MessageSquare,
-  Cpu,
-  Bot,
-  GitFork,
-  ShieldCheck,
-  Settings,
-  Sparkles,
-  Code2,
-  Activity,
-  BookOpen,
-} from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
-
-const NAV_ITEMS = [
-  { href: "/", label: "Resumen General", icon: LayoutDashboard },
-  { href: "/channels", label: "Canales", icon: MessageSquare },
-  { href: "/intelligence", label: "IA & Modelos", icon: Cpu },
-  { href: "/agents", label: "Agentes", icon: Bot },
-  { href: "/workflows", label: "Workflows", icon: GitFork },
-  { href: "/knowledge", label: "Knowledge Base", icon: BookOpen },
-  { href: "/monitoring", label: "Monitoreo", icon: Activity },
-  { href: "/developer", label: "Developer Center", icon: Code2 },
-  { href: "/security", label: "Seguridad", icon: ShieldCheck },
-];
+import { PRIMARY_NAV, SECONDARY_NAV_FOOTER } from "@/shared/config/navigation";
+import { useAuth } from "@/features/auth/context/AuthProvider";
 
 export function PrimaryRail() {
   const pathname = usePathname();
+  const { hasPermission, isAuthenticated } = useAuth();
+
+  const items = PRIMARY_NAV.filter((item) => {
+    if (!item.permission) return true;
+    return isAuthenticated && hasPermission(item.permission);
+  });
 
   return (
-    <aside className="w-16 bg-zinc-950 flex flex-col items-center py-4 border-r border-zinc-800 z-30 shrink-0 select-none">
-      {/* Brand Header */}
+    <aside className="z-30 flex w-16 shrink-0 flex-col items-center border-r border-zinc-800/80 bg-zinc-950/95 py-4 select-none">
       <Link
         href="/"
-        className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white mb-6 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/20"
-        title="OCAP Platform v1.6.0"
+        className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-violet-600 text-white shadow-lg shadow-blue-500/25"
+        title="OCAP Platform"
       >
-        <Sparkles className="w-5 h-5" />
+        <Sparkles className="h-5 w-5" />
       </Link>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 w-full flex flex-col items-center gap-1.5 px-2">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+      <nav className="flex w-full flex-1 flex-col items-center gap-1.5 px-2">
+        {items.map((item) => {
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname.startsWith(item.href));
           const Icon = item.icon;
 
           return (
@@ -55,14 +39,17 @@ export function PrimaryRail() {
               key={item.href}
               href={item.href}
               className={cn(
-                "w-11 h-11 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all group relative",
-                isActive && "bg-blue-600/15 text-blue-400 hover:bg-blue-600/20 hover:text-blue-300 font-medium"
+                "group relative flex h-11 w-11 items-center justify-center rounded-xl text-zinc-400 transition-all hover:bg-zinc-800/70 hover:text-zinc-100",
+                isActive &&
+                  "bg-blue-600/15 text-blue-400 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.35)]"
               )}
               title={item.label}
             >
-              <Icon className="w-5 h-5" />
-              {/* Tooltip Label */}
-              <span className="absolute left-14 bg-zinc-900 text-zinc-100 text-xs font-medium px-2.5 py-1 rounded-md shadow-md border border-zinc-800 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              <Icon className="h-5 w-5" />
+              {isActive && (
+                <span className="absolute -right-2 h-5 w-1 rounded-full bg-blue-400" />
+              )}
+              <span className="pointer-events-none absolute left-14 z-50 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs font-medium text-zinc-100 opacity-0 shadow-md transition-opacity group-hover:opacity-100">
                 {item.label}
               </span>
             </Link>
@@ -70,21 +57,24 @@ export function PrimaryRail() {
         })}
       </nav>
 
-      {/* Settings Bottom Footer */}
-      <div className="w-full flex flex-col items-center px-2 pt-2 border-t border-zinc-800/80">
-        <Link
-          href="/settings"
-          className={cn(
-            "w-11 h-11 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition-all group relative",
-            pathname === "/settings" && "bg-blue-600/15 text-blue-400"
-          )}
-          title="Configuración"
-        >
-          <Settings className="w-5 h-5" />
-          <span className="absolute left-14 bg-zinc-900 text-zinc-100 text-xs font-medium px-2.5 py-1 rounded-md shadow-md border border-zinc-800 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-            Configuración
-          </span>
-        </Link>
+      <div className="flex w-full flex-col items-center gap-1 border-t border-zinc-800/80 px-2 pt-2">
+        {SECONDARY_NAV_FOOTER.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "group relative flex h-11 w-11 items-center justify-center rounded-xl text-zinc-400 transition-all hover:bg-zinc-800/70 hover:text-zinc-100",
+                isActive && "bg-blue-600/15 text-blue-400"
+              )}
+              title={item.label}
+            >
+              <Icon className="h-5 w-5" />
+            </Link>
+          );
+        })}
       </div>
     </aside>
   );
