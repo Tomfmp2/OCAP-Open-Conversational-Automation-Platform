@@ -1,17 +1,25 @@
 "use client";
 
 import React from "react";
-import { BookOpen, RefreshCw, RotateCcw, Inbox } from "lucide-react";
+import { BookOpen, RefreshCw, RotateCcw, Plus } from "lucide-react";
 import { useKnowledgeData } from "@/features/knowledge/api/useKnowledgeData";
 import { KnowledgeBaseList } from "@/features/knowledge/components/KnowledgeBaseList";
 import { CreateKnowledgeBaseModal } from "@/features/knowledge/components/CreateKnowledgeBaseModal";
 import { KnowledgeUploadPanel } from "@/features/knowledge/components/KnowledgeUploadPanel";
 import { KnowledgeSearchPanel } from "@/features/knowledge/components/KnowledgeSearchPanel";
+import { PageHeader } from "@/shared/components/ui/PageHeader";
+import { Button } from "@/shared/components/ui/Button";
+import { Surface } from "@/shared/components/ui/Surface";
+import { EmptyState } from "@/shared/components/ui/EmptyState";
+import { ErrorState } from "@/shared/components/ui/ErrorState";
+import { Badge } from "@/shared/components/ui/Badge";
 
 export default function KnowledgePage() {
   const {
     data: bases,
     isLoading,
+    isError,
+    error,
     refetch,
     isFetching,
     jobs,
@@ -31,66 +39,37 @@ export default function KnowledgePage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto p-12 text-center text-sm text-zinc-500">
+      <div className="mx-auto max-w-7xl p-12 text-center text-sm text-zinc-500">
         Cargando bases de conocimiento...
       </div>
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-blue-500" />
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-              Knowledge Base & RAG Engine
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            Gestión de documentos, indexación vectorial y búsqueda semántica multi-tenant.
-          </p>
-        </div>
+  if (isError) {
+    return <div className="mx-auto max-w-7xl"><ErrorState message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} /></div>;
+  }
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
+  return (
+    <div className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        title="Conocimiento"
+        description="Bases documentales, indexación y búsqueda semántica."
+        icon={<BookOpen className="h-5 w-5 text-blue-500" />}
+        actions={<>
+          <Button variant="secondary" size="sm" onClick={() => {
               void refetch();
               void refetchJobs();
-            }}
-            disabled={isFetching}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            Actualizar
-          </button>
+            }} loading={isFetching}><RefreshCw className="h-3.5 w-3.5" /> Actualizar</Button>
           {selectedKb && (
-            <button
-              type="button"
-              onClick={() => reindexMutation.mutate(selectedKb.id)}
-              disabled={reindexMutation.isPending}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold disabled:opacity-50"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${reindexMutation.isPending ? "animate-spin" : ""}`} />
-              Reindexar
-            </button>
+            <Button size="sm" onClick={() => reindexMutation.mutate(selectedKb.id)} loading={reindexMutation.isPending}>
+              <RotateCcw className="h-3.5 w-3.5" /> Reindexar
+            </Button>
           )}
-        </div>
-      </div>
+        </>}
+      />
 
       {kbList.length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-12 text-center space-y-4">
-          <Inbox className="w-6 h-6 text-zinc-400 mx-auto" />
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">No hay bases de conocimiento</h3>
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold"
-          >
-            Crear primera KB
-          </button>
-        </div>
+        <EmptyState title="No hay bases de conocimiento" description="Crea una base para poder cargar e indexar documentos." action={<Button size="sm" onClick={() => setModalOpen(true)}><Plus className="h-4 w-4" /> Crear base</Button>} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <KnowledgeBaseList
@@ -123,7 +102,7 @@ export default function KnowledgePage() {
       )}
 
       {jobs.length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm">
+        <Surface padding="md">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Jobs de Indexación</h2>
           <div className="space-y-2">
             {jobs.slice(0, 5).map((job) => (
@@ -132,11 +111,11 @@ export default function KnowledgePage() {
                 className="flex items-center justify-between p-2 rounded-lg bg-zinc-50 dark:bg-zinc-950/50 text-xs"
               >
                 <span className="font-mono text-zinc-500">{job.type || job.id}</span>
-                <span className="font-semibold text-zinc-700 dark:text-zinc-300">{job.status}</span>
+                <Badge tone={job.status === "Failed" ? "danger" : job.status === "Completed" ? "success" : "info"}>{job.status}</Badge>
               </div>
             ))}
           </div>
-        </div>
+        </Surface>
       )}
 
       <CreateKnowledgeBaseModal

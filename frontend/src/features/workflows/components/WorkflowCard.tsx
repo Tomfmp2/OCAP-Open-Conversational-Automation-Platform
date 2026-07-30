@@ -1,6 +1,8 @@
 import React from "react";
 import { GitFork, CheckCircle2 } from "lucide-react";
 import { WorkflowItem } from "../api/useWorkflowsData";
+import { Surface } from "@/shared/components/ui/Surface";
+import { Badge } from "@/shared/components/ui/Badge";
 
 interface WorkflowCardProps {
   workflow: WorkflowItem;
@@ -10,12 +12,18 @@ interface WorkflowCardProps {
 
 export function WorkflowCard({ workflow, onSelect, isSelected }: WorkflowCardProps) {
   return (
-    <div
+    <Surface
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(workflow)}
-      className={`bg-white dark:bg-zinc-900 border rounded-xl p-5 shadow-sm cursor-pointer space-y-4 transition-all ${
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") onSelect(workflow);
+      }}
+      variant="glass"
+      className={`cursor-pointer space-y-4 ${
         isSelected
           ? "border-blue-500 ring-1 ring-blue-500"
-          : "border-zinc-200 dark:border-zinc-800/80 hover:border-zinc-300 dark:hover:border-zinc-700"
+          : "hover:border-zinc-700"
       }`}
     >
       <div className="flex items-start justify-between">
@@ -30,25 +38,22 @@ export function WorkflowCard({ workflow, onSelect, isSelected }: WorkflowCardPro
                 {workflow.version}
               </span>
             </div>
-            <p className="text-xs text-zinc-400">Agente: {workflow.assignedAgent}</p>
+            <p className="text-xs text-zinc-400">Última actividad: {workflow.lastRun}</p>
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Publicado
-        </span>
+        <Badge tone={workflow.status === "published" || workflow.status === "Active" ? "success" : "neutral"}>
+          {(workflow.status === "published" || workflow.status === "Active") && <CheckCircle2 className="w-3.5 h-3.5" />}
+          {workflow.status}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <div>
-          <span className="text-zinc-400 text-[10px]">Canal Trigger</span>
-          <p className="font-semibold text-zinc-800 dark:text-zinc-200">{workflow.triggerChannel}</p>
-        </div>
+      <div className="text-xs pt-2 border-t border-zinc-100 dark:border-zinc-800">
         <div>
           <span className="text-zinc-400 text-[10px]">Ejecuciones Totales</span>
           <p className="font-semibold text-zinc-800 dark:text-zinc-200">{workflow.totalExecutions.toLocaleString()}</p>
         </div>
       </div>
-    </div>
+    </Surface>
   );
 }

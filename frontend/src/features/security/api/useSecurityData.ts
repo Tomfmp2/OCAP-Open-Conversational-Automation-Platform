@@ -11,8 +11,8 @@ export interface RbacRole {
 export interface VaultStatus {
   algorithm: string;
   keyRotationDays: number;
-  totalSecretsEncrypted: number;
-  status: "healthy" | "rotation_due";
+  totalSecretsEncrypted: number | null;
+  status: "healthy" | "rotation_due" | "unavailable";
 }
 
 export interface SecurityUser {
@@ -63,7 +63,15 @@ export function useSecurityData() {
           apiClient.get<Array<{ id: string; name: string; permissions: string[] }>>("/api/roles"),
           apiClient.get<unknown[] | { apiKeys?: unknown[] }>("/api/apikeys"),
           apiClient.get<
-            Array<{ id: string; email: string; fullName: string; isActive: boolean }>
+            | Array<{ id: string; email: string; fullName: string; isActive: boolean }>
+            | {
+                items: Array<{
+                  id: string;
+                  email: string;
+                  fullName: string;
+                  isActive: boolean;
+                }>;
+              }
           >("/api/users"),
           apiClient.get<
             Array<{
@@ -93,7 +101,11 @@ export function useSecurityData() {
       }
 
       const usersList =
-        users.status === "fulfilled" && Array.isArray(users.value) ? users.value : [];
+        users.status === "fulfilled"
+          ? Array.isArray(users.value)
+            ? users.value
+            : users.value.items ?? []
+          : [];
       const sessionsList =
         sessions.status === "fulfilled" && Array.isArray(sessions.value)
           ? sessions.value
@@ -115,10 +127,10 @@ export function useSecurityData() {
           permissions: r.permissions || [],
         })),
         vault: {
-          algorithm: "AES-256-GCM (Tenant Isolated)",
-          keyRotationDays: 30,
-          totalSecretsEncrypted: keyCount,
-          status: "healthy" as const,
+          algorithm: "Gestionado por el servidor",
+          keyRotationDays: 0,
+          totalSecretsEncrypted: null,
+          status: "unavailable" as const,
         },
         users: usersList.map((u) => ({
           id: u.id,

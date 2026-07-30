@@ -1,73 +1,70 @@
 "use client";
 
 import React from "react";
-import { Activity, RefreshCw } from "lucide-react";
+import { Activity, Cpu, HardDrive, RefreshCw } from "lucide-react";
 import { useMonitoringData } from "@/features/monitoring/api/useMonitoringData";
 import { SystemMetricsChart } from "@/features/monitoring/components/SystemMetricsChart";
 import { AuditLogViewer } from "@/features/monitoring/components/AuditLogViewer";
 import { MonitoringSkeleton } from "@/features/monitoring/components/MonitoringSkeleton";
+import { Button, ErrorState, MetricCard, PageHeader } from "@/shared/components/ui";
 
 export default function MonitoringPage() {
-  const { data, isLoading, refetch, isFetching } = useMonitoringData();
+  const { data, isLoading, isError, error, refetch, isFetching } = useMonitoringData();
 
   if (isLoading) {
     return <MonitoringSkeleton />;
   }
 
-  const { metrics, logs, summary } = data || { metrics: [], logs: [], summary: { cpuAverage: 0, memoryPeakMb: 0, uptimePercent: 0, errorRate: "0%" } };
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <ErrorState
+          title="No se pudo cargar la telemetría"
+          message={error instanceof Error ? error.message : undefined}
+          onRetry={() => void refetch()}
+        />
+      </div>
+    );
+  }
+
+  const { metrics, logs, summary } = data ?? {
+    metrics: [],
+    logs: [],
+    summary: { cpuAverage: 0, memoryPeakMb: 0 },
+  };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-blue-500" />
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-              Centro de Monitorización & Observabilidad (Grafana-Style)
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            Supervisión técnica de métricas del núcleo OCAP, pools de hilos, base de datos y auditoría de eventos.
-          </p>
-        </div>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <PageHeader
+        title="Monitorización"
+        description="Telemetría del sistema y actividad de auditoría reportadas por la API."
+        icon={<Activity className="h-5 w-5 text-blue-400" />}
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
+            <RefreshCw className="h-3.5 w-3.5" />
+            Actualizar
+          </Button>
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            <span>Actualizar Telemetría</span>
-          </button>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <MetricCard
+          title="CPU promedio observada"
+          value={metrics.length > 0 ? `${summary.cpuAverage}%` : "Sin datos"}
+          subtitle="Calculada con las muestras recibidas"
+          icon={Cpu}
+          tone="info"
+        />
+        <MetricCard
+          title="Pico de memoria observado"
+          value={metrics.length > 0 ? `${summary.memoryPeakMb} MB` : "Sin datos"}
+          subtitle="Máximo entre las muestras recibidas"
+          icon={HardDrive}
+          tone="accent"
+        />
       </div>
 
-      {/* Summary KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 shadow-sm">
-          <span className="text-xs text-zinc-500">Uso CPU Promedio</span>
-          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{summary.cpuAverage}%</p>
-        </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 shadow-sm">
-          <span className="text-xs text-zinc-500">Pico RAM Registrado</span>
-          <p className="text-2xl font-bold text-purple-500 mt-1">{summary.memoryPeakMb} MB</p>
-        </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 shadow-sm">
-          <span className="text-xs text-zinc-500">Disponibilidad (Uptime)</span>
-          <p className="text-2xl font-bold text-emerald-500 mt-1">{summary.uptimePercent}%</p>
-        </div>
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-4 shadow-sm">
-          <span className="text-xs text-zinc-500">Tasa de Error Global</span>
-          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{summary.errorRate}</p>
-        </div>
-      </div>
-
-      {/* Metrics Chart Panels */}
       <SystemMetricsChart metrics={metrics} />
-
-      {/* Audit Logs Stream */}
       <AuditLogViewer logs={logs} />
     </div>
   );

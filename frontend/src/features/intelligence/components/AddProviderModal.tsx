@@ -27,7 +27,7 @@ export function AddProviderModal({ open, onClose }: AddProviderModalProps) {
         providerType,
         displayName: `${providerType} Provider`,
         modelName,
-        apiKey: apiKey || "local-no-key",
+        apiKey: apiKey.trim(),
       });
       setApiKey("");
       onClose();

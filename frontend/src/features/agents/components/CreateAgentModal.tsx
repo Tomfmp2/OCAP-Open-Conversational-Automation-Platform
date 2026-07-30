@@ -11,9 +11,7 @@ interface CreateAgentModalProps {
 
 export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
   const [name, setName] = React.useState("");
-  const [role, setRole] = React.useState("specialist");
   const [description, setDescription] = React.useState("");
-  const [model, setModel] = React.useState("gpt-4o");
   const [systemPrompt, setSystemPrompt] = React.useState("Eres un agente autónomo especializado en orquestación de tareas enterprise.");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -30,7 +28,7 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
         name: name.trim(),
         description: description.trim(),
         systemPrompt: systemPrompt.trim(),
-        allowedTools: ["CreateCalendarEventTool", "SendEmailTool", "QueryKnowledgeTool"]
+        allowedTools: []
       });
 
       setName("");
@@ -90,33 +88,6 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">Rol</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="specialist">Especialista</option>
-                    <option value="subagent">Sub-agente Táctico</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">Modelo Base</label>
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  >
-                    <option value="gpt-4o">OpenAI (gpt-4o)</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                    <option value="llama3:70b">Ollama Local Llama3</option>
-                  </select>
-                </div>
               </div>
 
               <div className="space-y-1">

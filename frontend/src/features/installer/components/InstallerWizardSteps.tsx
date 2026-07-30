@@ -1,29 +1,14 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, Play, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, Play, XCircle, Loader2, CircleDashed } from "lucide-react";
 import { InstallerStep } from "../api/useInstallerData";
+import { Badge, Button, Surface } from "@/shared/components/ui";
 
 function StepStatusBadge({ status }: { status: InstallerStep["status"] }) {
-  if (status === "completed") {
-    return (
-      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-        OK
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
-        FAIL
-      </span>
-    );
-  }
-  return (
-    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
-      PENDING
-    </span>
-  );
+  const tone = status === "completed" ? "success" : status === "error" ? "danger" : status === "current" ? "info" : "neutral";
+  const label = status === "completed" ? "Correcto" : status === "error" ? "Error" : status === "current" ? "En curso" : "Pendiente";
+  return <Badge tone={tone}>{label}</Badge>;
 }
 
 interface InstallerWizardStepsProps {
@@ -41,32 +26,32 @@ export function InstallerWizardSteps({
   lastCheckedAt,
   onValidate,
 }: InstallerWizardStepsProps) {
+  const checkedAt = new Date(lastCheckedAt);
+  const checkedAtLabel = Number.isNaN(checkedAt.getTime())
+    ? "hora no disponible"
+    : checkedAt.toLocaleString();
+
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-sm space-y-6">
-      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
+    <Surface variant="glass" glow className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 border-b border-zinc-800/80 pb-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Wizard de Instalación & Verificación OCAP</h2>
-          <p className="text-xs text-zinc-400 mt-0.5">Asistente automatizado de comprobación de dependencias del servidor.</p>
+          <h2 className="text-sm font-semibold text-zinc-100">Comprobaciones del entorno</h2>
+          <p className="mt-1 text-xs text-zinc-500">Resultados devueltos por el endpoint de diagnóstico.</p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={onValidate}
-          disabled={isValidating}
-          aria-busy={isValidating}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors disabled:opacity-50"
+          loading={isValidating}
+          size="sm"
         >
-          {isValidating ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
-          <span>{isValidating ? "Verificando entorno..." : "Ejecutar verificación completa"}</span>
-        </button>
+          {isValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {isValidating ? "Verificando..." : "Ejecutar diagnóstico"}
+        </Button>
       </div>
 
       <div
         role="status"
-        className={`p-4 rounded-xl border text-xs flex items-center gap-3 ${
+        className={`flex items-center gap-3 rounded-xl border p-4 text-xs ${
           isSystemReady
             ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
             : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
@@ -82,8 +67,7 @@ export function InstallerWizardSteps({
             {isSystemReady ? "Plataforma OCAP operacional" : "Plataforma OCAP no preparada"}
           </p>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Diagnóstico real de PostgreSQL, Event Bus, almacenamiento y health checks.
-            Última revisión: {new Date(lastCheckedAt).toLocaleString()}.
+            Estado agregado reportado por el diagnóstico. Última revisión: {checkedAtLabel}.
           </p>
         </div>
       </div>
@@ -92,7 +76,7 @@ export function InstallerWizardSteps({
         {steps.map((s) => (
           <div
             key={s.id}
-            className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-4"
+            className="flex items-start justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4"
           >
             <div className="flex items-start gap-3">
               <div
@@ -104,7 +88,13 @@ export function InstallerWizardSteps({
                       : "bg-zinc-500/10 text-zinc-500"
                 }`}
               >
-                {s.status === "error" ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                {s.status === "error" ? (
+                  <XCircle className="h-4 w-4" />
+                ) : s.status === "completed" ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <CircleDashed className="h-4 w-4" />
+                )}
               </div>
               <div>
                 <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
@@ -118,6 +108,6 @@ export function InstallerWizardSteps({
           </div>
         ))}
       </div>
-    </div>
+    </Surface>
   );
 }

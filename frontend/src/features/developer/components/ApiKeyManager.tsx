@@ -1,44 +1,121 @@
 import React from "react";
 import { Key, Plus, Trash2 } from "lucide-react";
 import { ApiKeyItem } from "../api/useDeveloperData";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Input,
+  Modal,
+  Surface,
+} from "@/shared/components/ui";
 
 interface ApiKeyManagerProps {
   keys: ApiKeyItem[];
+  onCreate?: (name: string) => void | Promise<unknown>;
+  onRevoke?: (id: string) => void | Promise<unknown>;
+  isCreating?: boolean;
+  isRevoking?: boolean;
 }
 
-export function ApiKeyManager({ keys }: ApiKeyManagerProps) {
+export function ApiKeyManager({
+  keys,
+  onCreate,
+  onRevoke,
+  isCreating = false,
+  isRevoking = false,
+}: ApiKeyManagerProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
+
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!onCreate || !name.trim()) return;
+    await onCreate(name.trim());
+    setName("");
+    setIsOpen(false);
+  };
+
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+    <Surface variant="glass" glow className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
         <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-blue-500" />
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">API Keys de Plataforma</h2>
+          <div className="rounded-xl bg-blue-500/10 p-2 text-blue-400">
+            <Key className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">Claves de API</h2>
+            <p className="text-[11px] text-zinc-500">Credenciales de acceso programático.</p>
+          </div>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors">
-          <Plus className="w-3.5 h-3.5" />
-          <span>Generar Nueva Clave</span>
-        </button>
+        <Button size="sm" onClick={() => setIsOpen(true)} disabled={!onCreate}>
+          <Plus className="h-3.5 w-3.5" />
+          Generar clave
+        </Button>
       </div>
 
-      <div className="space-y-3">
-        {keys.map((k) => (
+      {keys.length === 0 ? (
+        <EmptyState
+          title="No hay claves de API"
+          description="Todavía no se han creado credenciales para este tenant."
+        />
+      ) : (
+        <div className="space-y-3">
+          {keys.map((key) => (
           <div
-            key={k.id}
-            className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs"
+            key={key.id}
+            className="flex flex-col justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 sm:flex-row sm:items-center"
           >
-            <div>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{k.name}</p>
-              <p className="font-mono text-zinc-400 mt-0.5">{k.keyPrefix}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-semibold text-zinc-100">{key.name}</p>
+                <Badge tone={key.status === "active" ? "success" : "neutral"}>
+                  {key.status === "active" ? "Activa" : "Revocada"}
+                </Badge>
+              </div>
+              <p className="mt-1 font-mono text-xs text-zinc-500">{key.keyPrefix}</p>
+              <p className="mt-1 text-[11px] text-zinc-500">Último uso: {key.lastUsed}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] text-zinc-400">Último uso: {k.lastUsed}</span>
-              <button className="text-red-400 hover:text-red-300 p-1">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-400 hover:text-red-300"
+              disabled={!onRevoke || key.status === "revoked" || isRevoking}
+              onClick={() => void onRevoke?.(key.id)}
+              aria-label={`Revocar ${key.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+              Revocar
+            </Button>
           </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Generar clave de API"
+        description="La clave se creará mediante la API del tenant activo."
+      >
+        <form className="space-y-4" onSubmit={handleCreate}>
+          <Input
+            autoFocus
+            label="Nombre de la clave"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Ej. Integración de producción"
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={isCreating} disabled={!name.trim()}>
+              Generar
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </Surface>
   );
 }

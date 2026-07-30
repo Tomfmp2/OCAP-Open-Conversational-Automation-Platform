@@ -29,49 +29,13 @@ export function useChannelsData() {
   const query = useQuery<ChannelConnectionDto[]>({
     queryKey: ["channelsData"],
     queryFn: async () => {
-      const [tgStatus, tgHealth, waStatus, waHealth, dbConns] = await Promise.allSettled([
-        apiClient.get<{ data?: { status?: string } }>("/api/channels/telegram/status"),
+      const [tgHealth, waHealth, dbConns] = await Promise.allSettled([
         apiClient.get<{ data?: ChannelProviderHealthDto }>("/api/channels/telegram/health"),
-        apiClient.get<{ data?: { status?: string } }>("/api/channels/whatsapp/status"),
         apiClient.get<{ data?: ChannelProviderHealthDto }>("/api/channels/whatsapp/health"),
         apiClient.get<{ data?: unknown[] } | unknown[]>("/api/channels/connections"),
       ]);
 
       const connections: ChannelConnectionDto[] = [];
-
-      if (tgStatus.status === "fulfilled") {
-        const statusJson = tgStatus.value;
-        const healthJson = tgHealth.status === "fulfilled" ? tgHealth.value : null;
-
-        connections.push({
-          id: "telegram-channel-1",
-          name: "Telegram Bot",
-          provider: "Telegram",
-          status: statusJson?.data?.status || "Connected",
-          accountIdentifier: "telegram",
-          messagesHandled24h: 0,
-          lastSync: new Date().toLocaleTimeString(),
-          latencyMs: healthJson?.data?.latencyMs ?? 0,
-          health: healthJson?.data,
-        });
-      }
-
-      if (waStatus.status === "fulfilled") {
-        const statusJson = waStatus.value;
-        const healthJson = waHealth.status === "fulfilled" ? waHealth.value : null;
-
-        connections.push({
-          id: "whatsapp-channel-1",
-          name: "WhatsApp Business",
-          provider: "WhatsApp",
-          status: statusJson?.data?.status || "Connected",
-          accountIdentifier: "whatsapp",
-          messagesHandled24h: 0,
-          lastSync: new Date().toLocaleTimeString(),
-          latencyMs: healthJson?.data?.latencyMs ?? 0,
-          health: healthJson?.data,
-        });
-      }
 
       if (dbConns.status === "fulfilled") {
         const raw = dbConns.value;
@@ -82,19 +46,31 @@ export function useChannelsData() {
           name?: string;
           provider: string;
           enabled?: boolean;
+          accountIdentifier?: string;
+          messagesHandled24h?: number;
+          lastSyncAtUtc?: string;
         }>).forEach((item) => {
-            if (!connections.some((c) => c.provider.toLowerCase() === item.provider.toLowerCase())) {
-              connections.push({
-                id: item.id,
-                name: item.displayName || item.name || `${item.provider} Channel`,
-                provider: item.provider,
-                status: item.enabled ? "Connected" : "Disconnected",
-                accountIdentifier: `${item.provider.toLowerCase()}_account`,
-                messagesHandled24h: 0,
-                lastSync: new Date().toLocaleTimeString(),
-                latencyMs: 0,
-              });
-            }
+          const provider = item.provider.toLowerCase();
+          const health =
+            provider === "telegram" && tgHealth.status === "fulfilled"
+              ? tgHealth.value.data
+              : provider === "whatsapp" && waHealth.status === "fulfilled"
+                ? waHealth.value.data
+                : undefined;
+
+          connections.push({
+            id: item.id,
+            name: item.displayName || item.name || `${item.provider} Channel`,
+            provider: item.provider,
+            status: item.enabled ? "Connected" : "Disconnected",
+            accountIdentifier: item.accountIdentifier || "—",
+            messagesHandled24h: item.messagesHandled24h ?? 0,
+            lastSync: item.lastSyncAtUtc
+              ? new Date(item.lastSyncAtUtc).toLocaleString()
+              : "N/D",
+            latencyMs: health?.latencyMs ?? 0,
+            health,
+          });
         });
       }
 
@@ -128,22 +104,33 @@ export function useConnectChannelMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { provider: string; botToken?: string; authCode?: string }) => {
+    mutationFn: async (payload: {
+      provider: string;
+      displayName: string;
+      botToken?: string;
+      connectionMode?: "webhook" | "polling";
+      phoneNumberId?: string;
+      apiToken?: string;
+    }) => {
       let url = "/api/channels/connect";
       let bodyData: Record<string, unknown> = { provider: payload.provider };
 
       if (payload.provider.toLowerCase() === "telegram") {
         url = "/api/channels/telegram/bots";
-        bodyData = { botToken: payload.botToken };
+        bodyData = {
+          displayName: payload.displayName,
+          botToken: payload.botToken,
+          connectionMode: payload.connectionMode ?? "polling",
+        };
       } else if (payload.provider.toLowerCase() === "whatsapp") {
         url = "/api/channels/whatsapp/connect";
-        bodyData = { phoneNumber: payload.botToken || "" };
-      } else if (
-        payload.provider.toLowerCase() === "google" ||
-        payload.provider.toLowerCase() === "email"
-      ) {
-        url = "/api/integrations/google/connect";
-        bodyData = { authCode: payload.authCode || "", scopes: "gmail,calendar" };
+        bodyData = {
+          displayName: payload.displayName,
+          phoneNumberId: payload.phoneNumberId,
+          apiToken: payload.apiToken,
+        };
+      } else {
+        throw new Error(`Proveedor ${payload.provider} no soportado por este formulario.`);
       }
 
       return apiClient.post(url, bodyData);

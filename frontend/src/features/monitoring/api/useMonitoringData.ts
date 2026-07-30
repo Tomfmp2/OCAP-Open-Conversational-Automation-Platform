@@ -24,8 +24,6 @@ export interface MonitoringData {
   summary: {
     cpuAverage: number;
     memoryPeakMb: number;
-    uptimePercent: number;
-    errorRate: string;
   };
   diagnostics?: {
     hubName: string;
@@ -67,11 +65,7 @@ export function useMonitoringData() {
       ]);
 
       let logs: AuditLogEntry[] = [];
-      let uptimePercent = 100;
-
       if (overview.status === "fulfilled") {
-        uptimePercent = overview.value.health === "Healthy" ? 99.98 : 95.0;
-
         if (Array.isArray(overview.value.lastActivity)) {
           logs = overview.value.lastActivity.map((act) => ({
             id: act.id,
@@ -149,8 +143,6 @@ export function useMonitoringData() {
         summary: {
           cpuAverage: Math.round(cpuAverage * 10) / 10,
           memoryPeakMb: Math.round(memoryPeak * 10) / 10,
-          uptimePercent,
-          errorRate: "0.00%",
         },
         diagnostics,
       };

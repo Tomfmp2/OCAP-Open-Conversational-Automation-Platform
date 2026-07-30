@@ -1,8 +1,11 @@
 "use client";
 
 import React from "react";
-import { GitFork, ArrowRight, Play, CheckCircle2, Save, CheckSquare, Loader2, AlertCircle } from "lucide-react";
+import { GitFork, ArrowRight, Play, CheckCircle2, Save, CheckSquare, AlertCircle } from "lucide-react";
 import { WorkflowNode, useWorkflowsData } from "../api/useWorkflowsData";
+import { Surface } from "@/shared/components/ui/Surface";
+import { Button } from "@/shared/components/ui/Button";
+import { EmptyState } from "@/shared/components/ui/EmptyState";
 
 interface WorkflowCanvasProps {
   nodes: WorkflowNode[];
@@ -39,10 +42,14 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
   };
 
   const handleExecute = async () => {
+    if (!workflowId) {
+      setErrorMessage("No se puede ejecutar un workflow sin un identificador válido.");
+      return;
+    }
     setErrorMessage(null);
     setExecutionResult(null);
     try {
-      const result = await executeWorkflowMutation.mutateAsync(workflowId || "00000000-0000-0000-0000-000000000000");
+      const result = await executeWorkflowMutation.mutateAsync(workflowId);
       setExecutionResult({ success: true, message: `Ejecución real completada. ID de ejecución: ${result?.id || 'OK'}` });
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Error al ejecutar el workflow en el motor backend.");
@@ -52,7 +59,7 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
   const isLoading = validateWorkflowMutation.isPending || saveWorkflowMutation.isPending || executeWorkflowMutation.isPending;
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm space-y-4">
+    <Surface variant="glass" className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-3">
         <div className="flex items-center gap-2">
           <GitFork className="w-4 h-4 text-blue-500" />
@@ -61,32 +68,40 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          {nodes.length > 0 && <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             onClick={handleValidate}
+            loading={validateWorkflowMutation.isPending}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-50"
           >
             <CheckSquare className="w-3.5 h-3.5" />
             <span>Validar</span>
-          </button>
+          </Button>}
 
-          <button
+          {nodes.length > 0 && <Button
+            type="button"
+            variant="secondary"
+            size="sm"
             onClick={handleSave}
+            loading={saveWorkflowMutation.isPending}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" />
             <span>Guardar</span>
-          </button>
+          </Button>}
 
-          <button
+          <Button
+            type="button"
+            size="sm"
             onClick={handleExecute}
-            disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+            loading={executeWorkflowMutation.isPending}
+            disabled={isLoading || !workflowId}
           >
-            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+            <Play className="w-3.5 h-3.5" />
             <span>Ejecutar Flujo</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -104,7 +119,13 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
         </div>
       )}
 
-      {/* Visual Pipeline Nodes Flow */}
+      {nodes.length === 0 ? (
+        <EmptyState
+          title="Estructura no disponible"
+          description="La API actual no devuelve los nodos reales de esta definición; no se muestran nodos de muestra."
+          icon={<GitFork className="h-5 w-5" />}
+        />
+      ) : (
       <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-4 bg-zinc-50 dark:bg-zinc-950/60 rounded-xl border border-zinc-200 dark:border-zinc-800/80 overflow-x-auto">
         {nodes.map((node, index) => (
           <React.Fragment key={node.id}>
@@ -123,6 +144,7 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
           </React.Fragment>
         ))}
       </div>
-    </div>
+      )}
+    </Surface>
   );
 }
