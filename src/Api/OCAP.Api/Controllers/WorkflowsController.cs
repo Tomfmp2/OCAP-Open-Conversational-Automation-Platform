@@ -234,10 +234,94 @@ public class WorkflowsController : ControllerBase
         return Ok(dto);
     }
 
+    [HttpPost("executions/{executionId}/resume")]
+    public async Task<ActionResult<WorkflowExecutionDto>> ResumeExecution(
+        Guid executionId,
+        [FromBody] ResumeWorkflowRequestDto? request,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var userId = _userContext.UserId;
+        var context = new WorkflowContext
+        {
+            TenantId = tenantId,
+            UserId = userId
+        };
+
+        WorkflowExecution execution;
+        if (!string.IsNullOrWhiteSpace(request?.Signal))
+        {
+            execution = await _workflowEngine.ResumeWithSignalAsync(
+                executionId,
+                tenantId,
+                request.Signal,
+                request.PayloadJson,
+                context,
+                cancellationToken);
+        }
+        else
+        {
+            execution = await _workflowEngine.ResumeWorkflowAsync(executionId, context, cancellationToken);
+        }
+
+        return Ok(ToExecutionDto(execution));
+    }
+
+    [HttpPost("executions/{executionId}/signal")]
+    public async Task<ActionResult<WorkflowExecutionDto>> SignalExecution(
+        Guid executionId,
+        [FromBody] ResumeWorkflowRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Signal))
+            return BadRequest(new { message = "Signal is required." });
+
+        var context = new WorkflowContext
+        {
+            TenantId = _tenantContext.TenantId,
+            UserId = _userContext.UserId
+        };
+
+        var execution = await _workflowEngine.ResumeWithSignalAsync(
+            executionId,
+            _tenantContext.TenantId,
+            request.Signal,
+            request.PayloadJson,
+            context,
+            cancellationToken);
+
+        return Ok(ToExecutionDto(execution));
+    }
+
+    [HttpGet("executions/{executionId}/history")]
+    public async Task<ActionResult> GetExecutionHistory(Guid executionId, CancellationToken cancellationToken)
+    {
+        var history = await _workflowEngine.GetExecutionHistoryAsync(executionId, cancellationToken);
+        return Ok(history.Select(h => new
+        {
+            h.Id,
+            h.ExecutionId,
+            h.StepId,
+            h.StepName,
+            h.NodeType,
+            h.Status,
+            h.DurationMs,
+            h.InputJson,
+            h.OutputJson,
+            h.ErrorMessage,
+            h.ExecutedAtUtc
+        }));
+    }
+
     [HttpGet("executions")]
     public async Task<ActionResult<List<WorkflowExecutionDto>>> GetExecutions(CancellationToken cancellationToken)
     {
-        var executions = await _dbContext.WorkflowExecutions
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowExecutions.AsQueryable();
+        if (tenantId != Guid.Empty)
+            query = query.Where(e => e.TenantId == tenantId);
+
+        var executions = await query
             .OrderByDescending(e => e.StartedAtUtc)
             .Take(100)
             .Select(e => new WorkflowExecutionDto(
@@ -257,12 +341,7 @@ public class WorkflowsController : ControllerBase
             return NotFound();
         }
 
-        var dto = new WorkflowExecutionDto(
-            execution.Id, execution.WorkflowDefinitionId, execution.TenantId, execution.UserId, execution.AgentId,
-            execution.CurrentStepId, execution.Status.ToString(), execution.StartedAtUtc, execution.CompletedAtUtc, execution.OutputJson, execution.ErrorMessage
-        );
-
-        return Ok(dto);
+        return Ok(ToExecutionDto(execution));
     }
 
     [HttpPost("designer/validate")]
@@ -300,4 +379,11 @@ public class WorkflowsController : ControllerBase
 
         return Ok(dto);
     }
+
+    private static WorkflowExecutionDto ToExecutionDto(WorkflowExecution execution) => new(
+        execution.Id, execution.WorkflowDefinitionId, execution.TenantId, execution.UserId, execution.AgentId,
+        execution.CurrentStepId, execution.Status.ToString(), execution.StartedAtUtc, execution.CompletedAtUtc,
+        execution.OutputJson, execution.ErrorMessage);
 }
+
+public record ResumeWorkflowRequestDto(string? Signal, string? PayloadJson);
