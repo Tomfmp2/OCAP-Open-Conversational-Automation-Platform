@@ -64,6 +64,7 @@ public class OCAPDbContext : DbContext
     public DbSet<KnowledgeBase> KnowledgeBases => Set<KnowledgeBase>();
     public DbSet<KnowledgeDocument> KnowledgeDocuments => Set<KnowledgeDocument>();
     public DbSet<KnowledgeChunk> KnowledgeChunks => Set<KnowledgeChunk>();
+    public DbSet<KnowledgeEmbedding> KnowledgeEmbeddings => Set<KnowledgeEmbedding>();
     public DbSet<DocumentProcessingJob> DocumentProcessingJobs => Set<DocumentProcessingJob>();
     public DbSet<DocumentPermission> DocumentPermissions => Set<DocumentPermission>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
@@ -90,6 +91,24 @@ public class OCAPDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(OCAPDbContext).Assembly);
+
+        if (Database.IsNpgsql())
+        {
+            modelBuilder.HasPostgresExtension("vector");
+        }
+        else
+        {
+            // InMemory and other non-Postgres providers cannot map Pgvector.Vector.
+            modelBuilder.Entity<KnowledgeEmbedding>(entity =>
+            {
+                entity.Property(e => e.Values)
+                    .HasColumnName("Embedding")
+                    .HasConversion(
+                        v => System.Text.Json.JsonSerializer.Serialize(v),
+                        v => System.Text.Json.JsonSerializer.Deserialize<float[]>(v) ?? Array.Empty<float>());
+            });
+        }
+
         modelBuilder.UseOpenIddict();
         ApplyTenantQueryFilters(modelBuilder);
         base.OnModelCreating(modelBuilder);

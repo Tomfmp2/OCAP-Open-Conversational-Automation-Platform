@@ -8,6 +8,7 @@ using OCAP.Infrastructure.Persistence.Interceptors;
 using OCAP.Infrastructure.Persistence.Repositories;
 using OCAP.Infrastructure.Persistence.Tenancy;
 using OCAP.Security.Abstractions;
+using Pgvector.EntityFrameworkCore;
 
 namespace OCAP.Infrastructure.Extensions;
 
@@ -44,10 +45,17 @@ public static class InfrastructureServiceExtensions
             {
                 var audit = sp.GetRequiredService<AuditSaveChangesInterceptor>();
                 var tenant = sp.GetRequiredService<TenantSaveChangesInterceptor>();
-                options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName))
+                options.UseNpgsql(connectionString, b =>
+                       {
+                           b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName);
+                           b.UseVector();
+                       })
                        .AddInterceptors(audit, tenant);
             });
         }
+
+        // Allow Knowledge EF repositories / PgVector to resolve the abstract DbContext.
+        services.AddScoped<DbContext>(sp => sp.GetRequiredService<OCAPDbContext>());
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();

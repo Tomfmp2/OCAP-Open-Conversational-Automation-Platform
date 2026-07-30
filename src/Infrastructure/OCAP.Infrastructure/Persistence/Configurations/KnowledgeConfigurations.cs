@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using OCAP.Knowledge.Domain.Entities;
+using Pgvector;
 
 namespace OCAP.Infrastructure.Persistence.Configurations;
 
@@ -46,6 +47,35 @@ public class KnowledgeChunkConfiguration : IEntityTypeConfiguration<KnowledgeChu
 
         builder.HasIndex(c => new { c.TenantId, c.DocumentId });
         builder.HasIndex(c => new { c.TenantId, c.KnowledgeBaseId });
+    }
+}
+
+public class KnowledgeEmbeddingConfiguration : IEntityTypeConfiguration<KnowledgeEmbedding>
+{
+    public const int DefaultDimensions = 1536;
+
+    public void Configure(EntityTypeBuilder<KnowledgeEmbedding> builder)
+    {
+        builder.ToTable("KnowledgeEmbeddings");
+        builder.HasKey(e => e.Id);
+
+        builder.Property(e => e.Provider).HasMaxLength(64).IsRequired();
+        builder.Property(e => e.Model).HasMaxLength(128).IsRequired();
+        builder.Property(e => e.MetadataJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(e => e.TagsJson).HasColumnType("jsonb").IsRequired();
+
+        builder.Property(e => e.Values)
+            .HasColumnName("Embedding")
+            .HasConversion(
+                v => new Vector(v),
+                v => v.ToArray())
+            .HasColumnType($"vector({DefaultDimensions})")
+            .IsRequired();
+
+        builder.HasIndex(e => e.ChunkId).IsUnique();
+        builder.HasIndex(e => new { e.TenantId, e.KnowledgeBaseId });
+        builder.HasIndex(e => new { e.TenantId, e.DocumentId });
+        builder.HasIndex(e => e.TenantId);
     }
 }
 
