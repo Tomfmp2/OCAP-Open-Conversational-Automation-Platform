@@ -23,8 +23,8 @@ public class DefaultPermissionValidator : IPermissionValidator
             return Task.FromResult(policy.IsPermissionAllowed(permission));
         }
 
-        // Por defecto, si el agente no tiene política configurada, se conceden permisos para desacoplamiento.
-        return Task.FromResult(true);
+        // Por defecto deny-all: sin política explícita no se conceden permisos.
+        return Task.FromResult(false);
     }
 
     public async Task<bool> CanExecuteToolAsync(Guid agentId, ITool tool, CancellationToken cancellationToken = default)

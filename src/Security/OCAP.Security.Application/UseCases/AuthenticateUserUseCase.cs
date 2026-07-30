@@ -3,7 +3,6 @@ using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Security.Application.UseCases;
 
-// DTO de resultado del inicio de sesión exitoso.
 public record AuthenticationResult(
     string AccessToken,
     string RefreshToken,
@@ -13,49 +12,66 @@ public record AuthenticationResult(
     string RoleName
 );
 
-// Caso de uso para autenticar credenciales de usuario y emitir tokens JWT.
 public class AuthenticateUserUseCase
 {
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ISecurityAuditService _auditService;
+    private readonly IUserAuthenticationQuery _userQuery;
+    private readonly IRefreshTokenService _refreshTokenService;
 
     public AuthenticateUserUseCase(
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
-        ISecurityAuditService auditService)
+        ISecurityAuditService auditService,
+        IUserAuthenticationQuery userQuery,
+        IRefreshTokenService refreshTokenService)
     {
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _jwtTokenService = jwtTokenService ?? throw new ArgumentNullException(nameof(jwtTokenService));
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
+        _userQuery = userQuery ?? throw new ArgumentNullException(nameof(userQuery));
+        _refreshTokenService = refreshTokenService ?? throw new ArgumentNullException(nameof(refreshTokenService));
     }
 
     public async Task<AuthenticationResult?> ExecuteAsync(string email, string password, string ipAddress, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return null;
 
-        // Creación simulada de usuario y tenant de prueba en memoria
-        var tenant = new Tenant(Guid.NewGuid(), "Organización Principal", "org-principal");
-        var (hash, salt) = _passwordHasher.HashPassword(password);
-        var user = new UserIdentity(Guid.NewGuid(), tenant.Id, email, hash, salt, "Usuario Administrador");
-
-        var role = new Role(Guid.NewGuid(), tenant.Id, "Admin", "Administrador total del tenant", new[]
+        var record = await _userQuery.FindByEmailAsync(email, cancellationToken);
+        if (record is null)
         {
-            "Conversation.Read", "Conversation.Write", "Conversation.Delete",
-            "Agent.Read", "Agent.Write", "Agent.Execute", "Tool.Execute",
-            "Dashboard.Read", "Dashboard.Admin", "Deployment.Manage", "AI.Execute",
-            "Settings.Manage", "OAuth.Manage"
-        });
+            await _auditService.LogSecurityEventAsync(Guid.Empty, Guid.Empty, "User.Login", $"Login fallido (usuario inexistente): {email}", ipAddress, false, cancellationToken);
+            return null;
+        }
 
-        // Verificar contraseña
-        var isValid = _passwordHasher.VerifyPassword(password, hash, salt);
-        await _auditService.LogSecurityEventAsync(tenant.Id, user.Id, "User.Login", $"Intento de login para {email}", ipAddress, isValid, cancellationToken);
+        if (record.User.IsLocked)
+        {
+            await _auditService.LogSecurityEventAsync(record.Tenant.Id, record.User.Id, "User.Login", $"Login bloqueado: {email}", ipAddress, false, cancellationToken);
+            return null;
+        }
+
+        var isValid = _passwordHasher.VerifyPassword(password, record.User.PasswordHash, record.User.Salt);
+        await _auditService.LogSecurityEventAsync(
+            record.Tenant.Id,
+            record.User.Id,
+            "User.Login",
+            $"Intento de login para {email}",
+            ipAddress,
+            isValid,
+            cancellationToken);
 
         if (!isValid) return null;
 
-        var accessToken = _jwtTokenService.GenerateAccessToken(user, tenant, role, role.Permissions);
-        var refreshToken = _jwtTokenService.GenerateRefreshToken(user.Id);
+        var accessToken = _jwtTokenService.GenerateAccessToken(record.User, record.Tenant, record.Role, record.Role.Permissions);
+        var refreshToken = await _refreshTokenService.CreateRefreshTokenAsync(record.User.Id, cancellationToken: cancellationToken);
 
-        return new AuthenticationResult(accessToken, refreshToken.Token, user.Id, tenant.Id, user.Email, role.Name);
+        return new AuthenticationResult(
+            accessToken,
+            refreshToken.Token,
+            record.User.Id,
+            record.Tenant.Id,
+            record.User.Email,
+            record.Role.Name);
     }
 }
