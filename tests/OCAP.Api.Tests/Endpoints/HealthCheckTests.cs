@@ -28,13 +28,10 @@ public class HealthCheckTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task HealthController_WhenApiIsRunning_Returns200Ok()
     {
-        // Act: consultar el endpoint del HealthController personalizado.
-        var response = await _client.GetAsync("/api/health");
+        var response = await _client.GetAsync("/api/health/diagnostic");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // El cuerpo debe ser un JSON válido (no vacío).
         var content = await response.Content.ReadAsStringAsync();
         content.Should().NotBeNullOrEmpty();
     }

@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OCAP.Core.Events.Distributed;
-using OCAP.Infrastructure.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using OCAP.Core.Events.Distributed;
+using OCAP.Infrastructure.Events.Distributed;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
-// Controlador REST de administración y diagnóstico del Bus de Eventos Distribuido y Cluster HA (CAP-20).
 [ApiController]
 [Route("api/eventbus")]
 [Authorize]
@@ -15,12 +16,18 @@ public class EventBusController : ControllerBase
     private readonly IEventTransport _transport;
     private readonly IMessageDeadLetterHandler _deadLetterHandler;
     private readonly OCAPDbContext _dbContext;
+    private readonly EventBusOptions _options;
 
-    public EventBusController(IEventTransport transport, IMessageDeadLetterHandler deadLetterHandler, OCAPDbContext dbContext)
+    public EventBusController(
+        IEventTransport transport,
+        IMessageDeadLetterHandler deadLetterHandler,
+        OCAPDbContext dbContext,
+        IOptions<EventBusOptions> options)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _deadLetterHandler = deadLetterHandler ?? throw new ArgumentNullException(nameof(deadLetterHandler));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _options = options.Value;
     }
 
     [HttpGet("status")]
@@ -32,6 +39,8 @@ public class EventBusController : ControllerBase
             status = isHealthy ? "Healthy" : "Degraded",
             activeProvider = _transport.ProviderName,
             clusterNodeId = Environment.MachineName,
+            immediateDispatch = _options.ImmediateDispatch,
+            enableOutbox = _options.EnableOutbox,
             timestampUtc = DateTime.UtcNow
         });
     }
@@ -41,15 +50,18 @@ public class EventBusController : ControllerBase
     {
         var pendingOutboxCount = await _dbContext.DistributedOutboxMessages.CountAsync(m => m.Status == "Pending", cancellationToken);
         var totalProcessedOutbox = await _dbContext.DistributedOutboxMessages.CountAsync(m => m.Status == "Processed", cancellationToken);
+        var failedOutbox = await _dbContext.DistributedOutboxMessages.CountAsync(m => m.Status == "Failed", cancellationToken);
         var deadLetterCount = await _dbContext.DeadLetterMessages.CountAsync(m => !m.Replayed, cancellationToken);
+        var inboxCount = await _dbContext.InboxMessages.CountAsync(cancellationToken);
 
         return Ok(new
         {
             pendingOutboxCount,
             totalProcessedOutbox,
+            failedOutbox,
             deadLetterCount,
-            activeProvider = _transport.ProviderName,
-            throughputMsgPerSec = 150
+            inboxCount,
+            activeProvider = _transport.ProviderName
         });
     }
 
@@ -58,10 +70,10 @@ public class EventBusController : ControllerBase
     {
         return Ok(new
         {
-            maxRetries = 3,
+            maxRetries = _options.MaxRetries,
             backoffStrategy = "ExponentialBackoff",
-            initialDelayMs = 500,
-            poisonMessageThreshold = 5
+            poisonMessageThreshold = _options.MaxRetries,
+            consumerGroup = _options.ConsumerGroup
         });
     }
 
@@ -78,7 +90,7 @@ public class EventBusController : ControllerBase
         var success = await _deadLetterHandler.ReplayDeadLetterAsync(deadLetterId, cancellationToken);
         if (!success) return NotFound(new { error = "Mensaje muerto no encontrado." });
 
-        return Ok(new { message = "Mensaje reintentado exitosamente." });
+        return Ok(new { message = "Mensaje reencolado en outbox para reintento." });
     }
 
     [HttpGet("connections")]
@@ -89,8 +101,7 @@ public class EventBusController : ControllerBase
         {
             provider = _transport.ProviderName,
             isConnected,
-            nodeCount = 3,
-            clusterState = "HA_OK"
+            nodeId = Environment.MachineName
         });
     }
 
@@ -99,14 +110,9 @@ public class EventBusController : ControllerBase
     {
         return Ok(new[]
         {
-            new { name = "InMemory", status = "Available", type = "Local" },
-            new { name = "RabbitMQ", status = "Supported", type = "Distributed AMQP 0-9-1" },
-            new { name = "NATS JetStream", status = "Supported", type = "Distributed JetStream" },
-            new { name = "Azure Service Bus", status = "Supported", type = "Cloud Native" },
-            new { name = "AWS SQS", status = "Supported", type = "Cloud Native" },
-            new { name = "Kafka", status = "Supported", type = "Distributed Log Stream" },
-            new { name = "Redis Streams", status = "Supported", type = "In-Memory Stream" },
-            new { name = "Google PubSub", status = "Supported", type = "Cloud Native" }
+            new { name = "InMemory", status = "Available", type = "Local (Development/Testing)" },
+            new { name = "RabbitMQ", status = "Available", type = "AMQP 0-9-1" },
+            new { name = "NATS", status = "Available", type = "JetStream" }
         });
     }
 }

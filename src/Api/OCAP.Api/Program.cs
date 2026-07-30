@@ -52,6 +52,13 @@ builder.Services.AddTelegramChannel(builder.Configuration);
 // Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting, Seguridad.
 builder.Services.AddApiServices(builder.Configuration);
 
+// Compresión HTTP y response caching para APIs de lectura.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+builder.Services.AddResponseCaching();
+
 var app = builder.Build();
 
 // Aplica migraciones pendientes de EF Core antes de aceptar tráfico.
@@ -78,6 +85,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseResponseCompression();
+app.UseResponseCaching();
+
 // CORS debe configurarse antes del routing para que se aplique a todas las rutas.
 app.UseCors("OcapCorsPolicy");
 
@@ -98,10 +108,14 @@ app.UseAuthorization();
 // Serilog Request Logging middleware for structured HTTP logging
 app.UseSerilogRequestLogging();
 
-// Mapeo de controladores, SignalR hubs y health checks.
+// Mapeo de controladores, SignalR hubs, health y métricas Prometheus.
 app.MapControllers();
 app.MapHub<OCAP.Api.Hubs.EventsHub>("/hubs/events");
-app.MapHealthChecks("/api/health");
+app.MapOcapHealthEndpoints();
+app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = r => r.Tags.Contains("ready") || r.Tags.Contains("live") || r.Name == "Database" || r.Name == "postgres"
+});
 
 await app.RunAsync();
 
