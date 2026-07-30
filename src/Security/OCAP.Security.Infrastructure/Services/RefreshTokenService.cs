@@ -23,6 +23,17 @@ public class RefreshTokenService : IRefreshTokenService
     {
         if (userId == Guid.Empty) throw new ArgumentException("El UserId no puede ser vacío.", nameof(userId));
 
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, cancellationToken)
+            ?? throw new InvalidOperationException($"Usuario {userId} no encontrado para emitir refresh token.");
+
+        if (user.TenantId == Guid.Empty)
+        {
+            throw new InvalidOperationException("El usuario no tiene TenantId asociado.");
+        }
+
         var randomBytes = RandomNumberGenerator.GetBytes(64);
         var tokenString = Convert.ToBase64String(randomBytes);
         var validFor = expiry ?? TimeSpan.FromDays(7);
@@ -31,7 +42,8 @@ public class RefreshTokenService : IRefreshTokenService
             Guid.NewGuid(),
             userId,
             tokenString,
-            DateTime.UtcNow.Add(validFor)
+            DateTime.UtcNow.Add(validFor),
+            user.TenantId
         );
 
         _dbContext.RefreshTokens.Add(refreshToken);

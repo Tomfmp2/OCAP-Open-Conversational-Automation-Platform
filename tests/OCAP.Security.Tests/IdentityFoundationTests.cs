@@ -27,7 +27,11 @@ public class IdentityFoundationTests
         // Arrange
         using var db = CreateDbContext();
         var service = new RefreshTokenService(db);
+        var tenantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
+        db.Tenants.Add(new Tenant(tenantId, "Test", "test"));
+        db.UserIdentities.Add(new UserIdentity(userId, tenantId, "rt@test.com", "hash", "salt", "RT User"));
+        await db.SaveChangesAsync();
 
         // Act - Create
         var token1 = await service.CreateRefreshTokenAsync(userId, TimeSpan.FromMinutes(30));
@@ -35,6 +39,7 @@ public class IdentityFoundationTests
         // Assert
         token1.Should().NotBeNull();
         token1.UserId.Should().Be(userId);
+        token1.TenantId.Should().Be(tenantId);
         token1.IsActive.Should().BeTrue();
 
         // Act - Rotate
