@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace OCAP.Api.Hubs;
 
 // SignalR Hub para la transmisión de eventos en vivo de la plataforma OCAP con aislamiento Multi-Tenant.
+[Authorize]
 public class EventsHub : Hub
 {
     private readonly ILogger<EventsHub>? _logger;
@@ -16,7 +18,7 @@ public class EventsHub : Hub
     public override async Task OnConnectedAsync()
     {
         var tenantIdClaim = Context.User?.FindFirst("tenant_id")?.Value
-            ?? Context.GetHttpContext()?.Request.Query["tenantId"].ToString();
+            ?? Context.User?.FindFirst("TenantId")?.Value;
 
         if (!string.IsNullOrWhiteSpace(tenantIdClaim) && Guid.TryParse(tenantIdClaim, out var tenantId))
         {
@@ -38,26 +40,41 @@ public class EventsHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    // Permite a los clientes suscribirse explícitamente al grupo de su TenantId
+    // La suscripción explícita solo admite el tenant autenticado en el JWT.
     public async Task SubscribeTenant(string tenantId)
     {
-        if (Guid.TryParse(tenantId, out var tenantGuid))
-        {
-            var groupName = GetTenantGroupName(tenantGuid);
-            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-            _logger?.LogInformation("Cliente {ConnectionId} se suscribió al grupo del Tenant {TenantId}", Context.ConnectionId, tenantGuid);
-        }
+        var authenticatedTenant = RequireAuthenticatedTenant();
+        if (!Guid.TryParse(tenantId, out var requestedTenant)
+            || requestedTenant != authenticatedTenant)
+            throw new HubException("No se permite suscribirse a otro tenant.");
+
+        var groupName = GetTenantGroupName(authenticatedTenant);
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        _logger?.LogInformation("Cliente {ConnectionId} se suscribió al grupo del Tenant {TenantId}", Context.ConnectionId, authenticatedTenant);
     }
 
     public async Task UnsubscribeTenant(string tenantId)
     {
-        if (Guid.TryParse(tenantId, out var tenantGuid))
-        {
-            var groupName = GetTenantGroupName(tenantGuid);
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-            _logger?.LogInformation("Cliente {ConnectionId} se desuscribió del grupo del Tenant {TenantId}", Context.ConnectionId, tenantGuid);
-        }
+        var authenticatedTenant = RequireAuthenticatedTenant();
+        if (!Guid.TryParse(tenantId, out var requestedTenant)
+            || requestedTenant != authenticatedTenant)
+            throw new HubException("No se permite desuscribirse de otro tenant.");
+
+        var groupName = GetTenantGroupName(authenticatedTenant);
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        _logger?.LogInformation("Cliente {ConnectionId} se desuscribió del grupo del Tenant {TenantId}", Context.ConnectionId, authenticatedTenant);
     }
 
     public static string GetTenantGroupName(Guid tenantId) => $"tenant_{tenantId}";
+
+    private Guid RequireAuthenticatedTenant()
+    {
+        var claim = Context.User?.FindFirst("tenant_id")?.Value
+            ?? Context.User?.FindFirst("TenantId")?.Value;
+
+        if (!Guid.TryParse(claim, out var tenantId) || tenantId == Guid.Empty)
+            throw new HubException("El token no contiene un tenant válido.");
+
+        return tenantId;
+    }
 }
