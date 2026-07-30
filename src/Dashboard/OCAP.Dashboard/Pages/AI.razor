@@ -1,4 +1,6 @@
 @page "/ai"
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Monitoreo IA Generativa — OCAP</PageTitle>
 
@@ -8,95 +10,217 @@
             <h1 class="h3 fw-bold text-white mb-1">Monitoreo de IA Generativa</h1>
             <p class="text-secondary mb-0">Supervisión en tiempo real de proveedores LLM, consumo de tokens y estado de modelos.</p>
         </div>
-        <button class="btn btn-outline-primary" @onclick="LoadAiData">
-            <i class="bi bi-arrow-clockwise me-1"></i> Actualizar Metadatos
+        <button class="btn btn-outline-primary" @onclick="LoadAiData" disabled="@_isLoading">
+            @if (_isLoading)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+            }
+            else
+            {
+                <i class="bi bi-arrow-clockwise me-1"></i>
+            }
+            Actualizar Metadatos
         </button>
     </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-warning alert-dismissible mb-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>@_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
 
     <!-- Tarjetas de estado e indicadores -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card bg-dark border-secondary text-white h-100 p-3">
                 <span class="text-secondary small">Proveedor Activo</span>
-                <h4 class="fw-bold text-info mt-2">MockAI / Hybrid</h4>
-                <span class="badge bg-success w-auto align-self-start mt-1">Conectado</span>
+                <h4 class="fw-bold text-info mt-2">
+                    @if (_isLoading)
+                    {
+                        <span class="placeholder col-8"></span>
+                    }
+                    else
+                    {
+                        @(_statusData?.ActiveProvider ?? "Sin datos")
+                    }
+                </h4>
+                <span class="badge bg-@(_statusData != null ? "success" : "secondary") w-auto align-self-start mt-1">
+                    @(_statusData != null ? "Conectado" : "Cargando...")
+                </span>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-dark border-secondary text-white h-100 p-3">
                 <span class="text-secondary small">Modelo Principal</span>
-                <h4 class="fw-bold text-white mt-2">mock-gpt-4o</h4>
-                <span class="text-secondary small">Contexto: 8,192 tokens</span>
+                <h4 class="fw-bold text-white mt-2">
+                    @if (_isLoading)
+                    {
+                        <span class="placeholder col-8"></span>
+                    }
+                    else
+                    {
+                        @(_statusData?.ActiveModel ?? "—")
+                    }
+                </h4>
+                <span class="text-secondary small">Estado: @(_statusData?.Status ?? "Desconocido")</span>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-dark border-secondary text-white h-100 p-3">
                 <span class="text-secondary small">Tokens Consumidos</span>
-                <h4 class="fw-bold text-warning mt-2">14,250</h4>
-                <span class="text-secondary small">Tasa de éxito: 99.4%</span>
+                <h4 class="fw-bold text-warning mt-2">
+                    @if (_isLoading)
+                    {
+                        <span class="placeholder col-8"></span>
+                    }
+                    else
+                    {
+                        @(_usageData?.TotalTokensUsed.ToString("N0") ?? "0")
+                    }
+                </h4>
+                <span class="text-secondary small">Tasa de éxito: @(_usageData?.SuccessRatePercentage.ToString("F1") ?? "100.0")%</span>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-dark border-secondary text-white h-100 p-3">
                 <span class="text-secondary small">Latencia Promedio</span>
-                <h4 class="fw-bold text-success mt-2">18.5 ms</h4>
-                <span class="text-secondary small">Modo de simulación seguro</span>
+                <h4 class="fw-bold text-success mt-2">
+                    @if (_isLoading)
+                    {
+                        <span class="placeholder col-8"></span>
+                    }
+                    else
+                    {
+                        @(_usageData?.AverageLatencyMs.ToString("F1") ?? "0.0")<text> ms</text>
+                    }
+                </h4>
+                <span class="text-secondary small">Total ejecuciones: @(_usageData?.TotalExecutionsCount ?? 0)</span>
             </div>
         </div>
     </div>
 
-    <!-- Catálogo de Proveedores Configurados -->
+    <!-- Catálogo de Proveedores disponibles desde backend -->
     <div class="card bg-dark border-secondary text-white p-4 mb-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-cpu text-primary me-2"></i>Proveedores de IA Soportados (Provider Agnostic)</h5>
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0 align-middle">
-                <thead>
-                    <tr>
-                        <th>Proveedor</th>
-                        <th>Modelo</th>
-                        <th>Ventana Contexto</th>
-                        <th>Capacidades</th>
-                        <th>Estado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>MockAI</strong></td>
-                        <td>mock-gpt-4o</td>
-                        <td>8,192 tokens</td>
-                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">intent</span></td>
-                        <td><span class="badge bg-success">Activo (Default)</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>OpenAI</strong></td>
-                        <td>gpt-4o</td>
-                        <td>128,000 tokens</td>
-                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">vision</span> <span class="badge bg-secondary">tools</span></td>
-                        <td><span class="badge bg-info">Listo para credenciales</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Google Gemini</strong></td>
-                        <td>gemini-1.5-pro</td>
-                        <td>1,000,000 tokens</td>
-                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">multimodal</span></td>
-                        <td><span class="badge bg-info">Listo para credenciales</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Ollama (Local)</strong></td>
-                        <td>llama3</td>
-                        <td>8,192 tokens</td>
-                        <td><span class="badge bg-secondary">text</span> <span class="badge bg-secondary">self-hosted</span></td>
-                        <td><span class="badge bg-info">Listo para endpoint local</span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <h5 class="fw-bold mb-3"><i class="bi bi-cpu text-primary me-2"></i>Proveedores de IA Registrados (Provider Agnostic)</h5>
+        @if (_isLoading)
+        {
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+        }
+        else if (_models == null || !_models.Any())
+        {
+            <div class="alert alert-info mb-0">
+                <i class="bi bi-info-circle me-2"></i>No hay proveedores registrados. Configure credenciales en Proveedores de IA.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th>Modelo</th>
+                            <th>Ventana Contexto</th>
+                            <th>Capacidades</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var model in _models)
+                        {
+                            <tr>
+                                <td><strong>@model.Provider</strong></td>
+                                <td>@model.Model</td>
+                                <td>@model.ContextSize.ToString("N0") tokens</td>
+                                <td>
+                                    @foreach (var cap in (model.Capabilities ?? new List<string>()))
+                                    {
+                                        <span class="badge bg-secondary me-1">@cap</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (model.Provider == _statusData?.ActiveProvider)
+                                    {
+                                        <span class="badge bg-success">Activo (Default)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-info">Listo</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
 
 @code {
+    private AiStatusDto? _statusData;
+    private AiUsageDto? _usageData;
+    private List<AiModelDto>? _models;
+    private bool _isLoading = false;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAiData();
+    }
+
     private async Task LoadAiData()
     {
-        await Task.CompletedTask;
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var statusTask  = Http.GetFromJsonAsync<AiStatusDto>("api/ai/status");
+            var usageTask   = Http.GetFromJsonAsync<AiUsageDto>("api/ai/usage");
+            var modelsTask  = Http.GetFromJsonAsync<List<AiModelDto>>("api/ai/models");
+
+            await Task.WhenAll(statusTask, usageTask, modelsTask);
+
+            _statusData = await statusTask!;
+            _usageData  = await usageTask!;
+            _models     = await modelsTask!;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error al cargar datos de IA: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public class AiStatusDto
+    {
+        public string ActiveProvider  { get; set; } = string.Empty;
+        public string ActiveModel     { get; set; } = string.Empty;
+        public string Status          { get; set; } = string.Empty;
+        public DateTime LastCheckedUtc { get; set; }
+    }
+
+    public class AiUsageDto
+    {
+        public long   TotalTokensUsed        { get; set; }
+        public int    TotalExecutionsCount   { get; set; }
+        public double AverageLatencyMs       { get; set; }
+        public double SuccessRatePercentage  { get; set; }
+    }
+
+    public class AiModelDto
+    {
+        public string Provider     { get; set; } = string.Empty;
+        public string Model        { get; set; } = string.Empty;
+        public int    ContextSize  { get; set; }
+        public List<string>? Capabilities { get; set; }
     }
 }

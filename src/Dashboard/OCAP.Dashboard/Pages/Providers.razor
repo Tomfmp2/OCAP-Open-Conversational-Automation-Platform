@@ -1,4 +1,6 @@
 @page "/providers"
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Proveedores de IA & Orquestación — OCAP</PageTitle>
 
@@ -177,22 +179,79 @@
     private string testPrompt = "Explica los beneficios de la arquitectura hexagonal en .NET 10.";
     private string testResult = string.Empty;
     private bool isExecuting = false;
-    private int tokensUsed = 85;
-    private double latencyMs = 12.5;
-    private double estimatedCostUsd = 0.00017;
+    private int tokensUsed = 0;
+    private double latencyMs = 0;
+    private double estimatedCostUsd = 0;
+    private string? _errorMessage;
 
     private void SelectProvider(string provider)
     {
         activeProvider = provider;
+        // Sync model selection to provider
+        selectedModel = provider switch
+        {
+            "OpenAI" => "gpt-4o",
+            "Gemini" => "gemini-1.5-flash",
+            "Ollama" => "llama3",
+            "MockAI" => "mock-gpt-4o",
+            _ => "gpt-4o"
+        };
     }
 
     private async Task ExecuteTest()
     {
+        if (string.IsNullOrWhiteSpace(testPrompt)) return;
+
         isExecuting = true;
         testResult = string.Empty;
-        await Task.Delay(200);
+        _errorMessage = null;
 
-        testResult = $"[{activeProvider} - {selectedModel}]: Respuesta generada exitosamente en tiempo real para el prompt '{testPrompt}'.";
-        isExecuting = false;
+        try
+        {
+            var request = new
+            {
+                Provider = activeProvider,
+                Model = selectedModel,
+                Prompt = testPrompt,
+                Temperature = temperature,
+                MaxTokens = maxTokens,
+                EnableStreaming = false
+            };
+
+            var response = await Http.PostAsJsonAsync("api/ai/test-generation", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<AiTestResultDto>();
+                if (result != null)
+                {
+                    testResult = result.Content;
+                    tokensUsed = result.TokensUsed;
+                    latencyMs = result.LatencyMs;
+                    estimatedCostUsd = result.EstimatedCostUsd;
+                }
+            }
+            else
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _errorMessage = $"Error {response.StatusCode}: {errorBody}";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error de conexión: {ex.Message}";
+        }
+        finally
+        {
+            isExecuting = false;
+        }
+    }
+
+    public class AiTestResultDto
+    {
+        public string Content { get; set; } = string.Empty;
+        public int TokensUsed { get; set; }
+        public double LatencyMs { get; set; }
+        public double EstimatedCostUsd { get; set; }
     }
 }
