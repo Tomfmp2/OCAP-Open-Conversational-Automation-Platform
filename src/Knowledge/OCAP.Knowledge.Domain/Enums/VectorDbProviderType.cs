@@ -5,5 +5,6 @@ public enum VectorDbProviderType
     PgVector,
     Qdrant,
     ChromaDB,
-    Pinecone
+    Pinecone,
+    InMemory
 }
