@@ -46,7 +46,8 @@ public class OcapApiFactory : WebApplicationFactory<Program>
 
     private void SeedDatabase(OCAPDbContext db)
     {
-        var tenantId = Guid.NewGuid();
+        // Must match HttpTenantContext default for anonymous Testing requests without X-Tenant-ID.
+        var tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
         var userId = Guid.NewGuid();
 
         // Seed Google Connection for IntegrationsController
@@ -57,12 +58,15 @@ public class OcapApiFactory : WebApplicationFactory<Program>
             "mock-access-token",
             "mock-refresh-token",
             DateTime.UtcNow.AddHours(1),
-            "Calendar.Create,Gmail.Send,Sheets.Append"
-        );
+            "Calendar.Create,Gmail.Send,Sheets.Append",
+            tenantId);
         db.OAuthConnections.Add(googleConn);
 
         // Seed WorkflowExecution for DashboardController metrics
         var workflowDefId = Guid.NewGuid();
+        var definition = new WorkflowDefinition(workflowDefId, tenantId, "Dashboard Seed Workflow");
+        db.WorkflowDefinitions.Add(definition);
+
         var execution = new WorkflowExecution(Guid.NewGuid(), workflowDefId, tenantId, userId);
         
         // Use reflection to set StartedAtUtc to have a realistic duration before calling Complete

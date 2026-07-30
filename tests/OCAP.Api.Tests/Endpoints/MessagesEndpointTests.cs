@@ -104,8 +104,10 @@ public class MessagesEndpointTests : IClassFixture<OcapApiFactory>
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
 
-        // El constructor de User requiere (Guid id, string displayName).
-        var user = new User(userId, "Test User");
+        // El constructor de User requiere (Guid id, string displayName, Guid tenantId).
+        // Debe coincidir con el tenant por defecto de HttpTenantContext en Testing anónimo.
+        var tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var user = new User(userId, "Test User", tenantId);
         db.Users.Add(user);
         await db.SaveChangesAsync();
     }

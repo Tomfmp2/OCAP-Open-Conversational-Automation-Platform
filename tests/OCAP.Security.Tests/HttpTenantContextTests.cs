@@ -55,6 +55,24 @@ public class HttpTenantContextTests
         context.TenantId.Should().Be(headerTenant);
     }
 
+    [Fact]
+    public void BypassTenantFilters_WhenNoHttpContext_IsTrue()
+    {
+        var accessor = new HttpContextAccessor { HttpContext = null };
+        var context = new HttpTenantContext(accessor, new TestHostEnvironment(Environments.Production));
+
+        context.BypassTenantFilters.Should().BeTrue();
+    }
+
+    [Fact]
+    public void BypassTenantFilters_WhenHttpContextPresent_IsFalse()
+    {
+        var accessor = CreateAccessor(isAuthenticated: true, tenantClaim: Guid.NewGuid(), headerTenant: null);
+        var context = new HttpTenantContext(accessor, new TestHostEnvironment(Environments.Production));
+
+        context.BypassTenantFilters.Should().BeFalse();
+    }
+
     private static IHttpContextAccessor CreateAccessor(bool isAuthenticated, Guid? tenantClaim, Guid? headerTenant)
     {
         var identity = isAuthenticated
