@@ -66,7 +66,10 @@ await app.Services.ApplyMigrationsAsync();
 
 // Configuración del pipeline HTTP — el orden importa para la seguridad.
 
-// El middleware de manejo de excepciones va primero para capturar errores de cualquier capa posterior.
+// Correlación y request IDs (X-Correlation-Id / X-Request-Id) antes del resto del pipeline.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// El middleware de manejo de excepciones captura errores de cualquier capa posterior (RFC 7807).
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Middleware de encabezados de seguridad (CSP, HSTS, X-Frame-Options, X-Content-Type-Options).

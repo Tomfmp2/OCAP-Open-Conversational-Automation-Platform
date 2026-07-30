@@ -1,15 +1,19 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace OCAP.Api.Middlewares;
 
-// Middleware global que intercepta cualquier excepción no manejada en el pipeline HTTP.
-// Garantiza que nunca se expongan stack traces, rutas internas ni información del servidor.
+/// <summary>
+/// Middleware global RFC 7807 ProblemDetails. No expone stack traces en producción.
+/// </summary>
 public class ExceptionHandlingMiddleware
 {
+    public const string CorrelationHeader = "X-Correlation-Id";
+    public const string RequestIdHeader = "X-Request-Id";
+
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
     private readonly IWebHostEnvironment _env;
@@ -24,73 +28,103 @@ public class ExceptionHandlingMiddleware
         _env = env;
     }
 
-    // Ejecuta el siguiente middleware y captura cualquier excepción no controlada.
     public async Task InvokeAsync(HttpContext context)
     {
+        EnsureCorrelation(context);
+
         try
         {
             await _next(context);
         }
+        catch (ValidationException ex)
+        {
+            _logger.LogWarning(ex, "Validación fallida en {Path} corr={CorrelationId}",
+                context.Request.Path, context.TraceIdentifier);
+            await WriteProblemAsync(context, HttpStatusCode.BadRequest, "Validación fallida",
+                "Uno o más campos no son válidos.",
+                ex.Errors.GroupBy(e => e.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray()));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Acceso denegado en {Path}", context.Request.Path);
+            await WriteProblemAsync(context, HttpStatusCode.Forbidden, "Acceso denegado",
+                "No tiene permisos para realizar esta operación.");
+        }
         catch (ArgumentException ex)
         {
-            // Las excepciones de argumento indican peticiones malformadas (400).
-            _logger.LogWarning(ex, "Petición inválida rechazada: {Path}", context.Request.Path);
-            await HandleExceptionAsync(context, ex, HttpStatusCode.BadRequest, ex.Message);
+            _logger.LogWarning(ex, "Petición inválida: {Path}", context.Request.Path);
+            await WriteProblemAsync(context, HttpStatusCode.BadRequest, "Solicitud inválida", ex.Message);
+        }
+        catch (KeyNotFoundException)
+        {
+            await WriteProblemAsync(context, HttpStatusCode.NotFound, "Recurso no encontrado",
+                "El recurso solicitado no existe.");
         }
         catch (InvalidOperationException ex)
         {
-            // Errores de lógica de negocio que indican estados inválidos (422).
-            _logger.LogWarning(ex, "Operación inválida en: {Path}", context.Request.Path);
-            await HandleExceptionAsync(context, ex, HttpStatusCode.UnprocessableEntity, ex.Message);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            // Recursos no encontrados (404).
-            _logger.LogInformation(ex, "Recurso no encontrado en: {Path}", context.Request.Path);
-            await HandleExceptionAsync(context, ex, HttpStatusCode.NotFound, "El recurso solicitado no existe.");
+            _logger.LogWarning(ex, "Operación inválida en {Path}", context.Request.Path);
+            await WriteProblemAsync(context, HttpStatusCode.UnprocessableEntity, "Error de negocio", ex.Message);
         }
         catch (Exception ex)
         {
-            // Cualquier excepción no controlada se trata como error 500.
-            // Nunca se expone el detalle interno al cliente en producción.
-            _logger.LogError(ex, "Error interno no controlado en: {Path}", context.Request.Path);
-            var message = _env.IsDevelopment()
+            _logger.LogError(ex, "Error interno en {Path} corr={CorrelationId}",
+                context.Request.Path, context.Items[CorrelationHeader]);
+            var detail = _env.IsDevelopment()
                 ? ex.Message
                 : "Se ha producido un error interno en el servidor.";
-            await HandleExceptionAsync(context, ex, HttpStatusCode.InternalServerError, message);
+            await WriteProblemAsync(context, HttpStatusCode.InternalServerError, "Error interno del servidor", detail);
         }
     }
 
-    // Formatea la respuesta de error con el estándar ApiResponse de OCAP.
-    // Nunca incluye stack traces en la respuesta al cliente.
-    private static Task HandleExceptionAsync(
-        HttpContext context,
-        Exception exception,
-        HttpStatusCode statusCode,
-        string clientMessage)
+    private static void EnsureCorrelation(HttpContext context)
     {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)statusCode;
+        var correlationId = context.Request.Headers[CorrelationHeader].FirstOrDefault()
+            ?? Activity.Current?.Id
+            ?? Guid.NewGuid().ToString("N");
+        var requestId = context.Request.Headers[RequestIdHeader].FirstOrDefault()
+            ?? Guid.NewGuid().ToString("N");
 
-        var response = new ProblemDetails
-        {
-            Status = (int)statusCode,
-            Title = GetTitle(statusCode),
-            Detail = clientMessage,
-            Instance = context.Request.Path
-        };
-
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        var json = JsonSerializer.Serialize(response, options);
-        return context.Response.WriteAsync(json);
+        context.TraceIdentifier = correlationId;
+        context.Items[CorrelationHeader] = correlationId;
+        context.Items[RequestIdHeader] = requestId;
+        context.Response.Headers[CorrelationHeader] = correlationId;
+        context.Response.Headers[RequestIdHeader] = requestId;
     }
 
-    // Determina el título del problema según el código HTTP para mantener consistencia RFC 9457.
-    private static string GetTitle(HttpStatusCode code) => code switch
+    private static async Task WriteProblemAsync(
+        HttpContext context,
+        HttpStatusCode statusCode,
+        string title,
+        string detail,
+        IDictionary<string, string[]>? errors = null)
     {
-        HttpStatusCode.BadRequest => "Solicitud inválida",
-        HttpStatusCode.NotFound => "Recurso no encontrado",
-        HttpStatusCode.UnprocessableEntity => "Error de validación de negocio",
-        _ => "Error interno del servidor"
-    };
+        if (context.Response.HasStarted) return;
+
+        context.Response.ContentType = "application/problem+json";
+        context.Response.StatusCode = (int)statusCode;
+
+        var problem = new ProblemDetails
+        {
+            Status = (int)statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = context.Request.Path,
+            Type = $"https://httpstatuses.com/{(int)statusCode}"
+        };
+
+        problem.Extensions["correlationId"] = context.Items[CorrelationHeader];
+        problem.Extensions["requestId"] = context.Items[RequestIdHeader];
+        problem.Extensions["traceId"] = Activity.Current?.TraceId.ToString() ?? context.TraceIdentifier;
+        if (errors is not null)
+        {
+            problem.Extensions["errors"] = errors;
+        }
+
+        var json = JsonSerializer.Serialize(problem, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        await context.Response.WriteAsync(json);
+    }
 }
