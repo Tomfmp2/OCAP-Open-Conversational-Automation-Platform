@@ -1,9 +1,11 @@
 # Bases de Datos Vectoriales en OCAP
 
 ## Motores Soportados (`IVectorDatabase`)
-- **PostgreSQL pgvector**: Integración nativa con PostgreSQL relacional mediante índices HNSW / IVFFlat.
-- **Qdrant**: Base de datos vectorial de ultra alto rendimiento en Rust.
-- **ChromaDB**: Almacenamiento vectorial ligero y de rápida respuesta.
-- **Pinecone Cloud**: Servicio serverless administrado en la nube.
+- **PostgreSQL + PgVector**: implementación persistente integrada con PostgreSQL.
+- **InMemory**: implementación no persistente para pruebas y entornos aislados.
 
-La selección se realiza dinámicamente mediante la configuración del sistema.
+Actualmente son las únicas implementaciones disponibles. Qdrant, ChromaDB y
+Pinecone no están implementados en este repositorio.
+
+La selección se configura mediante `Knowledge:UseInMemory` y
+`Knowledge:VectorStore`.

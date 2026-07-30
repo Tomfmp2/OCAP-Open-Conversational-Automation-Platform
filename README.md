@@ -1,34 +1,103 @@
 # OCAP (Open Conversational Automation Platform)
 
-## ¿Qué es OCAP?
-OCAP es una plataforma Open Source de automatización conversacional. Su objetivo es permitir a usuarios y empresas crear sus propias instancias de asistentes inteligentes que operen de forma autónoma a través de múltiples canales. A diferencia de las soluciones cerradas (SaaS) habituales, OCAP es un sistema **Self-Hosted**. No dependes de un proveedor centralizado ni pagas tarifas por plataforma: eres el único propietario de tus interacciones, tu base de datos y tus reglas de negocio.
+OCAP es una plataforma self-hosted de automatización conversacional. Este repositorio contiene una API ASP.NET Core, una interfaz principal en Next.js y adaptadores para canales, proveedores de IA, almacenamiento e integraciones.
 
-## El Problema que Resuelve
-En la actualidad, las plataformas de automatización y bots limitan al usuario a ecosistemas propietarios, bloquean integraciones avanzadas y comprometen la privacidad corporativa. OCAP resuelve este problema devolviendo el control total a las empresas y desarrolladores. Puedes integrar tus propios modelos de IA (OpenAI, Gemini, Claude, locales), usar tus propios canales y manejar tu información con privacidad absoluta.
+El proyecto está en desarrollo activo. La presencia de una abstracción o un proyecto de proveedor no implica que toda la integración esté completa para producción.
 
-## Visión del Proyecto
-Nuestra visión es establecer el estándar abierto para asistentes conversacionales corporativos y personales, creando una base estable donde una comunidad próspera construya y comparta módulos. Queremos que montar un asistente avanzado sea tan accesible, seguro y abierto como montar un WordPress.
+## Componentes implementados
 
-## Características Principales
-- **Base de Conocimiento Empresarial & RAG (v1.5.0):** Ingesta multiformato (PDF, DOCX, TXT, MD, CSV, JSON, HTML, XML), Chunking configurable (Sentence, Paragraph, Semantic, SlidingWindow), Embeddings (OpenAI, Gemini, Ollama), Vector DBs (PgVector, Qdrant, ChromaDB, Pinecone) y Búsqueda Híbrida/Semántica con aislamiento estricto por Tenant.
-- **Workflow Automation Engine & Visual Designer (v1.4.0):** Diseñador visual interactivo drag-and-drop en Blazor, máquina de estados ejecutable y 23 tipos de nodos para automatización avanzada.
-- **Canales Múltiples:** Arquitectura agnóstica de canal (preparada para WhatsApp, Telegram, Slack, Web, etc.).
-- **Proveedores Flexibles:** Conecta fácilmente cualquier LLM (OpenAI, Claude, Gemini, Ollama), sistemas de almacenamiento o suites ofimáticas.
-- **Privacidad y Propiedad:** Self-hosted by design. Tus tokens, tus datos, tus servidores.
-- **Diseñado para Escalar:** Arquitectura en Modular Monolith, Clean Architecture, Hexagonal y DDD.
+- API y servicios de aplicación en .NET 10.
+- Frontend principal en Next.js 16 (`frontend/`).
+- Persistencia relacional en PostgreSQL.
+- Búsqueda vectorial mediante la extensión PgVector de PostgreSQL; las pruebas y ejecuciones aisladas pueden usar almacenamiento en memoria.
+- Bus de eventos seleccionable entre RabbitMQ, NATS e InMemory. Docker Compose usa RabbitMQ por defecto y también inicia NATS.
+- Caché distribuida Redis cuando se configura `ConnectionStrings:Redis`.
+- Proveedores HTTP para Google Calendar, Gmail y Sheets mediante un token Bearer configurado.
+- Contenedores auxiliares para observabilidad, proxy y servicios integrados.
 
-## Arquitectura General
-OCAP está estructurado bajo los principios de **Arquitectura Hexagonal (Ports & Adapters)** y **Modular Monolith**:
-1. **Core (Domain & Application):** Corazón del negocio, 100% aislado de tecnología y frameworks externos.
-2. **Modules:** Capacidades de negocio empaquetadas (Conversaciones, Calendarios, Correos).
-3. **Channels & Providers:** Adaptadores tecnológicos reemplazables sin afectar el dominio central.
-4. **Dashboard & API:** Las interfaces y puntos de entrada para la administración y operación.
+Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada módulo.
 
-## Filosofía Open Source
-OCAP está construido "Open Source First". La arquitectura promueve la extensibilidad, permitiendo a cualquier desarrollador del mundo escribir adaptadores (Channels o Providers) sin tener que compilar ni entender todo el núcleo del sistema.
+## Inicio rápido con Docker
 
-## Release History
-Todas las iteraciones, versiones oficiales y notas de publicación de OCAP están rigurosamente documentadas en el archivo [CHANGELOG.md](CHANGELOG.md) siguiendo las especificaciones de **Keep a Changelog** y **Semantic Versioning**.
+Requisitos: Docker Engine y Docker Compose.
 
-## Cómo crecerá la plataforma
-La evolución está planificada en fases sucesivas: empezando por consolidar una base arquitectónica robusta, siguiendo con la implementación core conversacional y los adaptadores principales, hasta llegar a un completo sistema de plugins con escalabilidad empresarial e instaladores amigables (Deployment Manager).
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Antes de desplegar, reemplaza todas las credenciales de ejemplo de `.env` y configura secretos propios.
+
+Servicios y puertos publicados por `docker-compose.yml`:
+
+| Servicio | Puerto |
+| --- | --- |
+| Frontend Next.js | `3000` |
+| API | `5000` |
+| PostgreSQL/PgVector | `5433` en el host (`5432` en el contenedor) |
+| Redis | `6379` |
+| RabbitMQ AMQP / administración | `5672` / `15672` |
+| NATS / monitorización | `4222` / `8222` |
+| Jaeger | `16686` |
+| Prometheus | `9090` |
+| Nginx | `80` |
+| Dashboard auxiliar | `8081` |
+| Evolution API | `8080` |
+
+La API recibe PostgreSQL, Redis y el bus de eventos mediante variables de entorno del contenedor. Cambia `EVENTBUS_PROVIDER` a `Nats` para usar NATS; el valor por defecto del Compose es `RabbitMQ`.
+
+## Administrador inicial
+
+Al iniciar una base sin usuarios, la API crea un tenant, rol y administrador si `Bootstrap:Enabled` es `true` (valor predeterminado). Configura estos valores mediante variables de entorno:
+
+```text
+Bootstrap__Enabled=true
+Bootstrap__AdminEmail=admin@example.com
+Bootstrap__AdminPassword=una-clave-segura
+Bootstrap__TenantName=Mi organización
+Bootstrap__TenantSlug=mi-organizacion
+```
+
+Si no se proporcionan, el código contiene valores de desarrollo conocidos. No deben utilizarse en producción.
+
+## Salud y métricas
+
+La API expone:
+
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /health/startup`
+- `GET /api/health`
+- `GET /api/health/system`
+- `GET /api/health/diagnostic`
+- `GET /metrics`
+
+Docker usa `/health/ready` para comprobar la disponibilidad de la API.
+
+## Desarrollo local
+
+Backend:
+
+```bash
+dotnet restore OCAP.slnx
+dotnet build OCAP.slnx
+dotnet run --project src/Api/OCAP.Api
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La configuración base está en `src/Api/OCAP.Api/appsettings.json`; los valores sensibles deben suministrarse mediante secretos o variables de entorno.
+
+## Base de conocimiento
+
+PgVector es el único motor vectorial persistente implementado. InMemory existe para pruebas o ejecución local aislada. Qdrant, Chroma y Pinecone no están implementados en este repositorio.
+
+## Licencia y cambios
+
+Consulta el archivo de licencia del repositorio y [CHANGELOG.md](CHANGELOG.md) para el historial registrado de cambios.
