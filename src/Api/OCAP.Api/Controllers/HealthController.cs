@@ -39,10 +39,38 @@ public class HealthController : ControllerBase
 
         var steps = new List<object>
         {
-            new { Id = 1, Title = "PostgreSQL", Status = dbOk ? "completed" : "error", Details = dbOk ? "OK" : "Unreachable" },
-            new { Id = 2, Title = $"EventBus ({transport.ProviderName})", Status = busOk ? "completed" : "error", Details = busOk ? "OK" : "Unhealthy" },
-            new { Id = 3, Title = $"Storage ({storage.ProviderName})", Status = storageOk ? "completed" : "error", Details = storageOk ? "OK" : "Unhealthy" },
-            new { Id = 4, Title = "HealthChecks", Status = report.Status == HealthStatus.Healthy ? "completed" : "error", Details = report.Status.ToString() }
+            new
+            {
+                Id = 1,
+                Title = "PostgreSQL",
+                Description = "Conectividad y disponibilidad de la base de datos relacional/PgVector.",
+                Status = dbOk ? "completed" : "error",
+                Details = dbOk ? "OK" : "Unreachable"
+            },
+            new
+            {
+                Id = 2,
+                Title = $"EventBus ({transport.ProviderName})",
+                Description = "Disponibilidad del transporte de eventos configurado.",
+                Status = busOk ? "completed" : "error",
+                Details = busOk ? "OK" : "Unhealthy"
+            },
+            new
+            {
+                Id = 3,
+                Title = $"Storage ({storage.ProviderName})",
+                Description = "Disponibilidad del almacenamiento de objetos configurado.",
+                Status = storageOk ? "completed" : "error",
+                Details = storageOk ? "OK" : "Unhealthy"
+            },
+            new
+            {
+                Id = 4,
+                Title = "HealthChecks",
+                Description = "Estado agregado de PostgreSQL, Redis, Event Bus, storage y telemetría.",
+                Status = report.Status == HealthStatus.Healthy ? "completed" : "error",
+                Details = report.Status.ToString()
+            }
         };
 
         var ready = dbOk && report.Status != HealthStatus.Unhealthy;
