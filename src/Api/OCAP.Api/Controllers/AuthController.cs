@@ -51,7 +51,9 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Refresh token inválido o expirado." });
         }
 
-        var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.Id == newRefreshToken.UserId, cancellationToken);
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == newRefreshToken.UserId, cancellationToken);
         
         Tenant tenant;
         Role? role;
@@ -69,9 +71,14 @@ public class AuthController : ControllerBase
             tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == user.TenantId, cancellationToken)
                      ?? new Tenant(user.TenantId, "Organización Principal", "org-principal");
             
-            var userRole = await _dbContext.UserRoles.FirstOrDefaultAsync(ur => ur.UserId == user.Id, cancellationToken);
+            // Auth bootstrap: resolve role for the user across tenants (token already validated).
+            var userRole = await _dbContext.UserRoles
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(ur => ur.UserId == user.Id, cancellationToken);
             role = userRole != null 
-                ? await _dbContext.Roles.FirstOrDefaultAsync(r => r.Id == userRole.RoleId, cancellationToken)
+                ? await _dbContext.Roles
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.Id == userRole.RoleId, cancellationToken)
                 : null;
 
             if (role == null)
