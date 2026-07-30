@@ -319,6 +319,11 @@ public class WorkflowExecutionConfiguration : IEntityTypeConfiguration<WorkflowE
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.OutputJson).HasColumnType("jsonb");
         builder.Property(x => x.ErrorMessage).HasMaxLength(4000);
+        builder.Property(x => x.WorkflowVersionNumber).HasDefaultValue(1);
+        builder.Property(x => x.WaitSignal).HasMaxLength(256);
+        builder.Property(x => x.CompensationJson).HasColumnType("jsonb").HasDefaultValue("[]");
+        builder.Property(x => x.ResumePayloadJson).HasColumnType("jsonb");
+        builder.HasIndex(x => new { x.Status, x.WaitUntilUtc });
         builder.HasIndex(x => new { x.TenantId, x.StartedAtUtc });
         builder.HasIndex(x => x.WorkflowDefinitionId);
         builder.HasOne<WorkflowDefinition>()
