@@ -45,7 +45,9 @@ public class RefreshTokenService : IRefreshTokenService
     {
         if (string.IsNullOrWhiteSpace(token)) return null;
 
+        // Lookup by opaque token must intentionally bypass tenant filters (token is the isolation secret).
         var existingToken = await _dbContext.RefreshTokens
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Token == token, cancellationToken);
 
         if (existingToken == null || !existingToken.IsActive)
@@ -71,7 +73,9 @@ public class RefreshTokenService : IRefreshTokenService
     {
         if (string.IsNullOrWhiteSpace(token)) return false;
 
+        // Lookup by opaque token must intentionally bypass tenant filters (token is the isolation secret).
         var existingToken = await _dbContext.RefreshTokens
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Token == token, cancellationToken);
 
         if (existingToken == null || existingToken.IsRevoked) return false;
