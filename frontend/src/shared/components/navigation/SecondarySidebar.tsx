@@ -16,9 +16,13 @@ import { cn } from "@/shared/utils/cn";
 
 export function SecondarySidebar() {
   const pathname = usePathname();
-  const { activeTenant, tenants, setActiveTenant } = useTenantStore();
+  const { activeTenant, tenants, setActiveTenant, fetchTenants } = useTenantStore();
   const [tenantDropdownOpen, setTenantDropdownOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+
+  React.useEffect(() => {
+    void fetchTenants();
+  }, [fetchTenants]);
 
   const getSubmenuItems = () => {
     if (pathname.startsWith("/channels")) {
@@ -68,8 +72,8 @@ export function SecondarySidebar() {
               <Building2 className="w-3.5 h-3.5" />
             </div>
             <div className="truncate">
-              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{activeTenant.name}</p>
-              <p className="text-[10px] text-zinc-500 truncate">{activeTenant.slug}</p>
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">{activeTenant?.name ?? "Cargando..."}</p>
+              <p className="text-[10px] text-zinc-500 truncate">{activeTenant?.slug ?? "—"}</p>
             </div>
           </div>
           <ChevronDown className="w-4 h-4 text-zinc-400 shrink-0 ml-1" />
@@ -87,11 +91,11 @@ export function SecondarySidebar() {
                 }}
                 className={cn(
                   "w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors",
-                  activeTenant.id === tenant.id && "font-semibold text-blue-500 bg-blue-50/50 dark:bg-blue-950/30"
+                  activeTenant?.id === tenant.id && "font-semibold text-blue-500 bg-blue-50/50 dark:bg-blue-950/30"
                 )}
               >
                 <span>{tenant.name}</span>
-                {activeTenant.id === tenant.id && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />}
+                {activeTenant?.id === tenant.id && <CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />}
               </button>
             ))}
           </div>

@@ -14,6 +14,7 @@ import {
   Sparkles,
   Code2,
   Activity,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/shared/utils/cn";
 
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/intelligence", label: "IA & Modelos", icon: Cpu },
   { href: "/agents", label: "Agentes", icon: Bot },
   { href: "/workflows", label: "Workflows", icon: GitFork },
+  { href: "/knowledge", label: "Knowledge Base", icon: BookOpen },
   { href: "/monitoring", label: "Monitoreo", icon: Activity },
   { href: "/developer", label: "Developer Center", icon: Code2 },
   { href: "/security", label: "Seguridad", icon: ShieldCheck },
