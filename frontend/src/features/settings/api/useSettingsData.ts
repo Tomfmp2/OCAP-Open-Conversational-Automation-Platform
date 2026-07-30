@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface SettingsConfig {
   tenantName: string;
@@ -9,46 +9,42 @@ export interface SettingsConfig {
   enableFailover: boolean;
 }
 
-const DEFAULT_SETTINGS: SettingsConfig = {
-  tenantName: "OCAP Enterprise Tenant",
-  defaultLocale: "es",
-  timezone: "UTC",
-  auditLogRetentionDays: 30,
-  enableTelemetry: true,
-  enableFailover: true,
-};
-
 export function useSettingsData() {
+  const queryClient = useQueryClient();
+
   const query = useQuery<SettingsConfig>({
     queryKey: ["settingsData"],
     queryFn: async () => {
-      try {
-        if (typeof window === "undefined") return DEFAULT_SETTINGS;
-        const res = await fetch("/api/settings");
-        if (!res.ok) return DEFAULT_SETTINGS;
-        const data = await res.json();
-        return data || DEFAULT_SETTINGS;
-      } catch {
-        return DEFAULT_SETTINGS;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/settings`);
+      if (!res.ok) {
+        throw new Error(`Error (${res.status}): No se pudieron obtener los ajustes del tenant`);
       }
+      return await res.json();
     },
     staleTime: 30000,
+    retry: 2,
   });
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (newConfig: SettingsConfig) => {
-      try {
-        if (typeof window === "undefined") return newConfig;
-        const res = await fetch("/api/settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newConfig),
-        });
-        if (!res.ok) return newConfig;
-        return await res.json();
-      } catch {
-        return newConfig;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newConfig),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Error (${res.status}): No se pudieron guardar los ajustes`);
       }
+
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settingsData"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
     },
   });
 

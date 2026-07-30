@@ -17,19 +17,18 @@ export function useInstallerData() {
   return useQuery<InstallerData>({
     queryKey: ["installerData"],
     queryFn: async () => {
-      try {
-        if (typeof window === "undefined") return { steps: [], isSystemReady: true };
-        const res = await fetch("/api/health");
-        if (!res.ok) return { steps: [], isSystemReady: true };
-        const data = await res.json();
-        return {
-          steps: data?.steps || [],
-          isSystemReady: data?.isSystemReady ?? true,
-        };
-      } catch {
-        return { steps: [], isSystemReady: true };
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/health`);
+      if (!res.ok) {
+        throw new Error(`Error en servidor (${res.status}): No se pudo obtener el diagnóstico del sistema`);
       }
+      const data = await res.json();
+      return {
+        steps: data?.steps || data?.Steps || [],
+        isSystemReady: data?.isSystemReady ?? data?.IsSystemReady ?? true,
+      };
     },
     staleTime: 30000,
+    retry: 2,
   });
 }

@@ -34,15 +34,21 @@ export interface MonitoringData {
   };
 }
 
+// Historial de puntos de métricas acumulados en memoria para el gráfico
+const metricsHistory: SystemMetricPoint[] = [];
+const MAX_HISTORY_POINTS = 8;
+
 export function useMonitoringData() {
   return useQuery<MonitoringData>({
     queryKey: ["monitoringData"],
     queryFn: async () => {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
-      const [overviewRes, diagRes] = await Promise.allSettled([
+      // Llamadas paralelas al backend real
+      const [overviewRes, diagRes, metricsRes] = await Promise.allSettled([
         fetch(`${baseUrl}/api/dashboard/overview`),
         fetch(`${baseUrl}/api/dashboard/signalr-diagnostics`),
+        fetch(`${baseUrl}/api/dashboard/system-metrics`),
       ]);
 
       let logs: AuditLogEntry[] = [];
@@ -53,19 +59,39 @@ export function useMonitoringData() {
         uptimePercent = overview.health === "Healthy" ? 99.98 : 95.0;
 
         if (Array.isArray(overview.lastActivity)) {
-          logs = overview.lastActivity.map((act: { id: string; occurredAtUtc: string; eventType: string; description: string; source: string }) => ({
-            id: act.id,
-            timestamp: new Date(act.occurredAtUtc).toLocaleTimeString(),
-            level: act.eventType.includes("Revoke") || act.eventType.includes("Delete") ? "warn" : "info",
-            category: act.eventType,
-            source: act.source,
-            message: act.description || act.eventType,
-            details: `Origen IP: ${act.source}`,
-          }));
+          logs = overview.lastActivity.map(
+            (act: {
+              id: string;
+              occurredAtUtc: string;
+              eventType: string;
+              description: string;
+              source: string;
+            }) => ({
+              id: act.id,
+              timestamp: new Date(act.occurredAtUtc).toLocaleTimeString(),
+              level:
+                act.eventType.includes("Revoke") ||
+                act.eventType.includes("Delete")
+                  ? "warn"
+                  : "info",
+              category: act.eventType,
+              source: act.source,
+              message: act.description || act.eventType,
+              details: `Origen IP: ${act.source}`,
+            })
+          );
         }
       }
 
-      let diagnostics: { hubName: string; endpointUri: string; status: string; streamedEvents: string[] } | undefined = undefined;
+      let diagnostics:
+        | {
+            hubName: string;
+            endpointUri: string;
+            status: string;
+            streamedEvents: string[];
+          }
+        | undefined = undefined;
+
       if (diagRes.status === "fulfilled" && diagRes.value.ok) {
         const diag = await diagRes.value.json();
         diagnostics = {
@@ -76,28 +102,69 @@ export function useMonitoringData() {
         };
       }
 
-      const metrics: SystemMetricPoint[] = [
-        { time: "00:00", cpuPercent: 12, memoryMb: 110, activeRequests: 4 },
-        { time: "04:00", cpuPercent: 15, memoryMb: 115, activeRequests: 8 },
-        { time: "08:00", cpuPercent: 28, memoryMb: 135, activeRequests: 22 },
-        { time: "12:00", cpuPercent: 34, memoryMb: 148, activeRequests: 35 },
-        { time: "16:00", cpuPercent: 22, memoryMb: 128, activeRequests: 18 },
-        { time: "20:00", cpuPercent: 18, memoryMb: 120, activeRequests: 11 },
-      ];
+      // Métricas de sistema reales desde el proceso .NET
+      let cpuPercent = 0;
+      let memoryMb = 0;
+
+      if (metricsRes.status === "fulfilled" && metricsRes.value.ok) {
+        const sysMetric = await metricsRes.value.json();
+        cpuPercent = sysMetric.cpuPercent ?? 0;
+        memoryMb = sysMetric.memoryMb ?? 0;
+
+        // Acumular en historial para el gráfico de series de tiempo
+        const point: SystemMetricPoint = {
+          time: new Date().toLocaleTimeString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          cpuPercent,
+          memoryMb,
+          activeRequests: sysMetric.activeThreads ?? 0,
+        };
+
+        metricsHistory.push(point);
+        if (metricsHistory.length > MAX_HISTORY_POINTS) {
+          metricsHistory.shift();
+        }
+      }
+
+      const metrics: SystemMetricPoint[] =
+        metricsHistory.length > 0
+          ? [...metricsHistory]
+          : [
+              // Fallback inicial con un punto real mientras se acumula historial
+              {
+                time: new Date().toLocaleTimeString("es-MX", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                cpuPercent,
+                memoryMb,
+                activeRequests: 0,
+              },
+            ];
+
+      const cpuAverage =
+        metrics.length > 0
+          ? metrics.reduce((s, p) => s + p.cpuPercent, 0) / metrics.length
+          : 0;
+
+      const memoryPeak = Math.max(...metrics.map((p) => p.memoryMb), 0);
 
       return {
         metrics,
         logs,
         summary: {
-          cpuAverage: 21.5,
-          memoryPeakMb: 148,
+          cpuAverage: Math.round(cpuAverage * 10) / 10,
+          memoryPeakMb: Math.round(memoryPeak * 10) / 10,
           uptimePercent,
-          errorRate: "0.02%",
+          errorRate: "0.00%", // Se calculará en el futuro desde audit logs del backend
         },
         diagnostics,
       };
     },
     staleTime: 10000,
+    refetchInterval: 15000, // Actualiza cada 15s para el gráfico de métricas
     retry: 2,
   });
 }

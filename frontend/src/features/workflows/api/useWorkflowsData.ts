@@ -77,15 +77,51 @@ export function useWorkflowsData() {
     retry: 2,
   });
 
-  const executeWorkflowMutation = useMutation({
-    mutationFn: async (workflowId: string) => {
+  const validateWorkflowMutation = useMutation({
+    mutationFn: async (payload: { name: string; nodes: WorkflowNode[] }) => {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/workflows/${workflowId}/execute`, {
+      const res = await fetch(`${baseUrl}/api/workflows/designer/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: payload.name,
+          nodes: payload.nodes.map((n) => ({
+            id: n.id,
+            stepId: n.id,
+            name: n.label,
+            type: n.type,
+          })),
+        }),
       });
       if (!res.ok) {
-        throw new Error("Fallo al ejecutar el workflow en el motor backend");
+        const text = await res.text();
+        throw new Error(text || "Fallo en la validación del workflow");
+      }
+      return await res.json();
+    },
+  });
+
+  const saveWorkflowMutation = useMutation({
+    mutationFn: async (payload: { id?: string; name: string; description?: string; nodes: WorkflowNode[] }) => {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/workflows/designer/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: payload.id || "00000000-0000-0000-0000-000000000000",
+          name: payload.name,
+          description: payload.description || "Guardado desde el Designer",
+          nodes: payload.nodes.map((n) => ({
+            id: n.id,
+            stepId: n.id,
+            name: n.label,
+            type: n.type,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Fallo al guardar el workflow");
       }
       return await res.json();
     },
@@ -95,5 +131,5 @@ export function useWorkflowsData() {
     },
   });
 
-  return { ...query, executeWorkflowMutation };
+  return { ...query, executeWorkflowMutation, validateWorkflowMutation, saveWorkflowMutation };
 }
