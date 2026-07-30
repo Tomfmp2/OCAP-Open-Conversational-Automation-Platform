@@ -1,6 +1,9 @@
 import React from "react";
 import { MessageSquare, CheckCircle2, RefreshCw, Power } from "lucide-react";
 import { ChannelConnection } from "../api/useChannelsData";
+import { Surface } from "@/shared/components/ui/Surface";
+import { Badge } from "@/shared/components/ui/Badge";
+import { Button } from "@/shared/components/ui/Button";
 
 interface ChannelCardProps {
   channel: ChannelConnection;
@@ -9,6 +12,7 @@ interface ChannelCardProps {
 }
 
 export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
+  const isConnected = ["connected", "online"].includes(channel.status.toLowerCase());
   const getProviderColor = (provider: string) => {
     switch (provider) {
       case "Telegram":
@@ -23,7 +27,7 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm space-y-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all">
+    <Surface variant="glass" glow={isConnected} className="space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${getProviderColor(channel.provider)}`}>
@@ -35,39 +39,32 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           </div>
         </div>
 
-        {channel.status === "connected" ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+        {isConnected ? (
+          <Badge tone="success">
             <CheckCircle2 className="w-3.5 h-3.5" /> Conectado
-          </span>
+          </Badge>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-0.5 rounded-full">
+          <Badge tone="neutral">
             <Power className="w-3.5 h-3.5" /> Desconectado
-          </span>
+          </Badge>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <div>
-          <span className="text-zinc-400 text-[10px]">Mensajes / 24h</span>
-          <p className="font-semibold text-zinc-800 dark:text-zinc-200">{channel.messagesHandled24h.toLocaleString()}</p>
-        </div>
-        <div>
-          <span className="text-zinc-400 text-[10px]">Latencia Webhook</span>
-          <p className="font-semibold text-zinc-800 dark:text-zinc-200">{channel.latencyMs > 0 ? `${channel.latencyMs} ms` : "N/A"}</p>
-        </div>
-      </div>
-
       <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <span className="text-[11px] text-zinc-400 font-mono">Sincronización: {channel.lastSync}</span>
-        <button
+        <span className="text-[11px] text-zinc-400 font-mono">
+          {channel.latencyMs > 0 ? `Latencia: ${channel.latencyMs} ms` : "Latencia no disponible"}
+        </span>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
           onClick={() => onTest(channel.id)}
-          disabled={isTesting || channel.status !== "connected"}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+          loading={isTesting}
+          disabled={!isConnected}
         >
-          <RefreshCw className={`w-3 h-3 ${isTesting ? "animate-spin" : ""}`} />
-          <span>Probar Diagnóstico</span>
-        </button>
+          <RefreshCw className="w-3 h-3" /> Probar conexión
+        </Button>
       </div>
-    </div>
+    </Surface>
   );
 }

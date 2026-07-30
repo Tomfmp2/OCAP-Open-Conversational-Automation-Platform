@@ -122,12 +122,19 @@ export function useDeveloperData() {
       name,
       targetUrl,
       events,
+      secret,
     }: {
       name: string;
       targetUrl: string;
       events: string[];
+      secret: string;
     }) => {
-      return apiClient.post("/api/webhooks", { name, targetUrl, subscribedEvents: events });
+      return apiClient.post("/api/webhooks", {
+        name,
+        targetUrl,
+        subscribedEvents: events,
+        secret,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["developerData"] });

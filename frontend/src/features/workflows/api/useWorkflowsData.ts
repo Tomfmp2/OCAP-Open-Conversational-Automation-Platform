@@ -84,16 +84,14 @@ export function useWorkflowsData() {
               | "published"
               | "draft"
               | "archived",
-            triggerChannel: "Omnichannel / Webhook",
+            triggerChannel: "N/D",
             assignedAgent: "—",
             totalExecutions: statusInfo?.totalExecutions ?? 0,
             lastRun: statusInfo?.lastExecutedAtUtc
               ? new Date(statusInfo.lastExecutedAtUtc).toLocaleString()
               : new Date(item.createdAtUtc).toLocaleString(),
-            nodes: [
-              { id: "step-1", type: "trigger" as const, label: "Inicio Trigger", config: {} },
-              { id: "step-2", type: "action" as const, label: "Ejecutar Nodo HTTP", config: {} },
-            ],
+            // El listado no expone la definición de pasos. No se fabrican nodos.
+            nodes: [],
           };
         })
       );

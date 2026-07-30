@@ -1,17 +1,19 @@
 "use client";
 
 import React from "react";
-import { Settings, Save, CheckCircle2 } from "lucide-react";
+import { Settings, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import { SettingsConfig } from "../api/useSettingsData";
+import { Badge, Button, Input, Surface } from "@/shared/components/ui";
 
 interface SettingsFormProps {
   settings: SettingsConfig;
   onSave: (config: SettingsConfig) => void | Promise<void>;
   isSaving: boolean;
   saveSuccess?: boolean;
+  saveError?: string;
 }
 
-export function SettingsForm({ settings, onSave, isSaving, saveSuccess }: SettingsFormProps) {
+export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveError }: SettingsFormProps) {
   const [form, setForm] = React.useState<SettingsConfig>(settings);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -20,36 +22,44 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess }: Settin
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-sm space-y-6">
-      <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
+    <Surface variant="glass" glow>
+      <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
         <div className="flex items-center gap-2">
-          <Settings className="w-5 h-5 text-blue-500" />
-          <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Configuración General de Plataforma</h2>
+          <div className="rounded-xl bg-blue-500/10 p-2 text-blue-400">
+            <Settings className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">Configuración del tenant</h2>
+            <p className="text-[11px] text-zinc-500">Preferencias persistidas por la API.</p>
+          </div>
         </div>
         {saveSuccess && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 animate-in fade-in duration-200">
-            <CheckCircle2 className="w-4 h-4" /> Cambios Guardados
-          </span>
+          <Badge tone="success"><CheckCircle2 className="h-3 w-3" /> Cambios guardados</Badge>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-        <div className="space-y-2">
-          <label className="font-semibold text-zinc-700 dark:text-zinc-300 block">Nombre del Tenant Activo</label>
-          <input
-            type="text"
-            value={form.tenantName}
-            onChange={(e) => setForm({ ...form, tenantName: e.target.value })}
-            className="w-full bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-          />
+      {saveError && (
+        <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {saveError}
         </div>
+      )}
 
+      <div className="grid grid-cols-1 gap-6 text-xs md:grid-cols-2">
+        <Input
+          label="Nombre del tenant activo"
+          value={form.tenantName}
+          readOnly
+          hint="Solo lectura: este endpoint no renombra la entidad Tenant."
+          className="cursor-not-allowed opacity-70"
+        />
         <div className="space-y-2">
-          <label className="font-semibold text-zinc-700 dark:text-zinc-300 block">Idioma por Defecto</label>
+          <label className="block text-xs font-semibold tracking-wide text-zinc-300">Idioma predeterminado</label>
           <select
             value={form.defaultLocale}
             onChange={(e) => setForm({ ...form, defaultLocale: e.target.value as SettingsConfig["defaultLocale"] })}
-            className="w-full bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="focus-ring w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100"
           >
             <option value="es">Español (ES)</option>
             <option value="en">English (EN)</option>
@@ -57,37 +67,43 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess }: Settin
           </select>
         </div>
 
-        <div className="space-y-2">
-          <label className="font-semibold text-zinc-700 dark:text-zinc-300 block">Zona Horaria del Sistema</label>
-          <input
-            type="text"
-            value={form.timezone}
-            onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-            className="w-full bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="font-semibold text-zinc-700 dark:text-zinc-300 block">Retención de Logs (Días)</label>
-          <input
-            type="number"
-            value={form.auditLogRetentionDays}
-            onChange={(e) => setForm({ ...form, auditLogRetentionDays: parseInt(e.target.value, 10) || 30 })}
-            className="w-full bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-          />
-        </div>
+        <Input label="Zona horaria" value={form.timezone} onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+        <Input
+          label="Retención de logs (días)"
+          type="number"
+          min={1}
+          value={form.auditLogRetentionDays}
+          onChange={(e) => setForm({ ...form, auditLogRetentionDays: Number(e.target.value) })}
+        />
       </div>
 
-      <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          <span>{isSaving ? "Guardando..." : "Guardar Preferencias"}</span>
-        </button>
+      <div className="grid gap-3 md:grid-cols-2">
+        {[
+          ["enableTelemetry", "Telemetría", "Permite recopilar telemetría operativa."],
+          ["enableFailover", "Failover", "Activa la conmutación configurada por el backend."],
+        ].map(([field, label, description]) => (
+          <label key={field} className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <input
+              type="checkbox"
+              checked={form[field as "enableTelemetry" | "enableFailover"]}
+              onChange={(event) => setForm({ ...form, [field]: event.target.checked })}
+              className="mt-0.5 h-4 w-4 accent-blue-500"
+            />
+            <span>
+              <span className="block text-sm font-medium text-zinc-200">{label}</span>
+              <span className="mt-0.5 block text-[11px] text-zinc-500">{description}</span>
+            </span>
+          </label>
+        ))}
       </div>
-    </form>
+
+      <div className="flex justify-end border-t border-zinc-800/80 pt-4">
+        <Button type="submit" loading={isSaving}>
+          <Save className="h-4 w-4" />
+          Guardar preferencias
+        </Button>
+      </div>
+      </form>
+    </Surface>
   );
 }

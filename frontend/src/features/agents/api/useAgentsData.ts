@@ -13,7 +13,7 @@ export interface AgentBackendDto {
 export interface AgentDto {
   id: string;
   name: string;
-  role: "orchestrator" | "specialist" | "subagent";
+  role: "registered";
   description: string;
   status: "idle" | "thinking" | "executing" | "error";
   activeModel: string;
@@ -47,13 +47,18 @@ export function useAgentsData() {
     queryFn: async () => {
       const data = await apiClient.get<AgentBackendDto[]>("/api/agents");
 
-      const mappedAgents: AgentDto[] = data.map((agent, index) => ({
+      const mappedAgents: AgentDto[] = data.map((agent) => ({
         id: agent.id,
         name: agent.name,
-        role: index === 0 ? "orchestrator" : "specialist",
+        role: "registered",
         description: agent.description,
-        status: agent.status.toLowerCase() === "active" ? "idle" : "executing",
-        activeModel: "—",
+        status:
+          agent.status.toLowerCase() === "error"
+            ? "error"
+            : agent.status.toLowerCase() === "executing"
+              ? "executing"
+              : "idle",
+        activeModel: "N/D",
         toolsCount: agent.enabledTools?.length || 0,
         executionsCount: 0,
         successRate: 0,

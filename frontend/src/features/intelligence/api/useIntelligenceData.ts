@@ -46,12 +46,18 @@ export function useIntelligenceData() {
           providerType: p.name,
           displayName: `${p.name} Provider`,
           defaultModel: p.defaultModelName || "default",
-          isEncrypted: true,
+          // El catálogo de providers no expone el estado de cifrado de una configuración.
+          isEncrypted: false,
           isActive: p.isActive,
           priorityOrder: p.priorityOrder || i + 1,
           totalTokensProcessed: 0,
           monthlyCostUsd: 0,
-          healthStatus: health?.isHealthy ? "Healthy" : "Operational",
+          healthStatus:
+            typeof health?.isHealthy === "boolean"
+              ? health.isHealthy
+                ? "Healthy"
+                : "Unhealthy"
+              : "Unknown",
           lastPingMs: Math.round(health?.latencyMs || 0),
         };
       });

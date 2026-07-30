@@ -11,7 +11,10 @@ interface ChannelConnectModalProps {
 
 export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps) {
   const [selectedProvider, setSelectedProvider] = React.useState<"Telegram" | "WhatsApp" | "Google">("Telegram");
+  const [displayName, setDisplayName] = React.useState("");
   const [botToken, setBotToken] = React.useState("");
+  const [phoneNumberId, setPhoneNumberId] = React.useState("");
+  const [apiToken, setApiToken] = React.useState("");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const connectMutation = useConnectChannelMutation();
@@ -25,11 +28,17 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
     try {
       await connectMutation.mutateAsync({
         provider: selectedProvider,
+        displayName: displayName.trim(),
         botToken: selectedProvider === "Telegram" ? botToken.trim() : undefined,
-        authCode: selectedProvider === "Google" ? "google_oauth_code_sample" : undefined
+        phoneNumberId:
+          selectedProvider === "WhatsApp" ? phoneNumberId.trim() : undefined,
+        apiToken: selectedProvider === "WhatsApp" ? apiToken.trim() : undefined,
       });
 
+      setDisplayName("");
       setBotToken("");
+      setPhoneNumberId("");
+      setApiToken("");
       onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al conectar con la API de Canales.";
@@ -68,6 +77,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                     <button
                       key={prov}
                       type="button"
+                      disabled={prov === "Google"}
                       onClick={() => setSelectedProvider(prov)}
                       className={`p-3 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition-all ${
                         selectedProvider === prov
@@ -76,11 +86,31 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                       }`}
                     >
                       {prov === "WhatsApp" ? <QrCode className="w-4 h-4" /> : <Key className="w-4 h-4" />}
-                      <span>{prov}</span>
+                      <span>{prov}{prov === "Google" ? " (OAuth próximamente)" : ""}</span>
                     </button>
                   ))}
                 </div>
               </div>
+
+              {selectedProvider !== "Google" && (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                    Nombre visible
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder={
+                      selectedProvider === "Telegram"
+                        ? "Bot de soporte"
+                        : "WhatsApp Ventas"
+                    }
+                    className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              )}
 
               {selectedProvider === "Telegram" && (
                 <div className="space-y-2">
@@ -102,18 +132,35 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
               )}
 
               {selectedProvider === "WhatsApp" && (
-                <div className="text-center py-4 space-y-3 bg-zinc-50 dark:bg-zinc-950/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <div className="w-32 h-32 bg-white border border-zinc-300 dark:border-zinc-700 mx-auto rounded-lg flex items-center justify-center text-zinc-400">
-                    <QrCode className="w-24 h-24 text-zinc-800 dark:text-zinc-200" />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                      Phone Number ID
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={phoneNumberId}
+                      onChange={(e) => setPhoneNumberId(e.target.value)}
+                      placeholder="Meta Phone Number ID"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                    />
                   </div>
-                  <p className="text-xs text-zinc-500">Escanea este código QR desde tu aplicación de WhatsApp Business</p>
-                </div>
-              )}
-
-              {selectedProvider === "Google" && (
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-950/50 rounded-xl border border-zinc-200 dark:border-zinc-800 space-y-2 text-center">
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                    Inicia sesión con tu cuenta institucional de Google Workspace para conceder permisos de lectura a Gmail y Calendar.
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                      API Token
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={apiToken}
+                      onChange={(e) => setApiToken(e.target.value)}
+                      placeholder="Token permanente de Meta"
+                      className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-400">
+                    La conexión usa credenciales reales de WhatsApp Cloud API; no se genera un QR simulado.
                   </p>
                 </div>
               )}
@@ -129,7 +176,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 </button>
                 <button
                   type="submit"
-                  disabled={connectMutation.isPending}
+                  disabled={connectMutation.isPending || selectedProvider === "Google"}
                   className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {connectMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

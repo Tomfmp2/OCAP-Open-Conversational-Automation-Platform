@@ -1,6 +1,8 @@
 import React from "react";
 import { Terminal, Wrench, Clock } from "lucide-react";
 import { ReasoningStep } from "../api/useAgentsData";
+import { Surface } from "@/shared/components/ui/Surface";
+import { EmptyState } from "@/shared/components/ui/EmptyState";
 
 interface ReasoningTraceInspectorProps {
   traces: ReasoningStep[];
@@ -8,7 +10,7 @@ interface ReasoningTraceInspectorProps {
 
 export function ReasoningTraceInspector({ traces }: ReasoningTraceInspectorProps) {
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-5 shadow-sm space-y-4">
+    <Surface variant="glass" className="space-y-4">
       <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
         <div className="flex items-center gap-2">
           <Terminal className="w-4 h-4 text-blue-500" />
@@ -16,11 +18,18 @@ export function ReasoningTraceInspector({ traces }: ReasoningTraceInspectorProps
             Inspector de Trazas de Razonamiento (Execution Traces)
           </h2>
         </div>
-        <span className="text-xs font-mono text-zinc-400">Live Agent Debugger</span>
+        <span className="text-xs font-mono text-zinc-400">Historial disponible</span>
       </div>
 
-      <div className="space-y-3">
-        {traces.map((step) => (
+      {traces.length === 0 ? (
+        <EmptyState
+          title="Sin trazas disponibles"
+          description="El backend no ha devuelto trazas de razonamiento recientes."
+          icon={<Terminal className="h-5 w-5" />}
+        />
+      ) : (
+        <div className="space-y-3">
+          {traces.map((step) => (
           <div
             key={step.id}
             className="p-4 rounded-xl bg-zinc-950 text-zinc-100 font-mono text-xs border border-zinc-800 space-y-2"
@@ -43,8 +52,9 @@ export function ReasoningTraceInspector({ traces }: ReasoningTraceInspectorProps
               </div>
             )}
           </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </Surface>
   );
 }
