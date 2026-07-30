@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { X, Bot, CheckCircle2 } from "lucide-react";
+import { X, Bot, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { useCreateAgentMutation } from "../api/useAgentsData";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -13,17 +14,37 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
   const [role, setRole] = React.useState("specialist");
   const [description, setDescription] = React.useState("");
   const [model, setModel] = React.useState("gpt-4o");
+  const [systemPrompt, setSystemPrompt] = React.useState("Eres un agente autónomo especializado en orquestación de tareas enterprise.");
   const [success, setSuccess] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const createAgentMutation = useCreateAgentMutation();
 
   if (!open) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccess(true);
-    setTimeout(() => {
-      setSuccess(false);
-      onClose();
-    }, 1200);
+    setErrorMessage(null);
+
+    try {
+      await createAgentMutation.mutateAsync({
+        name: name.trim(),
+        description: description.trim(),
+        systemPrompt: systemPrompt.trim(),
+        allowedTools: ["CreateCalendarEventTool", "SendEmailTool", "QueryKnowledgeTool"]
+      });
+
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setName("");
+        setDescription("");
+        onClose();
+      }, 1000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al conectar con la API de Agentes.";
+      setErrorMessage(msg);
+    }
   };
 
   return (
@@ -40,13 +61,20 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-500">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {success ? (
             <div className="py-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">¡Agente Creado Exitosamente!</h3>
-              <p className="text-xs text-zinc-400">Registrado en la arquitectura de orquestación CAP-03.</p>
+              <p className="text-xs text-zinc-400">Registrado en la base de datos de PostgreSQL e integrado con el runtime de orquestación.</p>
             </div>
           ) : (
             <>
@@ -105,19 +133,34 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
+                  Instrucción de Sistema (System Prompt)
+                </label>
+                <textarea
+                  rows={2}
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  disabled={createAgentMutation.isPending}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors"
+                  disabled={createAgentMutation.isPending}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  Crear Agente
+                  {createAgentMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{createAgentMutation.isPending ? "Creando en API..." : "Crear Agente"}</span>
                 </button>
               </div>
             </>

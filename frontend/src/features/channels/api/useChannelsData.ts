@@ -144,3 +144,43 @@ export function useChannelsData() {
 
   return { ...query, testConnectionMutation };
 }
+
+export function useConnectChannelMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { provider: string; botToken?: string; authCode?: string }) => {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      let url = `${baseUrl}/api/channels/connect`;
+      let bodyData: Record<string, unknown> = { provider: payload.provider };
+
+      if (payload.provider.toLowerCase() === "telegram") {
+        url = `${baseUrl}/api/channels/telegram/bots`;
+        bodyData = { botToken: payload.botToken };
+      } else if (payload.provider.toLowerCase() === "whatsapp") {
+        url = `${baseUrl}/api/channels/whatsapp/connect`;
+        bodyData = { phoneNumber: "+14155552671" };
+      } else if (payload.provider.toLowerCase() === "google" || payload.provider.toLowerCase() === "email") {
+        url = `${baseUrl}/api/integrations/google/connect`;
+        bodyData = { authCode: payload.authCode || "google_auth_code_ok", scopes: "gmail,calendar" };
+      }
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyData),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || `Error al conectar el canal ${payload.provider}`);
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["channelsData"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+    },
+  });
+}

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface AgentBackendDto {
   id: string;
@@ -92,5 +92,31 @@ export function useAgentsData() {
     },
     staleTime: 10000,
     retry: 2,
+  });
+}
+
+export function useCreateAgentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { name: string; description: string; systemPrompt: string; allowedTools?: string[] }) => {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/agents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || `Error (${res.status}): No se pudo crear el agente`);
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agentsData"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+    },
   });
 }

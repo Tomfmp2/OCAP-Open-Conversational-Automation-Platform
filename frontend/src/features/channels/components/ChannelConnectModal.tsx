@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { X, QrCode, Key, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { X, QrCode, Key, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { useConnectChannelMutation } from "../api/useChannelsData";
 
 interface ChannelConnectModalProps {
   open: boolean;
@@ -12,16 +13,33 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
   const [selectedProvider, setSelectedProvider] = React.useState<"Telegram" | "WhatsApp" | "Google">("Telegram");
   const [botToken, setBotToken] = React.useState("");
   const [connectedSuccess, setConnectedSuccess] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const connectMutation = useConnectChannelMutation();
 
   if (!open) return null;
 
-  const handleConnect = (e: React.FormEvent) => {
+  const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    setConnectedSuccess(true);
-    setTimeout(() => {
-      setConnectedSuccess(false);
-      onClose();
-    }, 1200);
+    setErrorMessage(null);
+
+    try {
+      await connectMutation.mutateAsync({
+        provider: selectedProvider,
+        botToken: selectedProvider === "Telegram" ? botToken.trim() : undefined,
+        authCode: selectedProvider === "Google" ? "google_oauth_code_sample" : undefined
+      });
+
+      setConnectedSuccess(true);
+      setTimeout(() => {
+        setConnectedSuccess(false);
+        setBotToken("");
+        onClose();
+      }, 1000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al conectar con la API de Canales.";
+      setErrorMessage(msg);
+    }
   };
 
   return (
@@ -38,13 +56,20 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
         </div>
 
         <form onSubmit={handleConnect} className="p-6 space-y-5">
+          {errorMessage && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-2 text-xs text-red-500">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {connectedSuccess ? (
             <div className="py-8 text-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">¡Adaptador Conectado Exitosamente!</h3>
-              <p className="text-xs text-zinc-400">Canal registrado en la red hexagonal de OCAP.</p>
+              <p className="text-xs text-zinc-400 font-medium">Canal registrado en PostgreSQL e integrado en la red hexagonal de OCAP.</p>
             </div>
           ) : (
             <>
@@ -111,15 +136,18 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  disabled={connectMutation.isPending}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors"
+                  disabled={connectMutation.isPending}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  Guardar & Conectar
+                  {connectMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{connectMutation.isPending ? "Conectando..." : "Guardar & Conectar"}</span>
                 </button>
               </div>
             </>
