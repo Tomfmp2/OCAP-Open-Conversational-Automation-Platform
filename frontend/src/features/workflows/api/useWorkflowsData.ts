@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/shared/api/apiClient";
 
 export interface WorkflowDefinitionBackendDto {
   id: string;
@@ -25,6 +26,16 @@ export interface WorkflowExecutionBackendDto {
   errorMessage?: string;
 }
 
+export interface WorkflowStatusDto {
+  workflowId: string;
+  status: string;
+  totalExecutions: number;
+  successfulExecutions: number;
+  failedExecutions: number;
+  successRatePercentage: number;
+  lastExecutedAtUtc?: string | null;
+}
+
 export interface WorkflowNode {
   id: string;
   type: "trigger" | "agent" | "condition" | "action";
@@ -45,85 +56,148 @@ export interface WorkflowItem {
   nodes: WorkflowNode[];
 }
 
+async function fetchWorkflowStatus(workflowId: string): Promise<WorkflowStatusDto | null> {
+  try {
+    return await apiClient.get<WorkflowStatusDto>(`/api/workflows/${workflowId}/status`);
+  } catch {
+    return null;
+  }
+}
+
 export function useWorkflowsData() {
   const queryClient = useQueryClient();
 
   const query = useQuery<WorkflowItem[]>({
     queryKey: ["workflowsData"],
     queryFn: async () => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/workflows`);
-      if (!res.ok) {
-        throw new Error(`Error en servidor (${res.status}): No se pudieron cargar los workflows`);
-      }
-      const data: WorkflowDefinitionBackendDto[] = await res.json();
+      const data = await apiClient.get<WorkflowDefinitionBackendDto[]>("/api/workflows");
 
-      return data.map((item) => ({
-        id: item.id,
-        name: item.name,
-        version: `v${item.currentVersion}.0`,
-        status: (item.status === "Active" ? "published" : "draft") as "published" | "draft" | "archived",
-        triggerChannel: "Omnichannel / Webhook",
-        assignedAgent: "Asistente Principal OCAP",
-        totalExecutions: item.stepsCount * 35,
-        lastRun: new Date(item.createdAtUtc).toLocaleString(),
-        nodes: [
-          { id: "step-1", type: "trigger", label: "Inicio Triggger", config: {} },
-          { id: "step-2", type: "action", label: "Ejecutar Nodo HTTP", config: {} },
-        ],
-      }));
+      const items = await Promise.all(
+        data.map(async (item) => {
+          const statusInfo = await fetchWorkflowStatus(item.id);
+
+          return {
+            id: item.id,
+            name: item.name,
+            version: `v${item.currentVersion}.0`,
+            status: (item.status === "Active" ? "published" : "draft") as
+              | "published"
+              | "draft"
+              | "archived",
+            triggerChannel: "Omnichannel / Webhook",
+            assignedAgent: "—",
+            totalExecutions: statusInfo?.totalExecutions ?? 0,
+            lastRun: statusInfo?.lastExecutedAtUtc
+              ? new Date(statusInfo.lastExecutedAtUtc).toLocaleString()
+              : new Date(item.createdAtUtc).toLocaleString(),
+            nodes: [
+              { id: "step-1", type: "trigger" as const, label: "Inicio Trigger", config: {} },
+              { id: "step-2", type: "action" as const, label: "Ejecutar Nodo HTTP", config: {} },
+            ],
+          };
+        })
+      );
+
+      return items;
     },
     staleTime: 10000,
     retry: 2,
   });
 
+  const executeWorkflowMutation = useMutation({
+    mutationFn: async (workflowId: string) => {
+      return apiClient.post<WorkflowExecutionBackendDto>(
+        `/api/workflows/${workflowId}/execute`
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutions"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+    },
+  });
+
+  const cancelWorkflowMutation = useMutation({
+    mutationFn: async (workflowId: string) => {
+      return apiClient.post<WorkflowExecutionBackendDto>(
+        `/api/workflows/${workflowId}/cancel`
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutions"] });
+    },
+  });
+
+  const resumeWorkflowMutation = useMutation({
+    mutationFn: async (payload: {
+      executionId: string;
+      signal?: string;
+      payloadJson?: string;
+    }) => {
+      return apiClient.post<WorkflowExecutionBackendDto>(
+        `/api/workflows/executions/${payload.executionId}/resume`,
+        {
+          signal: payload.signal ?? null,
+          payloadJson: payload.payloadJson ?? null,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutions"] });
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutionHistory"] });
+    },
+  });
+
+  const approveWorkflowMutation = useMutation({
+    mutationFn: async (payload: { executionId: string; approved: boolean }) => {
+      return apiClient.post<WorkflowExecutionBackendDto>(
+        `/api/workflows/executions/${payload.executionId}/signal`,
+        {
+          signal: payload.approved ? "approved" : "rejected",
+          payloadJson: null,
+        }
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutions"] });
+      queryClient.invalidateQueries({ queryKey: ["workflowExecutionHistory"] });
+    },
+  });
+
   const validateWorkflowMutation = useMutation({
     mutationFn: async (payload: { name: string; nodes: WorkflowNode[] }) => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/workflows/designer/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: payload.name,
-          nodes: payload.nodes.map((n) => ({
-            id: n.id,
-            stepId: n.id,
-            name: n.label,
-            type: n.type,
-          })),
-        }),
+      return apiClient.post("/api/workflows/designer/validate", {
+        name: payload.name,
+        nodes: payload.nodes.map((n) => ({
+          id: n.id,
+          stepId: n.id,
+          name: n.label,
+          type: n.type,
+        })),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Fallo en la validación del workflow");
-      }
-      return await res.json();
     },
   });
 
   const saveWorkflowMutation = useMutation({
-    mutationFn: async (payload: { id?: string; name: string; description?: string; nodes: WorkflowNode[] }) => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/workflows/designer/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: payload.id || "00000000-0000-0000-0000-000000000000",
-          name: payload.name,
-          description: payload.description || "Guardado desde el Designer",
-          nodes: payload.nodes.map((n) => ({
-            id: n.id,
-            stepId: n.id,
-            name: n.label,
-            type: n.type,
-          })),
-        }),
+    mutationFn: async (payload: {
+      id?: string;
+      name: string;
+      description?: string;
+      nodes: WorkflowNode[];
+    }) => {
+      return apiClient.post("/api/workflows/designer/save", {
+        id: payload.id || "00000000-0000-0000-0000-000000000000",
+        name: payload.name,
+        description: payload.description || "Guardado desde el Designer",
+        nodes: payload.nodes.map((n) => ({
+          id: n.id,
+          stepId: n.id,
+          name: n.label,
+          type: n.type,
+        })),
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Fallo al guardar el workflow");
-      }
-      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
@@ -131,5 +205,52 @@ export function useWorkflowsData() {
     },
   });
 
-  return { ...query, executeWorkflowMutation, validateWorkflowMutation, saveWorkflowMutation };
+  return {
+    ...query,
+    executeWorkflowMutation,
+    cancelWorkflowMutation,
+    resumeWorkflowMutation,
+    approveWorkflowMutation,
+    validateWorkflowMutation,
+    saveWorkflowMutation,
+  };
+}
+
+export function useWorkflowExecutions(workflowId?: string) {
+  return useQuery<WorkflowExecutionBackendDto[]>({
+    queryKey: ["workflowExecutions", workflowId],
+    queryFn: async () => {
+      if (workflowId) {
+        return apiClient.get<WorkflowExecutionBackendDto[]>(
+          `/api/workflows/${workflowId}/executions`
+        );
+      }
+      return apiClient.get<WorkflowExecutionBackendDto[]>("/api/workflows/executions");
+    },
+    enabled: Boolean(workflowId),
+    staleTime: 10000,
+  });
+}
+
+export function useWorkflowExecutionHistory(executionId?: string) {
+  return useQuery({
+    queryKey: ["workflowExecutionHistory", executionId],
+    queryFn: async () => {
+      if (!executionId) return [];
+      return apiClient.get<
+        Array<{
+          id: string;
+          stepId: string;
+          stepName: string;
+          nodeType: string;
+          status: string;
+          durationMs: number;
+          outputJson: string;
+          errorMessage?: string;
+          executedAtUtc: string;
+        }>
+      >(`/api/workflows/executions/${executionId}/history`);
+    },
+    enabled: Boolean(executionId),
+  });
 }
