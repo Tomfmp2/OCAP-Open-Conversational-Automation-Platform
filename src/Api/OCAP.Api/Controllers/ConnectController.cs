@@ -114,11 +114,21 @@ public class ConnectController : ControllerBase
         var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(cancellationToken);
         var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(cancellationToken);
 
-        var userId = user?.Id ?? Guid.NewGuid();
-        var tenantId = tenant?.Id ?? Guid.NewGuid();
-        var tenantSlug = tenant?.Slug ?? "default-tenant";
-        var userEmail = user?.Email ?? "admin@ocap.io";
-        var userName = user?.FullName ?? "Administrador OCAP";
+        if (user is null || tenant is null)
+        {
+            await _auditService.LogSecurityEventAsync(Guid.Empty, Guid.Empty, "Authorization.Denied", "Sin identidad bootstrap para emitir código de autorización", "ConnectController", false, cancellationToken);
+            return BadRequest(new OpenIddictResponse
+            {
+                Error = OpenIddictConstants.Errors.ServerError,
+                ErrorDescription = "No hay usuario/tenant disponibles para autorizar. Complete el bootstrap de identidad."
+            });
+        }
+
+        var userId = user.Id;
+        var tenantId = tenant.Id;
+        var tenantSlug = tenant.Slug;
+        var userEmail = user.Email;
+        var userName = user.FullName;
 
         var scopes = request.GetScopes();
         await _consentService.GrantConsentAsync(tenantId, userId, clientId, scopes, cancellationToken);
@@ -184,11 +194,20 @@ public class ConnectController : ControllerBase
             var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(cancellationToken);
             var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(cancellationToken);
 
-            var userId = user?.Id ?? Guid.NewGuid();
-            var tenantId = tenant?.Id ?? Guid.NewGuid();
-            var tenantSlug = tenant?.Slug ?? "default-tenant";
-            var userEmail = user?.Email ?? "admin@ocap.io";
-            var userName = user?.FullName ?? "Administrador OCAP";
+            if (user is null || tenant is null)
+            {
+                return BadRequest(new OpenIddictResponse
+                {
+                    Error = OpenIddictConstants.Errors.ServerError,
+                    ErrorDescription = "No hay identidad de servicio disponible para client_credentials."
+                });
+            }
+
+            var userId = user.Id;
+            var tenantId = tenant.Id;
+            var tenantSlug = tenant.Slug;
+            var userEmail = user.Email;
+            var userName = user.FullName;
 
             var roles = await _identityService.GetUserRolesAsync(userId, tenantId, cancellationToken);
             var permissions = await _identityService.GetUserPermissionsAsync(userId, tenantId, cancellationToken);
@@ -237,13 +256,30 @@ public class ConnectController : ControllerBase
                 });
             }
 
-            var tenantId = Guid.TryParse(tenantIdString, out var parsedTenantId) ? parsedTenantId : Guid.NewGuid();
+            if (string.IsNullOrEmpty(tenantIdString) || !Guid.TryParse(tenantIdString, out var tenantId) || tenantId == Guid.Empty)
+            {
+                return BadRequest(new OpenIddictResponse
+                {
+                    Error = OpenIddictConstants.Errors.InvalidGrant,
+                    ErrorDescription = "El token de refresco no contiene un tenant válido."
+                });
+            }
+
             var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
             var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-            var tenantSlug = tenant?.Slug ?? "default-tenant";
-            var userEmail = user?.Email ?? "admin@ocap.io";
-            var userName = user?.FullName ?? "Administrador OCAP";
+            if (tenant is null || user is null)
+            {
+                return BadRequest(new OpenIddictResponse
+                {
+                    Error = OpenIddictConstants.Errors.InvalidGrant,
+                    ErrorDescription = "Usuario o tenant asociados al refresh token no existen."
+                });
+            }
+
+            var tenantSlug = tenant.Slug;
+            var userEmail = user.Email;
+            var userName = user.FullName;
 
             var roles = await _identityService.GetUserRolesAsync(userId, tenantId, cancellationToken);
             var permissions = await _identityService.GetUserPermissionsAsync(userId, tenantId, cancellationToken);
@@ -305,13 +341,30 @@ public class ConnectController : ControllerBase
                 });
             }
 
-            var tenantId = Guid.TryParse(tenantIdString, out var parsedTenantId) ? parsedTenantId : Guid.NewGuid();
+            if (string.IsNullOrEmpty(tenantIdString) || !Guid.TryParse(tenantIdString, out var tenantId) || tenantId == Guid.Empty)
+            {
+                return BadRequest(new OpenIddictResponse
+                {
+                    Error = OpenIddictConstants.Errors.InvalidGrant,
+                    ErrorDescription = "El código de autorización no contiene un tenant válido."
+                });
+            }
+
             var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
             var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-            var tenantSlug = tenant?.Slug ?? "default-tenant";
-            var userEmail = user?.Email ?? "admin@ocap.io";
-            var userName = user?.FullName ?? "Administrador OCAP";
+            if (tenant is null || user is null)
+            {
+                return BadRequest(new OpenIddictResponse
+                {
+                    Error = OpenIddictConstants.Errors.InvalidGrant,
+                    ErrorDescription = "Usuario o tenant asociados al código de autorización no existen."
+                });
+            }
+
+            var tenantSlug = tenant.Slug;
+            var userEmail = user.Email;
+            var userName = user.FullName;
 
             var roles = await _identityService.GetUserRolesAsync(userId, tenantId, cancellationToken);
             var permissions = await _identityService.GetUserPermissionsAsync(userId, tenantId, cancellationToken);

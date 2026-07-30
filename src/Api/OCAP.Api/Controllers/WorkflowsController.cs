@@ -136,7 +136,7 @@ public class WorkflowsController : ControllerBase
             return BadRequest(new { message = "El nombre del workflow es obligatorio." });
         }
 
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = Security.TenantSecurity.RequireTenantId(_tenantContext);
         var definition = new WorkflowDefinition(Guid.NewGuid(), tenantId, request.Name, request.Description);
         
         _dbContext.WorkflowDefinitions.Add(definition);
@@ -204,8 +204,8 @@ public class WorkflowsController : ControllerBase
     [HttpPost("{id}/execute")]
     public async Task<ActionResult<WorkflowExecutionDto>> ExecuteWorkflow(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
-        var userId = _userContext.UserId != Guid.Empty ? _userContext.UserId : Guid.NewGuid();
+        var tenantId = Security.TenantSecurity.RequireTenantId(_tenantContext);
+        var userId = Security.TenantSecurity.RequireUserId(_userContext);
 
         var context = new WorkflowContext
         {
@@ -360,7 +360,7 @@ public class WorkflowsController : ControllerBase
             return BadRequest(validationResult);
         }
 
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = Security.TenantSecurity.RequireTenantId(_tenantContext);
         var definition = _workflowDesignerMapper.MapToDomain(graph, tenantId);
 
         _dbContext.WorkflowDefinitions.Add(definition);

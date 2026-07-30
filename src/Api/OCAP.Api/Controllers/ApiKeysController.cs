@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Security;
+using OCAP.Api.Security;
 using OCAP.Security.Abstractions;
 using OCAP.Security.Application.UseCases;
 
@@ -13,23 +14,26 @@ public class ApiKeysController : ControllerBase
     private readonly CreateApiKeyUseCase _createApiKeyUseCase;
     private readonly RevokeApiKeyUseCase _revokeApiKeyUseCase;
     private readonly ITenantContext _tenantContext;
+    private readonly IUserContext _userContext;
 
     public ApiKeysController(
         IApiKeyService apiKeyService,
         CreateApiKeyUseCase createApiKeyUseCase,
         RevokeApiKeyUseCase revokeApiKeyUseCase,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        IUserContext userContext)
     {
         _apiKeyService = apiKeyService ?? throw new ArgumentNullException(nameof(apiKeyService));
         _createApiKeyUseCase = createApiKeyUseCase ?? throw new ArgumentNullException(nameof(createApiKeyUseCase));
         _revokeApiKeyUseCase = revokeApiKeyUseCase ?? throw new ArgumentNullException(nameof(revokeApiKeyUseCase));
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
+        _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
     }
 
     [HttpGet]
     public async Task<ActionResult<List<ApiKeyDto>>> GetApiKeys(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
+        var tenantId = TenantSecurity.RequireTenantId(_tenantContext);
         var entities = await _apiKeyService.GetApiKeysForTenantAsync(tenantId, cancellationToken);
 
         var dtos = entities.Select(e => new ApiKeyDto(
@@ -42,11 +46,12 @@ public class ApiKeysController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CreateApiKeyResponseDto>> CreateApiKey([FromBody] CreateApiKeyRequestDto request, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        var tenantId = TenantSecurity.RequireTenantId(_tenantContext);
+        var userId = TenantSecurity.RequireUserId(_userContext);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
-        var result = await _createApiKeyUseCase.ExecuteAsync(tenantId, userId, request?.Name ?? "Nueva API Key", TimeSpan.FromDays(365), ip, cancellationToken);
+        var result = await _createApiKeyUseCase.ExecuteAsync(
+            tenantId, userId, request?.Name ?? "Nueva API Key", TimeSpan.FromDays(365), ip, cancellationToken);
         return Ok(new CreateApiKeyResponseDto(result.RawApiKey, result.ApiKeyId, result.Prefix, result.Name, result.ExpiresAtUtc));
     }
 
@@ -54,14 +59,19 @@ public class ApiKeysController : ControllerBase
     [HttpPost("{id}/revoke")]
     public async Task<IActionResult> RevokeApiKey(Guid id, CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId != Guid.Empty ? _tenantContext.TenantId : Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        var tenantId = TenantSecurity.RequireTenantId(_tenantContext);
+        var userId = TenantSecurity.RequireUserId(_userContext);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         var success = await _revokeApiKeyUseCase.ExecuteAsync(id, tenantId, userId, ip, cancellationToken);
         if (!success)
         {
-            return NotFound(new { message = "Clave de API no encontrada o ya revocada." });
+            return NotFound(new ProblemDetails
+            {
+                Title = "No encontrado",
+                Detail = "Clave de API no encontrada o ya revocada.",
+                Status = StatusCodes.Status404NotFound
+            });
         }
 
         return Ok(new { message = "Clave de API revocada correctamente." });

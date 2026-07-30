@@ -21,11 +21,33 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<UserDetailDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(OCAP.Api.Models.Common.PagedResult<UserDetailDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] OCAP.Api.Models.Common.PagedQuery query,
+        CancellationToken cancellationToken)
     {
-        var users = await _userService.GetUsersAsync(_tenantContext.TenantId, cancellationToken);
-        return Ok(users);
+        var tenantId = Security.TenantSecurity.RequireTenantId(_tenantContext);
+        var users = await _userService.GetUsersAsync(tenantId, cancellationToken);
+        var filtered = users.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var term = query.Search.Trim();
+            filtered = filtered.Where(u =>
+                (u.Email?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.FullName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+
+        var list = filtered.ToList();
+        var pageItems = list.Skip(query.Skip).Take(query.PageSize).ToList();
+
+        return Ok(new OCAP.Api.Models.Common.PagedResult<UserDetailDto>
+        {
+            Items = pageItems,
+            Page = query.Page,
+            PageSize = query.PageSize,
+            TotalCount = list.Count
+        });
     }
 
     [HttpGet("{id:guid}")]
