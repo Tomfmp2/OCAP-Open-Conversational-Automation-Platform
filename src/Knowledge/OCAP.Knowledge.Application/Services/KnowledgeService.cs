@@ -136,7 +136,7 @@ public class KnowledgeService
             await _jobRepository.UpdateAsync(job, cancellationToken);
 
             // 6. Generate Embeddings & Store in Vector DB
-            var vectors = await _embeddingGenerator.GenerateVectorsForChunksAsync(chunks, "OpenAI", "text-embedding-3-small", cancellationToken);
+            var vectors = await _embeddingGenerator.GenerateVectorsForChunksAsync(chunks, cancellationToken: cancellationToken);
             await _vectorDatabase.UpsertVectorsAsync(tenantId, vectors, cancellationToken);
 
             job.UpdateProgress(100);
