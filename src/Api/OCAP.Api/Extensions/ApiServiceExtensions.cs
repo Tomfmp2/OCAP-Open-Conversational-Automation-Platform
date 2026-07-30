@@ -70,6 +70,8 @@ public static class ApiServiceExtensions
         services.AddSingleton<IJwtTokenService>(_ => new JwtTokenService(jwtOptions));
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        services.AddScoped<IUserAuthenticationQuery, EfUserAuthenticationQuery>();
+        services.AddHostedService<BootstrapAdminHostedService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IConsentService, ConsentService>();
 
@@ -189,10 +191,37 @@ public static class ApiServiceExtensions
         // Registrar servicios de Agentes
         OCAP.Agents.Application.Extensions.AgentServiceExtensions.AddAgentEngineServices(services);
 
-        // Registrar In-Memory Google Providers
-        services.AddSingleton<ICalendarProvider, InMemoryCalendarProvider>();
-        services.AddSingleton<IEmailProvider, InMemoryEmailProvider>();
-        services.AddSingleton<ISpreadsheetProvider, InMemorySpreadsheetProvider>();
+        // Google Workspace usa adaptadores reales cuando hay token. En producción sin
+        // credenciales también se registran los adaptadores HTTP para evitar éxitos ficticios.
+        var googleSection = configuration.GetSection(GoogleWorkspaceOptions.SectionName);
+        var googleOptions = googleSection.Get<GoogleWorkspaceOptions>() ?? new GoogleWorkspaceOptions();
+        services.Configure<GoogleWorkspaceOptions>(googleSection);
+
+        var environmentName = configuration["ASPNETCORE_ENVIRONMENT"]
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environments.Production;
+        var isDevelopmentOrTesting =
+            environmentName.Equals(Environments.Development, StringComparison.OrdinalIgnoreCase) ||
+            environmentName.Equals("Testing", StringComparison.OrdinalIgnoreCase);
+        var useInMemoryGoogle =
+            googleOptions.UseInMemory ||
+            (string.IsNullOrWhiteSpace(googleOptions.AccessToken) && isDevelopmentOrTesting);
+
+        if (useInMemoryGoogle)
+        {
+            services.AddSingleton<ICalendarProvider, InMemoryCalendarProvider>();
+            services.AddSingleton<IEmailProvider, InMemoryEmailProvider>();
+            services.AddSingleton<ISpreadsheetProvider, InMemorySpreadsheetProvider>();
+        }
+        else
+        {
+            services.AddHttpClient<ICalendarProvider, GoogleCalendarHttpProvider>()
+                .AddStandardResilienceHandler();
+            services.AddHttpClient<IEmailProvider, GoogleGmailHttpProvider>()
+                .AddStandardResilienceHandler();
+            services.AddHttpClient<ISpreadsheetProvider, GoogleSheetsHttpProvider>()
+                .AddStandardResilienceHandler();
+        }
 
         // Registrar Google Tools en DI
         services.AddTransient<ITool, CreateCalendarEventTool>();
