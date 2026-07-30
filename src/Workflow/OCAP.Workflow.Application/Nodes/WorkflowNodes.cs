@@ -308,12 +308,14 @@ public class ForEachNode : IWorkflowNodeExecutor
 
 public class ParallelNode : IWorkflowNodeExecutor
 {
-    private readonly IWorkflowNodeExecutorResolver _resolver;
+    private readonly Lazy<IWorkflowNodeExecutorResolver> _resolver;
     private readonly ILogger<ParallelNode> _logger;
 
-    public ParallelNode(IWorkflowNodeExecutorResolver resolver, ILogger<ParallelNode> logger)
+    public ParallelNode(IServiceProvider serviceProvider, ILogger<ParallelNode> logger)
     {
-        _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        _resolver = new Lazy<IWorkflowNodeExecutorResolver>(
+            () => serviceProvider.GetRequiredService<IWorkflowNodeExecutorResolver>());
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -344,7 +346,7 @@ public class ParallelNode : IWorkflowNodeExecutor
 
             try
             {
-                var executor = _resolver.Resolve(branchStep.NodeType);
+                var executor = _resolver.Value.Resolve(branchStep.NodeType);
                 var branchContext = CloneContext(context);
                 var result = await executor.ExecuteAsync(branchStep, branchContext, cancellationToken);
                 results[branchId] = new { result.Success, result.OutputJson, result.ErrorMessage };
