@@ -6,7 +6,7 @@
 
 <div class="container-fluid p-4">
     <div class="mb-4">
-        <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-search text-primary me-2"></i>RAG Playground & Buscador Vectorial</h1>
+        <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-search text-primary me-2"></i>RAG Playground &amp; Buscador Vectorial</h1>
         <p class="text-muted mb-0">Prueba de estrategias de búsqueda: Similaridad Vectorial, Búsqueda Híbrida RRF, Palabras Clave y Semántica.</p>
     </div>
 
@@ -14,7 +14,9 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-6">
-                    <input type="text" class="form-control bg-black text-white border-secondary form-control-lg" placeholder="Escribe tu consulta semántica o pregunta..." @bind="_query" @onkeyup="HandleKeyUp" />
+                    <input type="text" class="form-control bg-black text-white border-secondary form-control-lg"
+                           placeholder="Escribe tu consulta semántica o pregunta..."
+                           @bind="_query" @onkeyup="HandleKeyUp" />
                 </div>
                 <div class="col-md-3">
                     <select class="form-select bg-black text-white border-secondary form-select-lg" @bind="_strategy">
@@ -41,6 +43,14 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>@_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
     @if (_results != null)
     {
         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -48,35 +58,45 @@
             <span class="badge bg-secondary">Aislamiento Tenant: Verificado</span>
         </div>
 
-        <div class="row g-3">
-            @foreach (var res in _results)
-            {
-                <div class="col-12">
-                    <div class="card bg-dark text-white border-secondary">
-                        <div class="card-header bg-black d-flex justify-content-between align-items-center">
-                            <span class="fw-bold text-info"><i class="bi bi-file-earmark-text me-2"></i>@res.DocumentTitle</span>
-                            <div>
-                                <span class="badge bg-success me-2">Score: @(res.Score.ToString("F3"))</span>
-                                <span class="badge bg-dark border border-secondary">Distancia: @(res.Distance.ToString("F3"))</span>
+        @if (!_results.Any())
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>No se encontraron resultados para la consulta. Intente con términos distintos o verifique que existan documentos indexados.
+            </div>
+        }
+        else
+        {
+            <div class="row g-3">
+                @foreach (var res in _results)
+                {
+                    <div class="col-12">
+                        <div class="card bg-dark text-white border-secondary">
+                            <div class="card-header bg-black d-flex justify-content-between align-items-center">
+                                <span class="fw-bold text-info"><i class="bi bi-file-earmark-text me-2"></i>@res.DocumentTitle</span>
+                                <div>
+                                    <span class="badge bg-success me-2">Score: @(res.Score.ToString("F3"))</span>
+                                    <span class="badge bg-dark border border-secondary">Distancia: @(res.Distance.ToString("F3"))</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text text-light font-monospace bg-black p-3 rounded border border-secondary mb-2">
+                                    @res.Content
+                                </p>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <p class="card-text text-light font-monospace bg-black p-3 rounded border border-secondary mb-2">
-                                @res.Content
-                            </p>
-                        </div>
                     </div>
-                </div>
-            }
-        </div>
+                }
+            </div>
+        }
     }
 </div>
 
 @code {
-    private string _query = "arquitectura de workflows y nodos";
+    private string _query = string.Empty;
     private string _strategy = "Hybrid";
     private bool _isSearching = false;
     private List<SearchResultViewModel>? _results;
+    private string? _errorMessage;
 
     private async Task HandleKeyUp(KeyboardEventArgs e)
     {
@@ -89,33 +109,58 @@
     private async Task ExecuteSearch()
     {
         if (string.IsNullOrWhiteSpace(_query)) return;
+
         _isSearching = true;
+        _errorMessage = null;
+        _results = null;
 
         try
         {
-            await Task.Delay(300); // Visual simulation
-            _results = new List<SearchResultViewModel>
+            var encodedQuery = Uri.EscapeDataString(_query);
+            var url = $"api/knowledge/search?query={encodedQuery}&strategy={_strategy}&topK=10";
+            var response = await Http.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
             {
-                new SearchResultViewModel
+                var data = await response.Content.ReadFromJsonAsync<SearchResponseDto>();
+                _results = data?.Results?.Select(r => new SearchResultViewModel
                 {
-                    DocumentTitle = "Manual_Arquitectura_OCAP_v1.5.pdf",
-                    Content = "El motor de workflows de OCAP ejecuta nodos secuenciales y paralelos evaluando condiciones y ejecutando herramientas externas mediante IToolRegistry con aislamiento de TenantId.",
-                    Score = 0.942,
-                    Distance = 0.058
-                },
-                new SearchResultViewModel
-                {
-                    DocumentTitle = "API_Gateway_Specification.md",
-                    Content = "Todas las peticiones a la API Gateway requieren encabezados de autenticación JWT o API Key asociadas al TenantId activo para garantizar el aislamiento multi-inquilino.",
-                    Score = 0.885,
-                    Distance = 0.115
-                }
-            };
+                    DocumentTitle = r.DocumentTitle,
+                    Content = r.Content,
+                    Score = r.Score,
+                    Distance = r.Distance
+                }).ToList() ?? new List<SearchResultViewModel>();
+            }
+            else
+            {
+                _errorMessage = $"Error al buscar: {response.StatusCode}. Verifique que existan documentos indexados.";
+                _results = new List<SearchResultViewModel>();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error de conexión con el backend de RAG: {ex.Message}";
+            _results = new List<SearchResultViewModel>();
         }
         finally
         {
             _isSearching = false;
         }
+    }
+
+    public class SearchResponseDto
+    {
+        public List<SearchResultDto>? Results { get; set; }
+        public int TotalCount { get; set; }
+        public double ElapsedMs { get; set; }
+    }
+
+    public class SearchResultDto
+    {
+        public string DocumentTitle { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public double Score { get; set; }
+        public double Distance { get; set; }
     }
 
     public class SearchResultViewModel

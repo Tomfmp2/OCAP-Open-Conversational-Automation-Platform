@@ -10,14 +10,59 @@
             <h1 class="h3 fw-bold text-white mb-1"><i class="bi bi-database text-warning me-2"></i>Estado de Base de Datos Vectorial</h1>
             <p class="text-muted mb-0">Arquitectura desacoplada: PostgreSQL pgvector, Qdrant, ChromaDB y Pinecone.</p>
         </div>
-        <button class="btn btn-outline-warning" @onclick="TriggerReindex"><i class="bi bi-arrow-repeat me-1"></i> Reindexar Todo</button>
+        <button class="btn btn-outline-warning" @onclick="TriggerReindex" disabled="@_isReindexing">
+            @if (_isReindexing)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>Reindexando...</span>
+            }
+            else
+            {
+                <i class="bi bi-arrow-repeat me-1"></i>
+                <span>Reindexar Todo</span>
+            }
+        </button>
     </div>
 
     @if (!string.IsNullOrEmpty(_reindexMessage))
     {
-        <div class="alert alert-info alert-dismissible fade show mb-4">
+        <div class="alert alert-@(_reindexSuccess ? "success" : "danger") alert-dismissible fade show mb-4">
+            <i class="bi bi-@(_reindexSuccess ? "check-circle" : "exclamation-triangle") me-2"></i>
             @_reindexMessage
             <button type="button" class="btn-close" @onclick="() => _reindexMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_loadError))
+    {
+        <div class="alert alert-warning alert-dismissible mb-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>@_loadError — mostrando información de arquitectura.
+            <button type="button" class="btn-close" @onclick="() => _loadError = null"></button>
+        </div>
+    }
+
+    <!-- Estadísticas de vectores desde backend -->
+    @if (_kbStats != null)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card bg-dark border-success text-white p-3">
+                    <span class="text-secondary small">Total Vectores Indexados</span>
+                    <h3 class="fw-bold text-success mt-1">@_kbStats.TotalVectors.ToString("N0")</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-info text-white p-3">
+                    <span class="text-secondary small">Bases de Conocimiento</span>
+                    <h3 class="fw-bold text-info mt-1">@_kbStats.TotalKnowledgeBases</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-warning text-white p-3">
+                    <span class="text-secondary small">Documentos Procesados</span>
+                    <h3 class="fw-bold text-warning mt-1">@_kbStats.TotalDocuments</h3>
+                </div>
+            </div>
         </div>
     }
 
@@ -31,7 +76,7 @@
                 <div class="card-body">
                     <p class="small text-muted mb-2">Motor de base de datos relacional con extensión vectorial `pgvector` nativa HNSW / IVFFlat.</p>
                     <ul class="list-unstyled mb-0 small">
-                        <li><strong>Vectores Almacenados:</strong> 4,192</li>
+                        <li><strong>Vectores Almacenados:</strong> @(_kbStats?.TotalVectors.ToString("N0") ?? "Cargando...")</li>
                         <li><strong>Índice:</strong> HNSW (m=16, ef=64)</li>
                         <li><strong>Aislamiento:</strong> Strict TenantId Filter</li>
                     </ul>
@@ -94,10 +139,99 @@
 
 @code {
     private string? _reindexMessage;
+    private bool _reindexSuccess = false;
+    private bool _isReindexing = false;
+    private string? _loadError;
+    private KbStatsDto? _kbStats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStats();
+    }
+
+    private async Task LoadStats()
+    {
+        try
+        {
+            var kbs = await Http.GetFromJsonAsync<List<KnowledgeBaseDto>>("api/knowledge");
+            if (kbs != null)
+            {
+                _kbStats = new KbStatsDto
+                {
+                    TotalKnowledgeBases = kbs.Count,
+                    TotalDocuments = kbs.Sum(k => k.DocumentCount),
+                    TotalVectors = kbs.Sum(k => k.VectorCount)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _loadError = $"No se pudieron cargar estadísticas: {ex.Message}";
+        }
+    }
 
     private async Task TriggerReindex()
     {
-        _reindexMessage = "Reindexación iniciada en segundo plano para la base de datos vectorial activa.";
-        await Task.Delay(500);
+        _isReindexing = true;
+        _reindexMessage = null;
+
+        try
+        {
+            // Obtener todas las knowledge bases del tenant para reindexarlas
+            var kbs = await Http.GetFromJsonAsync<List<KnowledgeBaseDto>>("api/knowledge");
+            if (kbs == null || !kbs.Any())
+            {
+                _reindexSuccess = false;
+                _reindexMessage = "No hay bases de conocimiento para reindexar. Cree una base de conocimiento primero.";
+                return;
+            }
+
+            // Reindexar cada base de conocimiento activa
+            var errors = new List<string>();
+            foreach (var kb in kbs)
+            {
+                var response = await Http.PostAsJsonAsync("api/knowledge/reindex", new { KnowledgeBaseId = kb.Id });
+                if (!response.IsSuccessStatusCode)
+                {
+                    errors.Add(kb.Name);
+                }
+            }
+
+            if (errors.Any())
+            {
+                _reindexSuccess = false;
+                _reindexMessage = $"Reindexación completada con errores en: {string.Join(", ", errors)}.";
+            }
+            else
+            {
+                _reindexSuccess = true;
+                _reindexMessage = $"Reindexación completada exitosamente para {kbs.Count} base(s) de conocimiento.";
+                await LoadStats(); // Refrescar estadísticas
+            }
+        }
+        catch (Exception ex)
+        {
+            _reindexSuccess = false;
+            _reindexMessage = $"Error durante la reindexación: {ex.Message}";
+        }
+        finally
+        {
+            _isReindexing = false;
+        }
+    }
+
+    public class KbStatsDto
+    {
+        public int  TotalKnowledgeBases { get; set; }
+        public int  TotalDocuments      { get; set; }
+        public long TotalVectors        { get; set; }
+    }
+
+    public class KnowledgeBaseDto
+    {
+        public Guid   Id            { get; set; }
+        public string Name          { get; set; } = string.Empty;
+        public int    DocumentCount { get; set; }
+        public long   VectorCount   { get; set; }
     }
 }
