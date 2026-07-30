@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Core.Entities;
+using OCAP.Security.Domain.Entities;
+using OCAP.Security.Infrastructure.Services;
 using OCAP.Workflow.Domain.Entities;
 
 namespace OCAP.Api.Tests.Infrastructure;
@@ -25,7 +28,8 @@ public class OcapApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Issuer"] = "OCAP",
                 ["Jwt:Audience"] = "OCAP.Clients",
                 ["Jwt:AccessTokenExpiryMinutes"] = "60",
-                ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!"
+                ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!",
+                ["Bootstrap:Enabled"] = "false"
             });
         });
     }
@@ -48,7 +52,34 @@ public class OcapApiFactory : WebApplicationFactory<Program>
     {
         // Must match HttpTenantContext default for anonymous Testing requests without X-Tenant-ID.
         var tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        if (db.Tenants.IgnoreQueryFilters().Any(tenant => tenant.Id == tenantId))
+        {
+            return;
+        }
+
         var userId = Guid.NewGuid();
+
+        var tenant = new Tenant(tenantId, "Test Tenant", "test-tenant");
+        var role = new Role(
+            Guid.NewGuid(),
+            tenantId,
+            "Admin",
+            "Administrador de pruebas",
+            ["Admin.Full", "Security.Manage"]);
+        var (passwordHash, salt) = new PasswordHasher().HashPassword("ChangeMe_Admin_2026!");
+        var admin = new UserIdentity(
+            userId,
+            tenantId,
+            "admin@ocap.io",
+            passwordHash,
+            salt,
+            "Test Administrator");
+        admin.VerifyEmail();
+
+        db.Tenants.Add(tenant);
+        db.Roles.Add(role);
+        db.UserIdentities.Add(admin);
+        db.UserRoles.Add(new UserRole(Guid.NewGuid(), userId, role.Id, tenantId));
 
         // Seed Google Connection for IntegrationsController
         var googleConn = new OAuthConnection(

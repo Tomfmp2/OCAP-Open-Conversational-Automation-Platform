@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using OCAP.Workflow.Abstractions;
 using OCAP.Workflow.Application.Expressions;
@@ -140,7 +141,10 @@ public class WorkflowNodeTests
             new StartNode()
         ]);
 
-        var node = new ParallelNode(resolver, NullLogger<ParallelNode>.Instance);
+        using var services = new ServiceCollection()
+            .AddSingleton<IWorkflowNodeExecutorResolver>(resolver)
+            .BuildServiceProvider();
+        var node = new ParallelNode(services, NullLogger<ParallelNode>.Instance);
         var def = new WorkflowDefinition(Guid.NewGuid(), Guid.NewGuid(), "P");
         def.AddStep(new WorkflowStep(Guid.NewGuid(), "a", "A", WorkflowNodeType.VariableAssign,
             """{"assignments":{"a":"1"}}"""));
