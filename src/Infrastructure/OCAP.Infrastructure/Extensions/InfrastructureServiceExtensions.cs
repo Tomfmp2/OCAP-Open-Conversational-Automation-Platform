@@ -4,7 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using OCAP.Core.Ports;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Infrastructure.Persistence.Interceptors;
 using OCAP.Infrastructure.Persistence.Repositories;
+using OCAP.Infrastructure.Persistence.Tenancy;
+using OCAP.Security.Abstractions;
 
 namespace OCAP.Infrastructure.Extensions;
 
@@ -14,16 +17,24 @@ public static class InfrastructureServiceExtensions
     {
         var useInMemory = string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase);
 
+        // Fallback tenant context for non-HTTP hosts; API replaces with HttpTenantContext.
+        if (!services.Any(d => d.ServiceType == typeof(ITenantContext)))
+        {
+            services.AddScoped<ITenantContext>(_ => SystemTenantContext.Instance);
+        }
+
         // Audit Trail Interceptor
-        services.AddSingleton(sp => new OCAP.Infrastructure.Persistence.Interceptors.AuditSaveChangesInterceptor(sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()));
+        services.AddSingleton(sp => new AuditSaveChangesInterceptor(sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()));
+        services.AddScoped<TenantSaveChangesInterceptor>();
 
         if (useInMemory)
         {
             var dbName = configuration["InMemoryDbName"] ?? "OCAP_InMemory_Db";
             services.AddDbContext<OCAPDbContext>((sp, options) =>
             {
-                var interceptor = sp.GetRequiredService<OCAP.Infrastructure.Persistence.Interceptors.AuditSaveChangesInterceptor>();
-                options.UseInMemoryDatabase(dbName).AddInterceptors(interceptor);
+                var audit = sp.GetRequiredService<AuditSaveChangesInterceptor>();
+                var tenant = sp.GetRequiredService<TenantSaveChangesInterceptor>();
+                options.UseInMemoryDatabase(dbName).AddInterceptors(audit, tenant);
             });
         }
         else
@@ -31,9 +42,10 @@ public static class InfrastructureServiceExtensions
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<OCAPDbContext>((sp, options) =>
             {
-                var interceptor = sp.GetRequiredService<OCAP.Infrastructure.Persistence.Interceptors.AuditSaveChangesInterceptor>();
+                var audit = sp.GetRequiredService<AuditSaveChangesInterceptor>();
+                var tenant = sp.GetRequiredService<TenantSaveChangesInterceptor>();
                 options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName))
-                       .AddInterceptors(interceptor);
+                       .AddInterceptors(audit, tenant);
             });
         }
 
@@ -66,7 +78,6 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<OCAP.Core.Events.Distributed.IInboxStore, OCAP.Infrastructure.Events.Distributed.EfInboxStore>();
         services.AddScoped<OCAP.Core.Events.Distributed.IMessageDeadLetterHandler, OCAP.Infrastructure.Events.Distributed.MessageDeadLetterHandler>();
         services.AddSingleton<OCAP.Core.Events.IEventBus, OCAP.Infrastructure.Events.Distributed.DistributedEventBus>();
-        services.AddHostedService<OCAP.Infrastructure.Events.Distributed.OutboxProcessorBackgroundService>();
 
         return services;
     }

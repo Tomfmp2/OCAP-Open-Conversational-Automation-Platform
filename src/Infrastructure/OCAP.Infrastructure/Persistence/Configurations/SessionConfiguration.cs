@@ -23,6 +23,8 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
             
         builder.Property(s => s.ExpiresAt)
             .IsRequired();
+
+        builder.HasIndex(s => s.TenantId);
             
         builder.HasOne<Conversation>()
             .WithMany()

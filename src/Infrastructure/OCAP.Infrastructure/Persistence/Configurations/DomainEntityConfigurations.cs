@@ -21,6 +21,8 @@ public class ToolExecutionConfiguration : IEntityTypeConfiguration<ToolExecution
         builder.HasIndex(x => x.AgentId);
         builder.HasIndex(x => x.ConversationId);
         builder.HasIndex(x => x.ExecutedAt);
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.ExecutedAt });
     }
 }
 
@@ -31,7 +33,8 @@ public class AgentToolPermissionConfiguration : IEntityTypeConfiguration<AgentTo
         builder.ToTable("AgentToolPermissions");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.PermissionName).IsRequired().HasMaxLength(128);
-        builder.HasIndex(x => new { x.AgentId, x.PermissionName }).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.AgentId, x.PermissionName }).IsUnique();
+        builder.HasIndex(x => x.TenantId);
     }
 }
 
@@ -45,7 +48,8 @@ public class OAuthConnectionConfiguration : IEntityTypeConfiguration<OAuthConnec
         builder.Property(x => x.AccessToken).IsRequired();
         builder.Property(x => x.RefreshToken).IsRequired();
         builder.Property(x => x.Scopes).HasMaxLength(2000);
-        builder.HasIndex(x => new { x.UserId, x.Provider }).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.UserId, x.Provider }).IsUnique();
+        builder.HasIndex(x => x.TenantId);
     }
 }
 
@@ -60,6 +64,8 @@ public class CoreOutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMes
         builder.Property(x => x.Error).HasMaxLength(4000);
         builder.HasIndex(x => x.ProcessedOnUtc);
         builder.HasIndex(x => x.OccurredOnUtc);
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.ProcessedOnUtc });
     }
 }
 
@@ -73,6 +79,7 @@ public class AiConversationMemoryConfiguration : IEntityTypeConfiguration<AiConv
         builder.Property(x => x.Content).IsRequired();
         builder.HasIndex(x => x.ConversationId);
         builder.HasIndex(x => x.CreatedAt);
+        builder.HasIndex(x => new { x.TenantId, x.ConversationId });
     }
 }
 
@@ -86,6 +93,7 @@ public class AiExecutionLogConfiguration : IEntityTypeConfiguration<AiExecutionL
         builder.Property(x => x.Model).IsRequired().HasMaxLength(128);
         builder.HasIndex(x => x.ExecutedAt);
         builder.HasIndex(x => x.Provider);
+        builder.HasIndex(x => new { x.TenantId, x.ExecutedAt });
     }
 }
 
@@ -199,6 +207,8 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Ignore(x => x.IsActive);
         builder.HasIndex(x => x.Token).IsUnique();
         builder.HasIndex(x => x.UserId);
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.UserId });
         builder.HasOne<UserIdentity>()
             .WithMany()
             .HasForeignKey(x => x.UserId)
@@ -291,6 +301,7 @@ public class WorkflowVersionConfiguration : IEntityTypeConfiguration<WorkflowVer
         builder.HasKey(x => x.Id);
         builder.Property(x => x.DefinitionJson).IsRequired().HasColumnType("jsonb");
         builder.HasIndex(x => new { x.WorkflowDefinitionId, x.VersionNumber }).IsUnique();
+        builder.HasIndex(x => x.TenantId);
         builder.HasOne<WorkflowDefinition>()
             .WithMany()
             .HasForeignKey(x => x.WorkflowDefinitionId)
@@ -331,6 +342,7 @@ public class WorkflowExecutionHistoryConfiguration : IEntityTypeConfiguration<Wo
         builder.Property(x => x.OutputJson).HasColumnType("jsonb");
         builder.Property(x => x.ErrorMessage).HasMaxLength(4000);
         builder.HasIndex(x => x.ExecutionId);
+        builder.HasIndex(x => new { x.TenantId, x.ExecutionId });
         builder.HasOne<WorkflowExecution>()
             .WithMany()
             .HasForeignKey(x => x.ExecutionId)
@@ -347,6 +359,7 @@ public class WorkflowVariableConfiguration : IEntityTypeConfiguration<WorkflowVa
         builder.Property(x => x.Key).IsRequired().HasMaxLength(128);
         builder.Property(x => x.ValueJson).IsRequired().HasColumnType("jsonb");
         builder.HasIndex(x => new { x.ExecutionId, x.Key }).IsUnique();
+        builder.HasIndex(x => x.TenantId);
         builder.HasOne<WorkflowExecution>()
             .WithMany()
             .HasForeignKey(x => x.ExecutionId)

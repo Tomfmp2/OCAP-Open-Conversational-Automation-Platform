@@ -19,4 +19,10 @@ public interface ITenantContext
     /// Indica si el contexto del Tenant fue resuelto correctamente desde la petición o credenciales.
     /// </summary>
     bool IsResolved { get; }
+
+    /// <summary>
+    /// Cuando es true, los HasQueryFilter de EF Core no restringen por TenantId
+    /// (jobs de sistema, design-time, operaciones de plataforma explícitas).
+    /// </summary>
+    bool BypassTenantFilters { get; }
 }
