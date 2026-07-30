@@ -1,22 +1,36 @@
-# Bus de Eventos Distribuido (CAP-20)
+# Bus de Eventos Distribuido (Sprint 4)
 
-Especificación técnica de la infraestructura distribuida de mensajería de OCAP.
+Estado alineado con el código en `OCAP.Infrastructure`.
 
-## Arquitectura de Componentes
+## Transportes implementados
 
-- `IEventBus`: Punto de entrada único del dominio de OCAP (100% compatible hacia atrás).
-- `DistributedEventBus`: Implementación de orquestación con soporte para Outbox, Inbox, DLQ y envoltura de sobres `EventEnvelope<T>`.
-- `IEventTransport`: Adaptador de comunicación de red (`InMemoryTransport`, `RabbitMqEventTransport`, `NatsJetStreamEventTransport`).
-- `IOutboxStore`: Persistencia transaccional de mensajes pendientes.
-- `IInboxStore`: Deduplicación e idempotencia.
-- `IMessageDeadLetterHandler`: Almacenamiento y reintento de mensajes descartados.
+| Provider | Clase | Notas |
+|----------|-------|-------|
+| InMemory | `InMemoryEventTransport` | Solo Development/Testing (`EventBus:Provider=InMemory`) |
+| RabbitMQ | `RabbitMqEventTransport` | AMQP real (`RabbitMQ.Client`), topic exchange, DLX/DLQ, publisher confirms, prefetch, recovery |
+| NATS | `NatsJetStreamEventTransport` | JetStream real (`NATS.Net`), durable consumer, ack/nak, reconnect |
 
-## API REST de Administración
+No hay implementaciones de Azure Service Bus, Kafka, SQS, Redis Streams ni Pub/Sub.
 
-- `GET /api/eventbus/status`: Estado del transporte y nodo del clúster.
-- `GET /api/eventbus/metrics`: Métricas de mensajes procesados, outbox pendiente y DLQ.
-- `GET /api/eventbus/retries`: Política de reintentos y backoff.
-- `GET /api/eventbus/deadletters`: Lista de mensajes en DLQ.
-- `POST /api/eventbus/deadletters/retry`: Reprocesa un mensaje en DLQ.
-- `GET /api/eventbus/connections`: Conexiones activas al clúster.
-- `GET /api/eventbus/providers`: Proveedores de transporte soportados.
+## Outbox / Inbox / DLQ
+
+- Publish escribe en `DistributedOutboxMessages` cuando `EnableOutbox=true`.
+- `ImmediateDispatch=true` (InMemory): publica al transporte y marca processed.
+- Brokers: `ImmediateDispatch=false`; `OutboxProcessorBackgroundService` publica por lotes con retry exponencial; poison → DLQ.
+- Inbox deduplica por `(MessageId, ConsumerGroup)` en el handler del bus.
+- Replay DLQ reencola en outbox.
+
+## Configuración
+
+```json
+"EventBus": {
+  "Provider": "RabbitMQ",
+  "ConnectionString": "amqp://ocap:pass@rabbitmq:5672/",
+  "NatsUrl": "nats://nats:4222",
+  "EnableOutbox": true,
+  "ImmediateDispatch": false,
+  "MaxRetries": 5
+}
+```
+
+Compose incluye servicios `rabbitmq` y `nats`.
