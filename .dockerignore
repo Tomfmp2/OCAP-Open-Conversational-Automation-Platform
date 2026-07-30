@@ -1,0 +1,12 @@
+.git
+.github
+.cursor
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/coverage
+**/test-results
+**/playwright-report
+**/*.trx
+**/*.log
