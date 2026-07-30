@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using FluentAssertions;
 using OCAP.Api.Tests.Infrastructure;
 
@@ -32,7 +34,27 @@ public class HealthCheckTests : IClassFixture<OcapApiFactory>
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNullOrEmpty();
+        var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
+        document.Should().NotBeNull();
+
+        var root = document!.RootElement;
+        root.GetProperty("status").GetString().Should().NotBeNullOrWhiteSpace();
+        root.GetProperty("isSystemReady").ValueKind.Should().BeOneOf(
+            JsonValueKind.True,
+            JsonValueKind.False);
+        root.GetProperty("timestamp").GetDateTime().Should().BeCloseTo(
+            DateTime.UtcNow,
+            TimeSpan.FromMinutes(1));
+
+        var steps = root.GetProperty("steps");
+        steps.GetArrayLength().Should().BeGreaterThanOrEqualTo(4);
+        foreach (var step in steps.EnumerateArray())
+        {
+            step.GetProperty("id").GetInt32().Should().BeGreaterThan(0);
+            step.GetProperty("title").GetString().Should().NotBeNullOrWhiteSpace();
+            step.GetProperty("description").GetString().Should().NotBeNullOrWhiteSpace();
+            step.GetProperty("status").GetString().Should().BeOneOf("completed", "error");
+            step.GetProperty("details").GetString().Should().NotBeNullOrWhiteSpace();
+        }
     }
 }
