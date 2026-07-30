@@ -1,10 +1,18 @@
+using System.Reflection;
+using Asp.Versioning;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OCAP.Api.Configuration;
+using OCAP.Api.Filters;
+using OCAP.Api.Middlewares;
 using System.Text;
 using System.Threading.RateLimiting;
 using OCAP.Intelligence.Abstractions;
@@ -43,7 +51,57 @@ public static class ApiServiceExtensions
     // Registra todos los servicios propios del gateway HTTP.
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddControllers();
+        services.AddControllers(options =>
+            {
+                // Fail-safe: toda acción requiere autenticación salvo [AllowAnonymous].
+                var policy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build();
+                options.Filters.Add(new AuthorizeFilter(policy));
+                options.Filters.Add<FluentValidationActionFilter>();
+            })
+            .ConfigureApiBehaviorOptions(options =>
+            {
+                options.InvalidModelStateResponseFactory = context =>
+                {
+                    var problem = new ValidationProblemDetails(context.ModelState)
+                    {
+                        Status = StatusCodes.Status400BadRequest,
+                        Title = "Validación fallida",
+                        Type = "https://httpstatuses.com/400",
+                        Instance = context.HttpContext.Request.Path
+                    };
+                    problem.Extensions["correlationId"] =
+                        context.HttpContext.Items[ExceptionHandlingMiddleware.CorrelationHeader];
+                    problem.Extensions["requestId"] =
+                        context.HttpContext.Items[ExceptionHandlingMiddleware.RequestIdHeader];
+                    problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+                    return new BadRequestObjectResult(problem)
+                    {
+                        ContentTypes = { "application/problem+json" }
+                    };
+                };
+            });
+
+        services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1, 0);
+                options.AssumeDefaultVersionWhenUnspecified = true;
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = ApiVersionReader.Combine(
+                    new HeaderApiVersionReader("X-Api-Version"),
+                    new QueryStringApiVersionReader("api-version"));
+            })
+            .AddMvc()
+            .AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'VVV";
+                options.SubstituteApiVersionInUrl = false;
+            });
+
         services.AddEndpointsApiExplorer();
 
         // Registrar Caché en Memoria
@@ -241,7 +299,7 @@ public static class ApiServiceExtensions
             {
                 Title = "OCAP API",
                 Version = "v1",
-                Description = "Open Conversational Automation Platform — API Gateway"
+                Description = "Open Conversational Automation Platform — API Gateway (RFC 7807 ProblemDetails, API v1.0)"
             });
 
             c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -268,6 +326,12 @@ public static class ApiServiceExtensions
                     Array.Empty<string>()
                 }
             });
+
+            var xmlPath = Path.Combine(AppContext.BaseDirectory, "OCAP.Api.xml");
+            if (File.Exists(xmlPath))
+            {
+                c.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+            }
         });
 
         services.AddOcapObservability(configuration);
