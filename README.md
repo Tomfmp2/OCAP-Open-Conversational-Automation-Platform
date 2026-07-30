@@ -60,6 +60,10 @@ Bootstrap__TenantSlug=mi-organizacion
 
 Si no se proporcionan, el código contiene valores de desarrollo conocidos. No deben utilizarse en producción.
 
+## Gobernanza de API
+
+La API aplica autenticación JWT por defecto, validación FluentValidation, errores RFC 7807 (`application/problem+json`), versionado 1.0 y cabeceras `X-Correlation-Id` / `X-Request-Id`. Detalle en `docs/API_GOVERNANCE.md`.
+
 ## Salud y métricas
 
 La API expone:
