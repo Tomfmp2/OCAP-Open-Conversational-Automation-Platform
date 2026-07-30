@@ -2,37 +2,111 @@
 
 @layer base {
   :root {
-    --background: #FAFAFA;
-    --foreground: #09090B;
-    --card: #FFFFFF;
-    --card-foreground: #09090B;
-    --primary: #2563EB;
-    --primary-foreground: #F8FAFC;
-    --secondary: #F4F4F5;
-    --secondary-foreground: #18181B;
-    --muted: #F4F4F5;
-    --muted-foreground: #71717A;
-    --border: #E4E4E7;
+    --background: #fafafa;
+    --foreground: #09090b;
+    --card: #ffffff;
+    --card-foreground: #09090b;
+    --elevated: #ffffff;
+    --primary: #2563eb;
+    --primary-foreground: #f8fafc;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #18181b;
+    --accent: #7c3aed;
+    --accent-foreground: #fafafa;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --border: #e4e4e7;
+    --ring: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --glow: rgba(37, 99, 235, 0.35);
+    --glow-accent: rgba(124, 58, 237, 0.28);
+    --chart-1: #3b82f6;
+    --chart-2: #8b5cf6;
+    --chart-3: #10b981;
+    --chart-4: #f59e0b;
+    --sidebar: #f4f4f5;
+    --sidebar-foreground: #18181b;
+    --radius: 1rem;
   }
 
   .dark {
-    --background: #09090B;
-    --foreground: #FAFAFA;
-    --card: #0F0F12;
-    --card-foreground: #FAFAFA;
-    --primary: #3B82F6;
-    --primary-foreground: #0F172A;
-    --secondary: #27272A;
-    --secondary-foreground: #FAFAFA;
-    --muted: #27272A;
-    --muted-foreground: #A1A1AA;
-    --border: #27272A;
+    --background: #09090b;
+    --foreground: #fafafa;
+    --card: #0f0f12;
+    --card-foreground: #fafafa;
+    --elevated: #141419;
+    --primary: #3b82f6;
+    --primary-foreground: #0f172a;
+    --secondary: #18181b;
+    --secondary-foreground: #fafafa;
+    --accent: #8b5cf6;
+    --accent-foreground: #fafafa;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --border: #27272a;
+    --ring: #60a5fa;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+    --glow: rgba(59, 130, 246, 0.28);
+    --glow-accent: rgba(139, 92, 246, 0.22);
+    --chart-1: #60a5fa;
+    --chart-2: #a78bfa;
+    --chart-3: #34d399;
+    --chart-4: #fbbf24;
+    --sidebar: #0a0a0c;
+    --sidebar-foreground: #fafafa;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
   }
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
-  overflow-x: hidden;
+@layer utilities {
+  .surface-card {
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 40%, transparent);
+  }
+
+  .surface-glass {
+    background: color-mix(in srgb, var(--card) 72%, transparent);
+    backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: var(--radius);
+  }
+
+  .glow-ring {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent),
+      0 0 40px var(--glow),
+      0 0 80px var(--glow-accent);
+  }
+
+  .text-muted {
+    color: var(--muted-foreground);
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  }
 }
