@@ -2,14 +2,15 @@ using OCAP.DeploymentManager.Models;
 using OCAP.DeploymentManager.Services;
 
 Console.WriteLine("=================================================");
-Console.WriteLine("        OCAP DEPLOYMENT MANAGER FOUNDATION       ");
-Console.WriteLine("   Open Conversational Automation Platform v0.9.0 ");
+Console.WriteLine("        OCAP DEPLOYMENT MANAGER                  ");
+Console.WriteLine("   Open Conversational Automation Platform       ");
 Console.WriteLine("=================================================");
 Console.WriteLine();
 
 var config = new DeploymentConfiguration();
 var generator = new EnvironmentGenerator();
 var validator = new DeploymentValidator();
+var composeHelper = new DockerComposeHelper();
 
 Console.WriteLine("Seleccione el modo de instalación:");
 Console.WriteLine("[1] Desarrollo Local (Valores predeterminados)");
@@ -22,29 +23,49 @@ if (choice == "2") config.Mode = InstallationMode.PersonalServer;
 else if (choice == "3") config.Mode = InstallationMode.EnterpriseServer;
 else config.Mode = InstallationMode.LocalDevelopment;
 
+if (config.Mode == InstallationMode.LocalDevelopment)
+{
+    config.EventBusProvider = "InMemory";
+    config.PostgresPort = 5433;
+}
+
 Console.WriteLine($"\n[Configurando para modo: {config.Mode}]");
 
-// Validar la configuración
-var (isValid, errors) = validator.Validate(config);
+var composePath = Path.GetFullPath(config.ComposeFilePath);
+var report = await validator.ValidateInfrastructureAsync(config, composePath);
 
-if (!isValid)
+Console.WriteLine("\n--- Validación de infraestructura ---");
+Console.WriteLine(report.ToJson());
+
+if (!report.ConfigValid)
 {
-    Console.WriteLine("\n❌ Errores en la configuración:");
-    foreach (var err in errors)
+    Console.WriteLine("\nErrores de configuración:");
+    foreach (var err in report.ConfigErrors)
     {
         Console.WriteLine($" - {err}");
     }
-    return;
+    return 1;
 }
 
-Console.WriteLine("\n✓ Configuración validada correctamente.");
-
 var envContent = generator.GenerateEnvironmentFileContent(config);
-var outputPath = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), ".env");
-System.IO.File.WriteAllText(outputPath, envContent);
+var outputPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+await File.WriteAllTextAsync(outputPath, envContent);
 
-Console.WriteLine($"✓ Archivo .env generado exitosamente en: {outputPath}");
-Console.WriteLine("\n[Próximos pasos de despliegue]");
-Console.WriteLine("Ejecute el siguiente comando para iniciar los contenedores:");
-Console.WriteLine("  docker-compose up -d --build");
-Console.WriteLine("\n¡Despliegue configurado con éxito!");
+Console.WriteLine($"\nArchivo .env generado: {outputPath}");
+
+if (report.ComposeFileExists && report.ComposeAvailable)
+{
+    var upCommand = composeHelper.BuildUpCommand(composePath);
+    Console.WriteLine("\nComando sugerido (no ejecutado automáticamente):");
+    Console.WriteLine($"  {upCommand}");
+}
+else
+{
+    Console.WriteLine("\nDocker Compose no disponible o docker-compose.yml ausente.");
+}
+
+Console.WriteLine(report.IsReady
+    ? "\nValidación lista para despliegue."
+    : "\nValidación incompleta: revise Docker/Compose/red antes de levantar servicios.");
+
+return report.IsReady ? 0 : 2;
