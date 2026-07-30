@@ -81,6 +81,9 @@ services:
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:-OcapSecurePass2026!}"
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
+      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:-OcapEnterpriseVaultMasterKey2026Secure!}
+      Security__Vault__MasterKey: ${VAULT_MASTER_KEY:-OcapEnterpriseVaultMasterKey2026Secure!}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Knowledge__UseInMemory: "false"
       Knowledge__VectorStore: "PgVector"
