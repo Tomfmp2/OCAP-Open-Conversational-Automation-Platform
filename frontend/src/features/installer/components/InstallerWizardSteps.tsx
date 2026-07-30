@@ -2,7 +2,7 @@
 
 import React from "react";
 import { CheckCircle2, Play, XCircle, Loader2 } from "lucide-react";
-import { InstallerStep, useInstallerValidation } from "../api/useInstallerData";
+import { InstallerStep } from "../api/useInstallerData";
 
 function StepStatusBadge({ status }: { status: InstallerStep["status"] }) {
   if (status === "completed") {
@@ -26,17 +26,21 @@ function StepStatusBadge({ status }: { status: InstallerStep["status"] }) {
   );
 }
 
-export function InstallerWizardSteps({ initialSteps }: { initialSteps: InstallerStep[] }) {
-  const validationMutation = useInstallerValidation();
+interface InstallerWizardStepsProps {
+  steps: InstallerStep[];
+  isSystemReady: boolean;
+  isValidating: boolean;
+  lastCheckedAt: string;
+  onValidate: () => void;
+}
 
-  const handleRunInstall = () => {
-    validationMutation.mutate();
-  };
-
-  const steps = validationMutation.data?.steps ?? initialSteps;
-  const isSystemReady =
-    validationMutation.data?.isSystemReady ?? steps.every((s) => s.status === "completed");
-
+export function InstallerWizardSteps({
+  steps,
+  isSystemReady,
+  isValidating,
+  lastCheckedAt,
+  onValidate,
+}: InstallerWizardStepsProps) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800/80 rounded-xl p-6 shadow-sm space-y-6">
       <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-4">
@@ -46,42 +50,43 @@ export function InstallerWizardSteps({ initialSteps }: { initialSteps: Installer
         </div>
         <button
           type="button"
-          onClick={handleRunInstall}
-          disabled={validationMutation.isPending}
+          onClick={onValidate}
+          disabled={isValidating}
+          aria-busy={isValidating}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md transition-colors disabled:opacity-50"
         >
-          {validationMutation.isPending ? (
+          {isValidating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Play className="w-4 h-4" />
           )}
-          <span>{validationMutation.isPending ? "Verificando Entorno..." : "Ejecutar Verificación Completa"}</span>
+          <span>{isValidating ? "Verificando entorno..." : "Ejecutar verificación completa"}</span>
         </button>
       </div>
 
-      {validationMutation.isSuccess && (
-        <div
-          className={`p-4 rounded-xl border text-xs flex items-center gap-3 ${
-            isSystemReady
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-              : "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
-          }`}
-        >
-          {isSystemReady ? (
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-          ) : (
-            <XCircle className="w-5 h-5 shrink-0" />
-          )}
-          <div>
-            <p className="font-bold">
-              {isSystemReady ? "Plataforma OCAP Operacional" : "Verificación completada con advertencias"}
-            </p>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
-              Resultados obtenidos de /api/health, /api/knowledge/status y /api/providers/status.
-            </p>
-          </div>
+      <div
+        role="status"
+        className={`p-4 rounded-xl border text-xs flex items-center gap-3 ${
+          isSystemReady
+            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+            : "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400"
+        }`}
+      >
+        {isSystemReady ? (
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+        ) : (
+          <XCircle className="w-5 h-5 shrink-0" />
+        )}
+        <div>
+          <p className="font-bold">
+            {isSystemReady ? "Plataforma OCAP operacional" : "Plataforma OCAP no preparada"}
+          </p>
+          <p className="text-[11px] text-zinc-400 mt-0.5">
+            Diagnóstico real de PostgreSQL, Event Bus, almacenamiento y health checks.
+            Última revisión: {new Date(lastCheckedAt).toLocaleString()}.
+          </p>
         </div>
-      )}
+      </div>
 
       <div className="space-y-4">
         {steps.map((s) => (
