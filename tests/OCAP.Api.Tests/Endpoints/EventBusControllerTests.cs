@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Moq;
 using OCAP.Api.Controllers;
 using OCAP.Core.Events.Distributed;
+using OCAP.Infrastructure.Events.Distributed;
 using OCAP.Infrastructure.Persistence.Context;
 using Xunit;
 
@@ -28,7 +30,11 @@ public class EventBusControllerTests
         var deadLetterMock = new Mock<IMessageDeadLetterHandler>();
         var dbContext = GetInMemoryDbContext();
 
-        var controller = new EventBusController(transportMock.Object, deadLetterMock.Object, dbContext);
+        var controller = new EventBusController(
+            transportMock.Object,
+            deadLetterMock.Object,
+            dbContext,
+            Options.Create(new EventBusOptions()));
 
         var result = await controller.GetStatus(CancellationToken.None);
 

@@ -1,19 +1,29 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OCAP.Core.Events.Distributed;
+using OCAP.Core.Storage;
 using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Controllers;
 
+/// <summary>
+/// Diagnóstico extendido para el instalador (no sustituye /health/ready|/live).
+/// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/health/diagnostic")]
 [AllowAnonymous]
 public class HealthController : ControllerBase
 {
-    // Endpoint para verificar la salud y diagnósticos del sistema OCAP
     [HttpGet]
-    public async Task<IActionResult> Get([FromServices] OCAPDbContext dbContext, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get(
+        [FromServices] OCAPDbContext dbContext,
+        [FromServices] HealthCheckService healthChecks,
+        [FromServices] IEventTransport transport,
+        [FromServices] IObjectStorage storage,
+        CancellationToken cancellationToken)
     {
-        bool dbOk = false;
+        bool dbOk;
         try
         {
             dbOk = await dbContext.Database.CanConnectAsync(cancellationToken);
@@ -23,46 +33,23 @@ public class HealthController : ControllerBase
             dbOk = false;
         }
 
+        var busOk = await transport.HealthCheckAsync(cancellationToken);
+        var storageOk = await storage.HealthAsync(cancellationToken);
+        var report = await healthChecks.CheckHealthAsync(cancellationToken);
+
         var steps = new List<object>
         {
-            new
-            {
-                Id = 1,
-                Title = "Conexión a Base de Datos PostgreSQL",
-                Description = "Verificación de conectividad con EF Core y PostgreSQL",
-                Status = dbOk ? "completed" : "error",
-                Details = dbOk ? "Conexión a PostgreSQL establecida y verificada." : "Base de datos no accesible."
-            },
-            new
-            {
-                Id = 2,
-                Title = "Inicialización de Esquema Multi-Tenant",
-                Description = "Migraciones de base de datos e inyección de contexto de seguridad",
-                Status = dbOk ? "completed" : "pending",
-                Details = "Aislamiento por Tenant activo en la capa de persistencia."
-            },
-            new
-            {
-                Id = 3,
-                Title = "Motor de Orquestación y Runtime AI",
-                Description = "Verificación de proveedores de IA y orquestación hexagonal de agentes",
-                Status = "completed",
-                Details = "Runtime de orquestación de agentes operacional."
-            },
-            new
-            {
-                Id = 4,
-                Title = "Canales de Comunicación y Webhooks",
-                Description = "Adaptadores de Telegram, WhatsApp y EventBus SignalR",
-                Status = "completed",
-                Details = "SignalR Hub de eventos en tiempo real activo."
-            }
+            new { Id = 1, Title = "PostgreSQL", Status = dbOk ? "completed" : "error", Details = dbOk ? "OK" : "Unreachable" },
+            new { Id = 2, Title = $"EventBus ({transport.ProviderName})", Status = busOk ? "completed" : "error", Details = busOk ? "OK" : "Unhealthy" },
+            new { Id = 3, Title = $"Storage ({storage.ProviderName})", Status = storageOk ? "completed" : "error", Details = storageOk ? "OK" : "Unhealthy" },
+            new { Id = 4, Title = "HealthChecks", Status = report.Status == HealthStatus.Healthy ? "completed" : "error", Details = report.Status.ToString() }
         };
 
+        var ready = dbOk && report.Status != HealthStatus.Unhealthy;
         return Ok(new
         {
-            Status = dbOk ? "Healthy" : "Degraded",
-            IsSystemReady = dbOk,
+            Status = ready ? "Healthy" : "Degraded",
+            IsSystemReady = ready,
             Timestamp = DateTime.UtcNow,
             Steps = steps
         });

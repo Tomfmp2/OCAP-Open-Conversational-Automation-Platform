@@ -76,10 +76,6 @@ public class OutboxProcessorBackgroundService : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var options = scope.ServiceProvider.GetService<IOptions<EventBusOptions>>()?.Value ?? new EventBusOptions();
-        var transport = scope.ServiceProvider.GetRequiredService<IEventTransport>();
-        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
-        var dlq = scope.ServiceProvider.GetService<IMessageDeadLetterHandler>();
-        var retryPolicy = scope.ServiceProvider.GetService<IMessageRetryPolicy>();
         var dbContext = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
 
         // Legacy outbox table (domain entities) — mark processed when present.
@@ -105,6 +101,16 @@ public class OutboxProcessorBackgroundService : BackgroundService
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        var transport = scope.ServiceProvider.GetService<IEventTransport>();
+        var outboxStore = scope.ServiceProvider.GetService<IOutboxStore>();
+        if (transport is null || outboxStore is null)
+        {
+            return;
+        }
+
+        var dlq = scope.ServiceProvider.GetService<IMessageDeadLetterHandler>();
+        var retryPolicy = scope.ServiceProvider.GetService<IMessageRetryPolicy>();
 
         var pending = await outboxStore.GetPendingMessagesAsync(options.OutboxBatchSize, cancellationToken);
         if (pending.Count == 0)
