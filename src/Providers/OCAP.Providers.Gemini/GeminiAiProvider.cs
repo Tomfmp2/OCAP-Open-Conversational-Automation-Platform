@@ -143,17 +143,46 @@ public class GeminiAiProvider : IAiProvider
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var models = await GetAvailableModelsAsync(cancellationToken);
-            stopwatch.Stop();
+            if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
+            {
+                stopwatch.Stop();
+                return new ProviderHealth
+                {
+                    ProviderName = Name,
+                    IsHealthy = false,
+                    LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
+                    ModelList = new List<string>(),
+                    Version = "v1",
+                    StatusMessage = "API Key no configurada"
+                };
+            }
 
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models?key={_settings.ApiKey}";
+            using var response = await _httpClient.GetAsync(url, cancellationToken);
+            stopwatch.Stop();
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ProviderHealth
+                {
+                    ProviderName = Name,
+                    IsHealthy = false,
+                    LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
+                    ModelList = new List<string>(),
+                    Version = "v1",
+                    StatusMessage = $"Gemini health failed ({response.StatusCode}): {err}"
+                };
+            }
+
+            var models = await GetAvailableModelsAsync(cancellationToken);
             return new ProviderHealth
             {
                 ProviderName = Name,
                 IsHealthy = true,
                 LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
                 ModelList = models.ToList(),
-                Version = "v1.2.0",
-                StatusMessage = "Google Gemini API Conectada Exitosamente"
+                Version = "v1",
+                StatusMessage = "Gemini API reachable"
             };
         }
         catch (Exception ex)
@@ -164,17 +193,39 @@ public class GeminiAiProvider : IAiProvider
                 ProviderName = Name,
                 IsHealthy = false,
                 LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
-                ModelList = new List<string> { "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro" },
-                Version = "v1.2.0",
-                StatusMessage = $"Desconectado o MOCK mode: {ex.Message}"
+                ModelList = new List<string>(),
+                Version = "v1",
+                StatusMessage = ex.Message
             };
         }
     }
 
-    public Task<IReadOnlyList<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<string> models = new List<string> { "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.0-pro" };
-        return Task.FromResult(models);
+        if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models?key={_settings.ApiKey}";
+            using var response = await _httpClient.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode) return Array.Empty<string>();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("models", out var models)) return Array.Empty<string>();
+            return models.EnumerateArray()
+                .Select(m => m.TryGetProperty("name", out var n) ? n.GetString()?.Replace("models/", "") : null)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Cast<string>()
+                .Take(50)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     private static List<object> BuildContentsPayload(AiRequest request)

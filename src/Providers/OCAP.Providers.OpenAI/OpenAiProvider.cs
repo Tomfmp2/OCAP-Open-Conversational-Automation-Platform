@@ -172,17 +172,48 @@ public class OpenAiProvider : IAiProvider
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var models = await GetAvailableModelsAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
+            {
+                stopwatch.Stop();
+                return new ProviderHealth
+                {
+                    ProviderName = Name,
+                    IsHealthy = false,
+                    LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
+                    ModelList = new List<string>(),
+                    Version = "v1",
+                    StatusMessage = "API Key no configurada"
+                };
+            }
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.BaseUrl.TrimEnd('/')}/models");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
             stopwatch.Stop();
 
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ProviderHealth
+                {
+                    ProviderName = Name,
+                    IsHealthy = false,
+                    LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
+                    ModelList = new List<string>(),
+                    Version = "v1",
+                    StatusMessage = $"OpenAI health failed ({response.StatusCode}): {err}"
+                };
+            }
+
+            var models = await GetAvailableModelsAsync(cancellationToken);
             return new ProviderHealth
             {
                 ProviderName = Name,
                 IsHealthy = true,
                 LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
                 ModelList = models.ToList(),
-                Version = "v1.2.0",
-                StatusMessage = "OpenAI API Conectada Exitosamente"
+                Version = "v1",
+                StatusMessage = "OpenAI API reachable"
             };
         }
         catch (Exception ex)
@@ -193,17 +224,42 @@ public class OpenAiProvider : IAiProvider
                 ProviderName = Name,
                 IsHealthy = false,
                 LatencyMs = stopwatch.Elapsed.TotalMilliseconds,
-                ModelList = new List<string> { "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo" },
-                Version = "v1.2.0",
-                StatusMessage = $"Desconectado o MOCK mode: {ex.Message}"
+                ModelList = new List<string>(),
+                Version = "v1",
+                StatusMessage = ex.Message
             };
         }
     }
 
-    public Task<IReadOnlyList<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<string> models = new List<string> { "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo" };
-        return Task.FromResult(models);
+        if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.BaseUrl.TrimEnd('/')}/models");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode) return Array.Empty<string>();
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("data", out var data)) return Array.Empty<string>();
+
+            return data.EnumerateArray()
+                .Select(e => e.TryGetProperty("id", out var id) ? id.GetString() : null)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Cast<string>()
+                .Take(50)
+                .ToList();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
     }
 
     private static List<object> BuildMessagesPayload(AiRequest request)
