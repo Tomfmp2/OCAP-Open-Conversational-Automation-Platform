@@ -62,10 +62,21 @@ public class EfWorkflowExecutionRepository : IWorkflowExecutionRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
-    public async Task<WorkflowExecution?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<WorkflowExecution?> GetByIdAsync(Guid id, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Set<WorkflowExecution>().Where(e => e.Id == id);
+        if (tenantId != Guid.Empty)
+            query = query.Where(e => e.TenantId == tenantId);
+        return await query.FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkflowExecution>> GetDueDelayedExecutionsAsync(DateTime utcNow, CancellationToken cancellationToken = default)
     {
         return await _context.Set<WorkflowExecution>()
-            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+            .Where(e => e.Status == Domain.Enums.WorkflowStatus.Paused
+                        && e.WaitUntilUtc != null
+                        && e.WaitUntilUtc <= utcNow)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<WorkflowExecution>> GetByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
