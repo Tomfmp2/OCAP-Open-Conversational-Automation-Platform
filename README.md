@@ -42,7 +42,7 @@ Servicios y puertos publicados por `docker-compose.yml`:
 | Prometheus | `9090` |
 | Nginx | `80` |
 | Dashboard auxiliar | `8081` |
-| Evolution API | `8080` |
+| Evolution API | `8088` |
 
 La API recibe PostgreSQL, Redis y el bus de eventos mediante variables de entorno del contenedor. Cambia `EVENTBUS_PROVIDER` a `Nats` para usar NATS; el valor por defecto del Compose es `RabbitMQ`.
 
@@ -63,6 +63,8 @@ Si no se proporcionan, el código contiene valores de desarrollo conocidos. No d
 ## Gobernanza de API
 
 La API aplica autenticación JWT por defecto, validación FluentValidation, errores RFC 7807 (`application/problem+json`), versionado 1.0 y cabeceras `X-Correlation-Id` / `X-Request-Id`. Detalle en `docs/API_GOVERNANCE.md`.
+
+OpenTelemetry: paquete OTLP **1.17.0** (ver `docs/infrastructure/OPENTELEMETRY.md`).
 
 ## Salud y métricas
 
