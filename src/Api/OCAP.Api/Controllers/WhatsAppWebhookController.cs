@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Responses;
 using OCAP.Channels.WhatsApp.DTOs;
@@ -8,6 +9,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/channels/whatsapp/webhook")]
+[AllowAnonymous]
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly WhatsAppWebhookValidator _validator;

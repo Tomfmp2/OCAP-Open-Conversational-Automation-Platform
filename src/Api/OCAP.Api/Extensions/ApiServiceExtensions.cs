@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OCAP.Api.Configuration;
+using System.Text;
 using System.Threading.RateLimiting;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
@@ -12,7 +15,9 @@ using OCAP.Providers.Gemini;
 using OCAP.Providers.Ollama;
 using OCAP.Providers.OpenAI;
 using OCAP.Security.Abstractions;
+using OCAP.Security.Abstractions.Options;
 using OCAP.Security.Application.UseCases;
+using OCAP.Security.Infrastructure.Configuration;
 using OCAP.Security.Infrastructure.Services;
 using OCAP.Workflow.Abstractions;
 using OCAP.Workflow.Application.Nodes;
@@ -43,15 +48,33 @@ public static class ApiServiceExtensions
         services.AddMemoryCache();
         services.AddSingleton<IAiResponseCache, InMemoryAiResponseCache>();
 
-        // Registrar servicios de Seguridad, Autenticación y Multi-Tenant.
+        // Secretos y autenticación (PI-1)
+        var jwtOptions = SecurityConfigurationBinder.BindJwtOptions(configuration);
+        var vaultOptions = SecurityConfigurationBinder.BindVaultOptions(configuration);
+
+        services.Configure<JwtOptions>(options =>
+        {
+            options.SecretKey = jwtOptions.SecretKey;
+            options.Issuer = jwtOptions.Issuer;
+            options.Audience = jwtOptions.Audience;
+            options.AccessTokenExpiryMinutes = jwtOptions.AccessTokenExpiryMinutes;
+        });
+        services.Configure<VaultOptions>(options =>
+        {
+            options.MasterKey = vaultOptions.MasterKey;
+        });
+
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddSingleton<IJwtTokenService>(sp => new JwtTokenService(
-            configuration["Jwt:SecretKey"] ?? "OCAP_SUPER_SECRET_SECURITY_KEY_FOR_JWT_SIGNING_2026_PRODUCTION"));
+        services.AddSingleton<IJwtTokenService>(_ => new JwtTokenService(jwtOptions));
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IConsentService, ConsentService>();
+
+        AddJwtBearerAuthentication(services, jwtOptions);
+        services.AddAuthorization();
         services.AddOcapOpenIddict();
+
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();
         services.AddScoped<IExternalIdentityResolver, ExternalIdentityResolver>();
         services.AddSingleton<ICredentialVault, AesDbCredentialVault>();
@@ -91,6 +114,7 @@ public static class ApiServiceExtensions
 
         services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
+        services.AddScoped<IUserContext, HttpUserContext>();
 
         services.AddScoped<AuthenticateUserUseCase>();
         services.AddScoped<CreateTenantUseCase>();
@@ -177,6 +201,31 @@ public static class ApiServiceExtensions
                 Version = "v1",
                 Description = "Open Conversational Automation Platform — API Gateway"
             });
+
+            c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Description = "JWT Authorization header usando el esquema Bearer. Ejemplo: \"Authorization: Bearer {token}\"",
+                Name = "Authorization",
+                In = ParameterLocation.Header,
+                Type = SecuritySchemeType.Http,
+                Scheme = JwtBearerDefaults.AuthenticationScheme,
+                BearerFormat = "JWT"
+            });
+
+            c.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference
+                        {
+                            Type = ReferenceType.SecurityScheme,
+                            Id = "Bearer"
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            });
         });
 
         services.AddHealthChecks()
@@ -189,6 +238,33 @@ public static class ApiServiceExtensions
         AddRateLimiting(services, configuration);
 
         return services;
+    }
+
+    private static void AddJwtBearerAuthentication(IServiceCollection services, JwtOptions jwtOptions)
+    {
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey));
+
+        services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = signingKey,
+                    ValidateIssuer = true,
+                    ValidIssuer = jwtOptions.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = jwtOptions.Audience,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero,
+                    RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+                    NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
+                };
+            });
     }
 
     private static void AddCors(IServiceCollection services, IConfiguration configuration)

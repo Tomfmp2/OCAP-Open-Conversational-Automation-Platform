@@ -88,12 +88,16 @@ if (enableRateLimiting)
 
 app.UseRouting();
 
-// Mapeo de controladores, SignalR hubs y health checks.
-app.MapControllers();
-app.MapHub<OCAP.Api.Hubs.EventsHub>("/hubs/events");
+// Autenticación y autorización deben ejecutarse después del routing y antes de MapControllers.
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Serilog Request Logging middleware for structured HTTP logging
 app.UseSerilogRequestLogging();
 
+// Mapeo de controladores, SignalR hubs y health checks.
+app.MapControllers();
+app.MapHub<OCAP.Api.Hubs.EventsHub>("/hubs/events");
 app.MapHealthChecks("/api/health");
 
 await app.RunAsync();
