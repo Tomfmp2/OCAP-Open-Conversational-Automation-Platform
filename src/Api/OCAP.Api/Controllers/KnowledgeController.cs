@@ -38,7 +38,26 @@ public class KnowledgeController : ControllerBase
     {
         var tenantId = _tenantContext.TenantId;
         var list = await _knowledgeService.GetKnowledgeBasesAsync(tenantId, cancellationToken);
-        return Ok(list);
+
+        // Enriquecer con conteo real de documentos por KB
+        var summaries = new List<object>();
+        foreach (var kb in list)
+        {
+            var docs = await _knowledgeService.GetDocumentsAsync(tenantId, kb.Id, cancellationToken);
+            summaries.Add(new
+            {
+                kb.Id,
+                kb.Name,
+                kb.Description,
+                kb.VectorDbProvider,
+                kb.Strategy,
+                kb.CreatedAtUtc,
+                DocumentCount = docs.Count,
+                VectorCount   = (long)docs.Count * 15  // Estimado: ~15 chunks por documento en promedio
+            });
+        }
+
+        return Ok(summaries);
     }
 
     [HttpPost]

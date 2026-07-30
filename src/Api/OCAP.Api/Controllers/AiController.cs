@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
+using System.Diagnostics;
 
 namespace OCAP.Api.Controllers;
 
@@ -87,4 +88,79 @@ public class AiController : ControllerBase
 
         return Ok(models);
     }
+
+    /// <summary>
+    /// POST /api/ai/test-generation
+    /// Ejecuta un prompt de prueba contra el proveedor LLM indicado y devuelve la respuesta con métricas reales.
+    /// </summary>
+    [HttpPost("test-generation")]
+    public async Task<IActionResult> TestGeneration(
+        [FromBody] AiTestGenerationRequestDto dto,
+        CancellationToken cancellationToken)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.Prompt))
+            return BadRequest(new { message = "El campo 'Prompt' es requerido." });
+
+        // Seleccionar proveedor según la solicitud o usar el proveedor activo
+        IAiProvider? provider = null;
+        if (!string.IsNullOrWhiteSpace(dto.Provider))
+        {
+            provider = _registry.GetProvider(dto.Provider);
+        }
+        provider ??= _registry.GetProvider(_selector.ActiveProviderName) ?? _aiProvider;
+
+        var request = new AiRequest
+        {
+            UserMessage = dto.Prompt,
+            SystemInstructions = "Eres un asistente de IA de OCAP. Responde de forma clara y concisa.",
+            Temperature = dto.Temperature,
+            MaxTokens = dto.MaxTokens,
+            EnableStreaming = false
+        };
+
+        var sw = Stopwatch.StartNew();
+        AiResponse aiResponse;
+
+        try
+        {
+            aiResponse = await provider.GenerateResponseAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(502, new { message = $"Error al generar respuesta del proveedor '{dto.Provider}': {ex.Message}" });
+        }
+
+        sw.Stop();
+
+        // Costo estimado (USD por 1000 tokens) — valores de referencia del mercado
+        var costPer1KTokens = (dto.Provider ?? string.Empty).ToUpperInvariant() switch
+        {
+            "OPENAI"    => 0.002,
+            "GEMINI"    => 0.00035,
+            "ANTHROPIC" => 0.003,
+            _           => 0.0001  // Mock / Ollama / local
+        };
+        var estimatedCost = (aiResponse.TokensUsed / 1000.0) * costPer1KTokens;
+
+        return Ok(new
+        {
+            Content          = aiResponse.GeneratedText,
+            TokensUsed       = aiResponse.TokensUsed,
+            LatencyMs        = sw.Elapsed.TotalMilliseconds,
+            EstimatedCostUsd = Math.Round(estimatedCost, 6),
+            Provider         = aiResponse.ProviderName,
+            Model            = aiResponse.ModelName
+        });
+    }
+}
+
+/// <summary>DTO de solicitud para el endpoint test-generation.</summary>
+public class AiTestGenerationRequestDto
+{
+    public string  Prompt          { get; set; } = string.Empty;
+    public string? Provider        { get; set; }
+    public string? Model           { get; set; }
+    public double  Temperature     { get; set; } = 0.7;
+    public int     MaxTokens       { get; set; } = 512;
+    public bool    EnableStreaming  { get; set; } = false;
 }

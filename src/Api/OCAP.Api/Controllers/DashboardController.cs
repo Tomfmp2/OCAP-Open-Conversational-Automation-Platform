@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Workflow.Domain.Enums;
+using System.Diagnostics;
 
 namespace OCAP.Api.Controllers;
 
@@ -197,5 +198,34 @@ public class DashboardController : ControllerBase
         };
 
         return Ok(diagnostics);
+    }
+    [HttpGet("system-metrics")]
+    public ActionResult GetSystemMetrics()
+    {
+        var process = Process.GetCurrentProcess();
+        var uptimeSeconds = (DateTime.UtcNow - ServerStartTimeUtc).TotalSeconds;
+
+        // GC proporciona estadísticas de memoria reales del proceso .NET
+        var gcMemoryMb = Math.Round(GC.GetTotalMemory(false) / (1024.0 * 1024.0), 1);
+        var processMemoryMb = Math.Round(process.WorkingSet64 / (1024.0 * 1024.0), 1);
+
+        // CPU: usamos el tiempo de CPU total del proceso para calcular un porcentaje aproximado
+        var cpuPercent = Math.Round(
+            process.TotalProcessorTime.TotalSeconds / (Environment.ProcessorCount * uptimeSeconds) * 100,
+            1);
+        cpuPercent = Math.Min(cpuPercent, 100.0); // cap a 100%
+
+        var point = new
+        {
+            TimeUtc           = DateTime.UtcNow,
+            CpuPercent        = cpuPercent,
+            MemoryMb          = processMemoryMb,
+            GcMemoryMb        = gcMemoryMb,
+            UptimeSeconds     = Math.Round(uptimeSeconds, 0),
+            ActiveThreads     = process.Threads.Count,
+            ProcessorCount    = Environment.ProcessorCount
+        };
+
+        return Ok(point);
     }
 }
