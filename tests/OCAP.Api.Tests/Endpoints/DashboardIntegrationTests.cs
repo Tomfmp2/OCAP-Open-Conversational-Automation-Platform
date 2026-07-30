@@ -138,7 +138,7 @@ public class DashboardIntegrationTests
     }
 
     [Fact]
-    public void ChannelManagementController_ExposesProviderStatusHealthConfigurationAndStatistics()
+    public async Task ChannelManagementController_ExposesProviderStatusHealthConfigurationAndStatistics()
     {
         // Arrange
         var registryMock = new Mock<IChannelRegistry>();
@@ -148,22 +148,27 @@ public class DashboardIntegrationTests
         var permMock = new Mock<IPermissionValidator>();
         var auditMock = new Mock<ISecurityAuditService>();
 
+        var tenantId = Guid.NewGuid();
+        tenantMock.Setup(t => t.TenantId).Returns(tenantId);
+        connManagerMock.Setup(c => c.GetTenantConnectionsAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Enumerable.Empty<ChannelConnection>());
+
         var controller = new ChannelManagementController(
             registryMock.Object, connManagerMock.Object, tenantMock.Object, userMock.Object, permMock.Object, auditMock.Object);
 
         // Act - Telegram Status & Health
-        var telegramStatus = controller.GetProviderStatus("Telegram") as OkObjectResult;
+        var telegramStatus = (await controller.GetProviderStatus("Telegram", CancellationToken.None)) as OkObjectResult;
         telegramStatus.Should().NotBeNull();
         telegramStatus!.StatusCode.Should().Be(200);
 
-        var telegramHealth = controller.GetProviderHealth("Telegram") as OkObjectResult;
+        var telegramHealth = (await controller.GetProviderHealth("Telegram", CancellationToken.None)) as OkObjectResult;
         telegramHealth.Should().NotBeNull();
 
         // Act - WhatsApp Config & Statistics
-        var waConfig = controller.GetProviderConfiguration("WhatsApp") as OkObjectResult;
+        var waConfig = (await controller.GetProviderConfiguration("WhatsApp", CancellationToken.None)) as OkObjectResult;
         waConfig.Should().NotBeNull();
 
-        var waStats = controller.GetProviderStatistics("WhatsApp") as OkObjectResult;
+        var waStats = (await controller.GetProviderStatistics("WhatsApp", CancellationToken.None)) as OkObjectResult;
         waStats.Should().NotBeNull();
     }
 
