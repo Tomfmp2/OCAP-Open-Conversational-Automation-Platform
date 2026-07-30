@@ -2,16 +2,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using OCAP.Core.Events.Distributed;
+using OCAP.Infrastructure.Events.Distributed;
 using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Infrastructure.BackgroundJobs;
 
-// Servicio en segundo plano para procesar el Patrón Outbox con Resiliencia y Backoff Progresivo
+/// <summary>
+/// Dispatcher Outbox: publica pendientes al transporte, reintentos, poison → DLQ.
+/// </summary>
 public class OutboxProcessorBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<OutboxProcessorBackgroundService> _logger;
-    private int _consecutiveFailures = 0;
+    private int _consecutiveFailures;
 
     public OutboxProcessorBackgroundService(IServiceProvider serviceProvider, ILogger<OutboxProcessorBackgroundService> logger)
     {
@@ -23,7 +28,6 @@ public class OutboxProcessorBackgroundService : BackgroundService
     {
         _logger.LogInformation("Outbox Processor started.");
 
-        // Breve espera inicial para permitir que el Host y las migraciones de DB terminen de arrancar
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
@@ -35,12 +39,12 @@ public class OutboxProcessorBackgroundService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            TimeSpan delayTime = TimeSpan.FromSeconds(10);
+            var delayTime = TimeSpan.FromSeconds(5);
 
             try
             {
                 await ProcessOutboxMessagesAsync(stoppingToken);
-                _consecutiveFailures = 0; // Reset al tener éxito
+                _consecutiveFailures = 0;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -49,20 +53,10 @@ public class OutboxProcessorBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 _consecutiveFailures++;
-                // Resiliencia con backoff exponencial: 10s -> 20s -> 40s -> max 60s
                 var backoffSeconds = Math.Min(60, (int)Math.Pow(2, Math.Min(_consecutiveFailures, 5)) * 5);
                 delayTime = TimeSpan.FromSeconds(backoffSeconds);
-
-                if (_consecutiveFailures <= 3)
-                {
-                    _logger.LogWarning("Outbox Processor: La base de datos o el servicio no está disponible temporalmente (Intento {FailCount}). Reintentando en {Backoff}s. Detalle: {Message}",
-                        _consecutiveFailures, backoffSeconds, ex.Message);
-                }
-                else
-                {
-                    _logger.LogError(ex, "Outbox Processor: Error persistente procesando mensajes outbox tras {FailCount} fallos consecutivos. Reintentando en {Backoff}s.",
-                        _consecutiveFailures, backoffSeconds);
-                }
+                _logger.LogWarning(ex, "Outbox Processor transient failure ({FailCount}); retry in {Backoff}s",
+                    _consecutiveFailures, backoffSeconds);
             }
 
             try
@@ -81,38 +75,91 @@ public class OutboxProcessorBackgroundService : BackgroundService
     private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
     {
         using var scope = _serviceProvider.CreateScope();
+        var options = scope.ServiceProvider.GetService<IOptions<EventBusOptions>>()?.Value ?? new EventBusOptions();
+        var transport = scope.ServiceProvider.GetRequiredService<IEventTransport>();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var dlq = scope.ServiceProvider.GetService<IMessageDeadLetterHandler>();
+        var retryPolicy = scope.ServiceProvider.GetService<IMessageRetryPolicy>();
         var dbContext = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
 
-        var messages = await dbContext.OutboxMessages
+        // Legacy outbox table (domain entities) — mark processed when present.
+        var legacy = await dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null && m.Error == null)
-            .Take(20)
+            .Take(options.OutboxBatchSize)
             .ToListAsync(cancellationToken);
 
-        foreach (var message in messages)
+        foreach (var message in legacy)
         {
             try
             {
-                _logger.LogInformation("Publishing Outbox Message {MessageId} of type {MessageType}", message.Id, message.Type);
                 message.MarkAsProcessed();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process Outbox Message {MessageId}", message.Id);
+                _logger.LogError(ex, "Failed legacy outbox {MessageId}", message.Id);
                 message.MarkAsFailed(ex.Message);
             }
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        var outboxStore = scope.ServiceProvider.GetService<OCAP.Core.Events.Distributed.IOutboxStore>();
-        if (outboxStore != null)
+        if (legacy.Count > 0)
         {
-            var pendingMessages = await outboxStore.GetPendingMessagesAsync(20, cancellationToken);
-            foreach (var msg in pendingMessages)
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var pending = await outboxStore.GetPendingMessagesAsync(options.OutboxBatchSize, cancellationToken);
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var batch = pending.Select(m => new RawEventMessage(
+            m.Id.ToString("N"),
+            m.EventType,
+            m.PayloadJson,
+            m.Id.ToString("N"),
+            m.TenantId,
+            Source: "OCAP.Outbox")).ToList();
+
+        try
+        {
+            if (retryPolicy != null)
+            {
+                await retryPolicy.ExecuteWithRetryAsync(
+                    () => transport.PublishBatchAsync(batch, cancellationToken),
+                    cancellationToken);
+            }
+            else
+            {
+                await transport.PublishBatchAsync(batch, cancellationToken);
+            }
+
+            foreach (var msg in pending)
             {
                 await outboxStore.MarkAsProcessedAsync(msg.Id, cancellationToken);
             }
+
+            _logger.LogInformation("Outbox dispatched {Count} messages via {Provider}", pending.Count, transport.ProviderName);
+        }
+        catch (Exception ex)
+        {
+            foreach (var msg in pending)
+            {
+                await outboxStore.MarkAsFailedAsync(msg.Id, ex.Message, cancellationToken);
+                var refreshed = await dbContext.DistributedOutboxMessages.FirstOrDefaultAsync(x => x.Id == msg.Id, cancellationToken);
+                if (refreshed is { Status: "Failed" } && dlq != null)
+                {
+                    await dlq.HandleDeadLetterAsync(
+                        refreshed.TenantId,
+                        refreshed.EventType,
+                        refreshed.PayloadJson,
+                        ex.Message,
+                        refreshed.RetryCount,
+                        cancellationToken);
+                    _logger.LogWarning("Outbox message {Id} moved to DLQ after poison threshold", refreshed.Id);
+                }
+            }
+
+            throw;
         }
     }
 }
-

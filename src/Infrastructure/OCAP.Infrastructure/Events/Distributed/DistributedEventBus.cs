@@ -1,30 +1,37 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OCAP.Core.Events;
 using OCAP.Core.Events.Distributed;
 
 namespace OCAP.Infrastructure.Events.Distributed;
 
-// Implementación del Bus de Eventos Distribuido con Outbox/Inbox, alta disponibilidad y soporte multi-proveedor (CAP-20).
+/// <summary>
+/// Bus distribuido con outbox, inbox idempotente, DLQ y despacho inmediato opcional.
+/// </summary>
 public class DistributedEventBus : IEventBus
 {
     private readonly IEventTransport _transport;
     private readonly IEventSerializer _serializer;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DistributedEventBus> _logger;
+    private readonly EventBusOptions _options;
     private readonly ConcurrentDictionary<Type, List<Delegate>> _handlerDelegates = new();
 
     public DistributedEventBus(
         IEventTransport transport,
         IEventSerializer serializer,
         IServiceProvider serviceProvider,
-        ILogger<DistributedEventBus> logger)
+        ILogger<DistributedEventBus> logger,
+        IOptions<EventBusOptions>? options = null)
     {
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options?.Value ?? new EventBusOptions();
     }
 
     public async Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default) where TEvent : IEvent
@@ -33,32 +40,55 @@ public class DistributedEventBus : IEventBus
 
         var eventType = typeof(TEvent).Name;
         var payloadJson = _serializer.Serialize(@event);
+        var eventId = Guid.NewGuid();
+        var correlationId = Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
 
         var envelope = new EventEnvelope<TEvent>(
-            EventId: Guid.NewGuid().ToString("N"),
-            CorrelationId: Guid.NewGuid().ToString("N"),
+            EventId: eventId.ToString("N"),
+            CorrelationId: correlationId,
             CausationId: Guid.NewGuid().ToString("N"),
-            TenantId: Guid.Empty,
+            TenantId: @event.TenantId,
             UserId: Guid.Empty,
             Timestamp: DateTime.UtcNow,
             Version: 1,
             EventType: eventType,
-            Source: "OCAP.Cluster.Node",
-            Payload: @event
-        );
+            Source: Environment.MachineName,
+            Payload: @event,
+            Headers: new Dictionary<string, string>
+            {
+                ["tenant-id"] = @event.TenantId.ToString("N"),
+                ["trace-id"] = Activity.Current?.TraceId.ToString() ?? string.Empty
+            },
+            TraceId: Activity.Current?.TraceId.ToString());
 
-        using (var scope = _serviceProvider.CreateScope())
+        if (_options.EnableOutbox)
         {
+            using var scope = _serviceProvider.CreateScope();
             var outboxStore = scope.ServiceProvider.GetService<IOutboxStore>();
             if (outboxStore != null)
             {
-                var outboxMsg = new OutboxMessage(Guid.NewGuid(), Guid.Empty, eventType, payloadJson);
+                var outboxMsg = new OutboxMessage(eventId, @event.TenantId, eventType, payloadJson);
                 await outboxStore.SaveAsync(outboxMsg, cancellationToken);
+
+                if (_options.ImmediateDispatch)
+                {
+                    await _transport.PublishAsync(@event, envelope, cancellationToken);
+                    await outboxStore.MarkAsProcessedAsync(eventId, cancellationToken);
+                }
+            }
+            else if (_options.ImmediateDispatch)
+            {
+                await _transport.PublishAsync(@event, envelope, cancellationToken);
             }
         }
+        else
+        {
+            await _transport.PublishAsync(@event, envelope, cancellationToken);
+        }
 
-        await _transport.PublishAsync(@event, envelope, cancellationToken);
-        _logger.LogInformation("Evento distribuido {EventType} publicado vía transporte '{Provider}'.", eventType, _transport.ProviderName);
+        _logger.LogInformation(
+            "Evento {EventType} registrado (provider={Provider}, immediate={Immediate})",
+            eventType, _transport.ProviderName, _options.ImmediateDispatch);
     }
 
     public void Subscribe<TEvent>(IEventHandler<TEvent> handler) where TEvent : IEvent
@@ -71,7 +101,53 @@ public class DistributedEventBus : IEventBus
     {
         if (handler == null) throw new ArgumentNullException(nameof(handler));
 
-        Func<TEvent, EventEnvelope<TEvent>, CancellationToken, Task> envelopeHandler = (@event, envelope, ct) => handler(@event, ct);
+        Func<TEvent, EventEnvelope<TEvent>, CancellationToken, Task> envelopeHandler = async (@event, envelope, ct) =>
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var inbox = _options.EnableInbox
+                ? scope.ServiceProvider.GetService<IInboxStore>()
+                : null;
+            var dlq = scope.ServiceProvider.GetService<IMessageDeadLetterHandler>();
+            var retry = scope.ServiceProvider.GetService<IMessageRetryPolicy>();
+
+            if (inbox != null && await inbox.HasBeenProcessedAsync(envelope.EventId, _options.ConsumerGroup, ct))
+            {
+                _logger.LogDebug("Inbox skip duplicate {EventId}", envelope.EventId);
+                return;
+            }
+
+            try
+            {
+                if (retry != null)
+                {
+                    await retry.ExecuteWithRetryAsync(() => handler(@event, ct), ct);
+                }
+                else
+                {
+                    await handler(@event, ct);
+                }
+
+                if (inbox != null)
+                {
+                    await inbox.MarkAsProcessedAsync(envelope.EventId, _options.ConsumerGroup, ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (dlq != null)
+                {
+                    await dlq.HandleDeadLetterAsync(
+                        envelope.TenantId,
+                        envelope.EventType,
+                        _serializer.Serialize(@event),
+                        ex.Message,
+                        retry?.MaxRetries ?? _options.MaxRetries,
+                        ct);
+                }
+
+                throw;
+            }
+        };
 
         var type = typeof(TEvent);
         var list = _handlerDelegates.GetOrAdd(type, _ => new List<Delegate>());
