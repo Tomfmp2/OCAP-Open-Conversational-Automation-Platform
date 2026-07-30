@@ -50,6 +50,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: ocap-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   jaeger:
     image: jaegertracing/all-in-one:1.57
     container_name: ocap-jaeger
@@ -80,6 +94,7 @@ services:
     restart: always
     environment:
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:-OcapSecurePass2026!}"
+      ConnectionStrings__Redis: "redis:6379"
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
       Jwt__SecretKey: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
       VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:-OcapEnterpriseVaultMasterKey2026Secure!}
@@ -96,6 +111,10 @@ services:
       OpenTelemetry__ServiceName: "OCAP.Api"
       Storage__Provider: ${STORAGE_PROVIDER:-Local}
       Storage__RootPath: /app/storage
+      ConnectionStrings__Redis: "redis:6379"
+      Bootstrap__Enabled: "true"
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-admin@ocap.io}
+      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe_Admin_2026!}
     ports:
       - "5000:5000"
     volumes:
@@ -106,6 +125,8 @@ services:
       rabbitmq:
         condition: service_healthy
       nats:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health/ready || exit 1"]
@@ -166,4 +187,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
   api_storage:
