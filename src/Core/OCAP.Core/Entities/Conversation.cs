@@ -13,6 +13,7 @@ public enum ConversationStatus
 public class Conversation
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid UserId { get; private set; }
     public ConversationStatus Status { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -23,12 +24,13 @@ public class Conversation
 
     private Conversation() { } // EF/ORM
 
-    public Conversation(Guid id, Guid userId)
+    public Conversation(Guid id, Guid userId, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("Conversation identifier cannot be empty.", nameof(id));
         if (userId == Guid.Empty) throw new ArgumentException("User identifier cannot be empty.", nameof(userId));
 
         Id = id;
+        TenantId = tenantId;
         UserId = userId;
         Status = ConversationStatus.Active;
         CreatedAt = DateTime.UtcNow;

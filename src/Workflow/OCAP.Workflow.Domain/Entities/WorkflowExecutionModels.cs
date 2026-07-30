@@ -4,13 +4,15 @@ namespace OCAP.Workflow.Domain.Entities;
 public class WorkflowVariable
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid ExecutionId { get; private set; }
     public string Key { get; private set; } = string.Empty;
     public string ValueJson { get; private set; } = string.Empty;
 
-    public WorkflowVariable(Guid id, Guid executionId, string key, string valueJson)
+    public WorkflowVariable(Guid id, Guid executionId, string key, string valueJson, Guid tenantId = default)
     {
         Id = id;
+        TenantId = tenantId;
         ExecutionId = executionId;
         Key = key ?? throw new ArgumentNullException(nameof(key));
         ValueJson = valueJson ?? "null";

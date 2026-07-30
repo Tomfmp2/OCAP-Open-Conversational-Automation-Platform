@@ -4,6 +4,7 @@ namespace OCAP.Core.Entities;
 public class Session
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid ConversationId { get; private set; }
     public string ContextData { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -15,13 +16,14 @@ public class Session
         ContextData = string.Empty;
     }
 
-    public Session(Guid id, Guid conversationId, TimeSpan duration)
+    public Session(Guid id, Guid conversationId, TimeSpan duration, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("Session identifier cannot be empty.", nameof(id));
         if (conversationId == Guid.Empty) throw new ArgumentException("Conversation identifier cannot be empty.", nameof(conversationId));
         if (duration <= TimeSpan.Zero) throw new ArgumentException("Session duration must be greater than zero.", nameof(duration));
 
         Id = id;
+        TenantId = tenantId;
         ConversationId = conversationId;
         ContextData = string.Empty;
         CreatedAt = DateTime.UtcNow;

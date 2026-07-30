@@ -4,6 +4,7 @@ namespace OCAP.Security.Domain.Entities;
 public class RefreshToken
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid UserId { get; private set; }
     public string Token { get; private set; } = string.Empty;
     public DateTime ExpiresAtUtc { get; private set; }
@@ -13,9 +14,10 @@ public class RefreshToken
 
     private RefreshToken() { } // Constructor ORM.
 
-    public RefreshToken(Guid id, Guid userId, string token, DateTime expiresAtUtc)
+    public RefreshToken(Guid id, Guid userId, string token, DateTime expiresAtUtc, Guid tenantId = default)
     {
         Id = id;
+        TenantId = tenantId;
         UserId = userId;
         Token = token;
         ExpiresAtUtc = expiresAtUtc;

@@ -4,6 +4,7 @@ namespace OCAP.Core.Entities;
 public class ToolExecution
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid AgentId { get; private set; }
     public Guid UserId { get; private set; }
     public Guid ConversationId { get; private set; }
@@ -14,11 +15,12 @@ public class ToolExecution
 
     private ToolExecution() { } // Constructor ORM
 
-    public ToolExecution(Guid id, Guid agentId, Guid userId, Guid conversationId, string toolName, bool success, string? errorCode = null)
+    public ToolExecution(Guid id, Guid agentId, Guid userId, Guid conversationId, string toolName, bool success, string? errorCode = null, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("El ID de ejecución no puede ser vacío.", nameof(id));
 
         Id = id;
+        TenantId = tenantId;
         AgentId = agentId;
         UserId = userId;
         ConversationId = conversationId;
