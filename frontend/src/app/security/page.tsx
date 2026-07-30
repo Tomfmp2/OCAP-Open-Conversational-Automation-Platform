@@ -14,7 +14,27 @@ export default function SecurityPage() {
     return <SecuritySkeleton />;
   }
 
-  const { roles, vault } = data || { roles: [], vault: { algorithm: "AES-256", keyRotationDays: 30, totalSecretsEncrypted: 0, status: "healthy" as const } };
+  if (!data) {
+    return (
+      <div className="max-w-7xl mx-auto rounded-xl border border-zinc-200 bg-white p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
+        <Inbox className="mx-auto h-6 w-6 text-zinc-400" />
+        <h3 className="mt-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+          No se pudo cargar el centro de seguridad
+        </h3>
+        <p className="mt-1 text-xs text-zinc-500">
+          Reintenta o verifica tu sesión y permisos.
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="mt-4 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs dark:border-zinc-800"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  const { roles, vault } = data;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
