@@ -26,5 +26,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             
         builder.Property(u => u.UpdatedAt)
             .IsRequired(false);
+
+        builder.HasIndex(u => u.TenantId);
+        builder.HasIndex(u => new { u.TenantId, u.DisplayName });
     }
 }

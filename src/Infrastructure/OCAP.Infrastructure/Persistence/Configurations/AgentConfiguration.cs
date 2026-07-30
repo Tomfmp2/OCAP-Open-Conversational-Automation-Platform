@@ -29,6 +29,9 @@ public class AgentConfiguration : IEntityTypeConfiguration<Agent>
             .IsRequired()
             .HasMaxLength(50);
 
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.Name }).IsUnique();
+
         builder.OwnsOne(x => x.Configuration, config =>
         {
             config.Property(c => c.SystemPrompt)

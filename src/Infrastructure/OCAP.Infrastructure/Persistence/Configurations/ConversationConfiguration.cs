@@ -25,6 +25,9 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
             
         builder.Property(c => c.LastActivityAt)
             .IsRequired();
+
+        builder.HasIndex(c => c.TenantId);
+        builder.HasIndex(c => new { c.TenantId, c.UserId });
             
         builder.HasOne<User>()
             .WithMany()

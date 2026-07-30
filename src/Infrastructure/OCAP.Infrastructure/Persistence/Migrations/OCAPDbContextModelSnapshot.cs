@@ -46,10 +46,18 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
 
                     b.ToTable("Agents", (string)null);
                 });
@@ -74,9 +82,14 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("AgentId", "PermissionName")
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "AgentId", "PermissionName")
                         .IsUnique();
 
                     b.ToTable("AgentToolPermissions", (string)null);
@@ -99,12 +112,19 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "UserId");
 
                     b.ToTable("Conversations", (string)null);
                 });
@@ -131,9 +151,16 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ConversationId");
 
                     b.ToTable("Messages", (string)null);
                 });
@@ -162,6 +189,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("TokenExpiration")
                         .HasColumnType("timestamp with time zone");
 
@@ -173,7 +203,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Provider")
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "UserId", "Provider")
                         .IsUnique();
 
                     b.ToTable("OAuthConnections", (string)null);
@@ -199,6 +231,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ProcessedOnUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -209,6 +244,10 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.HasIndex("OccurredOnUtc");
 
                     b.HasIndex("ProcessedOnUtc");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ProcessedOnUtc");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });
@@ -232,9 +271,14 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Sessions", (string)null);
                 });
@@ -261,6 +305,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Success")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ToolName")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -276,6 +323,10 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.HasIndex("ConversationId");
 
                     b.HasIndex("ExecutedAt");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ExecutedAt");
 
                     b.ToTable("ToolExecutions", (string)null);
                 });
@@ -299,10 +350,17 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "DisplayName");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -430,11 +488,16 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
 
                     b.HasIndex("CreatedAt");
+
+                    b.HasIndex("TenantId", "ConversationId");
 
                     b.ToTable("AiConversationMemories", (string)null);
                 });
@@ -464,6 +527,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Success")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Tokens")
                         .HasColumnType("integer");
 
@@ -472,6 +538,8 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.HasIndex("ExecutedAt");
 
                     b.HasIndex("Provider");
+
+                    b.HasIndex("TenantId", "ExecutedAt");
 
                     b.ToTable("AiExecutionLogs", (string)null);
                 });
@@ -1183,6 +1251,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -1193,10 +1264,14 @@ namespace OCAP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("Token")
                         .IsUnique();
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "UserId");
 
                     b.ToTable("RefreshTokens", (string)null);
                 });
@@ -1970,9 +2045,14 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExecutionId");
+
+                    b.HasIndex("TenantId", "ExecutionId");
 
                     b.ToTable("WorkflowExecutionHistories", (string)null);
                 });
@@ -1991,11 +2071,16 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("ValueJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("ExecutionId", "Key")
                         .IsUnique();
@@ -2016,6 +2101,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("PublishedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("VersionNumber")
                         .HasColumnType("integer");
 
@@ -2023,6 +2111,8 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("WorkflowDefinitionId", "VersionNumber")
                         .IsUnique();

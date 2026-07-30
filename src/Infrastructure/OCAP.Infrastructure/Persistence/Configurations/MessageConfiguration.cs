@@ -30,6 +30,9 @@ public class MessageConfiguration : IEntityTypeConfiguration<Message>
             
         builder.Property(m => m.CreatedAt)
             .IsRequired();
+
+        builder.HasIndex(m => m.TenantId);
+        builder.HasIndex(m => new { m.TenantId, m.ConversationId });
             
         builder.HasOne<Conversation>()
             .WithMany()

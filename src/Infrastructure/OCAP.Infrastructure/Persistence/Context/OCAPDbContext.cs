@@ -1,17 +1,38 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Core.Entities;
 using OCAP.Intelligence.Domain;
 using OCAP.Security.Domain.Entities;
 using OCAP.Workflow.Domain.Entities;
 using OCAP.Knowledge.Domain.Entities;
+using OCAP.Security.Abstractions;
+using OCAP.Infrastructure.Persistence.Tenancy;
 
 namespace OCAP.Infrastructure.Persistence.Context;
 
 public class OCAPDbContext : DbContext
 {
-    public OCAPDbContext(DbContextOptions<OCAPDbContext> options) : base(options)
+    private readonly ITenantContext _tenantContext;
+
+    public OCAPDbContext(DbContextOptions<OCAPDbContext> options)
+        : this(options, SystemTenantContext.Instance)
     {
     }
+
+    public OCAPDbContext(DbContextOptions<OCAPDbContext> options, ITenantContext tenantContext) : base(options)
+    {
+        _tenantContext = tenantContext ?? SystemTenantContext.Instance;
+    }
+
+    /// <summary>
+    /// Tenant activo capturado por los HasQueryFilter (evaluado por instancia de DbContext).
+    /// </summary>
+    public Guid CurrentTenantId => _tenantContext.TenantId;
+
+    /// <summary>
+    /// Indica si los filtros globales de tenant están desactivados para esta instancia.
+    /// </summary>
+    public bool BypassTenantFilters => _tenantContext.BypassTenantFilters;
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
@@ -28,7 +49,7 @@ public class OCAPDbContext : DbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<Role> Roles => Set<Role>();
-    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<OCAP.Security.Domain.Entities.Permission> Permissions => Set<OCAP.Security.Domain.Entities.Permission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<UserClaim> UserClaims => Set<UserClaim>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
@@ -70,6 +91,38 @@ public class OCAPDbContext : DbContext
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(OCAPDbContext).Assembly);
         modelBuilder.UseOpenIddict();
+        ApplyTenantQueryFilters(modelBuilder);
         base.OnModelCreating(modelBuilder);
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (entityType.IsOwned()) continue;
+            if (entityType.ClrType.Namespace?.StartsWith("OpenIddict", StringComparison.Ordinal) == true) continue;
+
+            // Tenant catalog is global; access control is authorization, not row filter by TenantId column.
+            if (entityType.ClrType == typeof(Tenant)) continue;
+
+            // Global permission catalog and inbox idempotency store are intentionally not tenant-scoped.
+            if (entityType.ClrType == typeof(OCAP.Security.Domain.Entities.Permission)) continue;
+            if (entityType.ClrType == typeof(OCAP.Core.Events.Distributed.InboxMessage)) continue;
+
+            var tenantProperty = entityType.FindProperty("TenantId");
+            if (tenantProperty is null || tenantProperty.ClrType != typeof(Guid)) continue;
+
+            var method = typeof(OCAPDbContext)
+                .GetMethod(nameof(SetTenantFilter), BindingFlags.NonPublic | BindingFlags.Instance)!
+                .MakeGenericMethod(entityType.ClrType);
+
+            method.Invoke(this, [modelBuilder]);
+        }
+    }
+
+    private void SetTenantFilter<TEntity>(ModelBuilder modelBuilder) where TEntity : class
+    {
+        modelBuilder.Entity<TEntity>().HasQueryFilter(e =>
+            BypassTenantFilters || EF.Property<Guid>(e, "TenantId") == CurrentTenantId);
     }
 }

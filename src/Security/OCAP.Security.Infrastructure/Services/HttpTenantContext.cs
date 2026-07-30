@@ -10,6 +10,7 @@ namespace OCAP.Security.Infrastructure.Services;
 /// Contexto multi-tenant basado en claims autenticados.
 /// En producción el header X-Tenant-ID no puede suplantar el tenant de un usuario autenticado
 /// ni fijar un tenant arbitrario en peticiones anónimas.
+/// Sin HttpContext (background jobs) se activa BypassTenantFilters.
 /// </summary>
 public class HttpTenantContext : ITenantContext
 {
@@ -67,4 +68,10 @@ public class HttpTenantContext : ITenantContext
     public string TenantName => $"Tenant-{TenantId:N}";
 
     public bool IsResolved => _httpContextAccessor.HttpContext != null && TenantId != Guid.Empty;
+
+    /// <summary>
+    /// Jobs sin HTTP deben ver datos cross-tenant de forma controlada (p. ej. outbox retention).
+    /// Las peticiones HTTP nunca bypasean filtros.
+    /// </summary>
+    public bool BypassTenantFilters => _httpContextAccessor.HttpContext == null;
 }
