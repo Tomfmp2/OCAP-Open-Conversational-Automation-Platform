@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using OCAP.Security.Abstractions;
+using OCAP.Security.Abstractions.Options;
 using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Security.Infrastructure.Services;
@@ -16,14 +17,29 @@ public class JwtTokenService : IJwtTokenService
     private readonly string _audience;
     private readonly int _accessTokenExpiryMinutes;
 
-    public JwtTokenService(string secretKey, string issuer = "OCAP", string audience = "OCAP.Clients", int accessTokenExpiryMinutes = 60)
+    public JwtTokenService(JwtOptions options)
     {
-        _secretKey = string.IsNullOrWhiteSpace(secretKey)
-            ? "OCAP_SUPER_SECRET_SECURITY_KEY_FOR_JWT_SIGNING_2026_PRODUCTION"
-            : secretKey;
-        _issuer = issuer;
-        _audience = audience;
-        _accessTokenExpiryMinutes = accessTokenExpiryMinutes;
+        ArgumentNullException.ThrowIfNull(options);
+        options.Validate();
+
+        _secretKey = options.SecretKey;
+        _issuer = options.Issuer;
+        _audience = options.Audience;
+        _accessTokenExpiryMinutes = options.AccessTokenExpiryMinutes;
+    }
+
+    /// <summary>
+    /// Constructor de compatibilidad para tests unitarios que inyectan el secreto explícitamente.
+    /// </summary>
+    public JwtTokenService(string secretKey, string issuer = "OCAP", string audience = "OCAP.Clients", int accessTokenExpiryMinutes = 60)
+        : this(new JwtOptions
+        {
+            SecretKey = secretKey,
+            Issuer = issuer,
+            Audience = audience,
+            AccessTokenExpiryMinutes = accessTokenExpiryMinutes
+        })
+    {
     }
 
     public string GenerateAccessToken(UserIdentity user, Tenant tenant, Role role, IEnumerable<string> permissions)
