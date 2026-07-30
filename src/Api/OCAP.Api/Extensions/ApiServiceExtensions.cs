@@ -12,6 +12,7 @@ using OCAP.Intelligence.Application.Services;
 
 using OCAP.Prompts;
 using OCAP.Providers.Gemini;
+using OCAP.Providers.Claude;
 using OCAP.Providers.Ollama;
 using OCAP.Providers.OpenAI;
 using OCAP.Security.Abstractions;
@@ -31,6 +32,7 @@ using OCAP.Providers.Google.Gmail;
 using OCAP.Providers.Google.Sheets;
 using OCAP.Tools.Google;
 using OCAP.Tools.Abstractions;
+using OCAP.Infrastructure.Extensions;
 
 namespace OCAP.Api.Extensions;
 
@@ -134,6 +136,7 @@ public static class ApiServiceExtensions
         services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler();
         services.AddHttpClient<GeminiAiProvider>().AddStandardResilienceHandler();
         services.AddHttpClient<OllamaAiProvider>().AddStandardResilienceHandler();
+        services.AddHttpClient("Claude").AddStandardResilienceHandler();
 
         var openAiSettings = new AiProviderSettings
         {
@@ -154,9 +157,19 @@ public static class ApiServiceExtensions
             ModelName = configuration["AiProviders:Ollama:ModelName"] ?? "llama3"
         };
 
+        var claudeSettings = new AiProviderSettings
+        {
+            ApiKey = configuration["AiProviders:Claude:ApiKey"] ?? string.Empty,
+            BaseUrl = configuration["AiProviders:Claude:BaseUrl"] ?? "https://api.anthropic.com/v1",
+            ModelName = configuration["AiProviders:Claude:ModelName"] ?? "claude-3-5-sonnet-latest"
+        };
+
         services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(sp.GetRequiredService<HttpClient>(), openAiSettings));
         services.AddSingleton<IAiProvider>(sp => new GeminiAiProvider(sp.GetRequiredService<HttpClient>(), geminiSettings));
         services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(sp.GetRequiredService<HttpClient>(), ollamaSettings));
+        services.AddSingleton<IAiProvider>(sp => new ClaudeAiProvider(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Claude"),
+            claudeSettings));
 
         // Registro de Proveedores de IA y Servicio de Configuración por Tenant
         services.AddSingleton<IAiProviderRegistry, AiProviderRegistry>();
@@ -228,8 +241,8 @@ public static class ApiServiceExtensions
             });
         });
 
-        services.AddHealthChecks()
-            .AddDbContextCheck<OCAP.Infrastructure.Persistence.Context.OCAPDbContext>("Database");
+        services.AddOcapObservability(configuration);
+        services.AddOcapHealthChecks(configuration);
 
         services.Configure<CorsSettings>(configuration.GetSection(CorsSettings.SectionName));
         services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
