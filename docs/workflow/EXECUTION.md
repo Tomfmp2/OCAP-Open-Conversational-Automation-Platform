@@ -2,7 +2,9 @@
 
 ## Mapeo de Observabilidad
 Cada ejecución registra:
-- `ExecutionId`: Identificador único de ejecución.
-- `TenantId` / `UserId` / `AgentId`: Aislamiento por organización y rastreo del agente invocador.
-- `DurationMs`: Medición de tiempo por paso e id del nodo ejecutado.
-- `Status`: Estado inmutable por paso (`Success`, `Failed`, `Paused`).
+- `ExecutionId`: identificador único de ejecución.
+- `TenantId` / `UserId` / `AgentId`: aislamiento multi-tenant y rastreo.
+- `WorkflowVersionNumber`: versión de definición usada al iniciar.
+- `DurationMs` / `Status` por paso en `WorkflowExecutionHistory` (`Success`, `Failed`, `Compensated`, …).
+- `WaitSignal` / `WaitUntilUtc`: esperas y delays programados.
+- `CompensationJson`: pila LIFO de pasos de compensación.
