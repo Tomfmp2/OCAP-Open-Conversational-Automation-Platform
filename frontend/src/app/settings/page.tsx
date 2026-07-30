@@ -13,8 +13,8 @@ export default function SettingsPage() {
     return <SettingsSkeleton />;
   }
 
-  const handleSave = (newConfig: SettingsConfig) => {
-    updateSettingsMutation.mutate(newConfig);
+  const handleSave = async (newConfig: SettingsConfig) => {
+    await updateSettingsMutation.mutateAsync(newConfig);
   };
 
   return (
@@ -46,9 +46,11 @@ export default function SettingsPage() {
       </div>
 
       <SettingsForm
+        key={`${settings.tenantName}-${settings.timezone}-${settings.auditLogRetentionDays}`}
         settings={settings}
         onSave={handleSave}
         isSaving={updateSettingsMutation.isPending}
+        saveSuccess={updateSettingsMutation.isSuccess}
       />
     </div>
   );

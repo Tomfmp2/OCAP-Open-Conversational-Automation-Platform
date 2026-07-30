@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, QrCode, Key, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { X, QrCode, Key, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { useConnectChannelMutation } from "../api/useChannelsData";
 
 interface ChannelConnectModalProps {
@@ -12,7 +12,6 @@ interface ChannelConnectModalProps {
 export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps) {
   const [selectedProvider, setSelectedProvider] = React.useState<"Telegram" | "WhatsApp" | "Google">("Telegram");
   const [botToken, setBotToken] = React.useState("");
-  const [connectedSuccess, setConnectedSuccess] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const connectMutation = useConnectChannelMutation();
@@ -30,12 +29,8 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
         authCode: selectedProvider === "Google" ? "google_oauth_code_sample" : undefined
       });
 
-      setConnectedSuccess(true);
-      setTimeout(() => {
-        setConnectedSuccess(false);
-        setBotToken("");
-        onClose();
-      }, 1000);
+      setBotToken("");
+      onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al conectar con la API de Canales.";
       setErrorMessage(msg);
@@ -63,16 +58,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
             </div>
           )}
 
-          {connectedSuccess ? (
-            <div className="py-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">¡Adaptador Conectado Exitosamente!</h3>
-              <p className="text-xs text-zinc-400 font-medium">Canal registrado en PostgreSQL e integrado en la red hexagonal de OCAP.</p>
-            </div>
-          ) : (
-            <>
+          <>
               <div>
                 <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block mb-2">
                   Seleccionar Proveedor
@@ -151,7 +137,6 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 </button>
               </div>
             </>
-          )}
         </form>
       </div>
     </div>

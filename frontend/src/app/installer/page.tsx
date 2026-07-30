@@ -50,7 +50,7 @@ export default function InstallerPage() {
           <p className="text-xs text-zinc-500">Ejecuta el asistente de verificación para validar las dependencias del servidor.</p>
         </div>
       ) : (
-        <InstallerWizardSteps steps={steps} />
+        <InstallerWizardSteps initialSteps={steps} />
       )}
     </div>
   );
