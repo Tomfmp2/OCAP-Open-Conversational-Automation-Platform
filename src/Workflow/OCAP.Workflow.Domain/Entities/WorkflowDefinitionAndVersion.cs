@@ -32,6 +32,17 @@ public class WorkflowDefinition
     public void AddStep(WorkflowStep step) => Steps.Add(step);
     public void AddTransition(WorkflowTransition transition) => Transitions.Add(transition);
     public void Activate() => Status = WorkflowStatus.Active;
+
+    public WorkflowVersion PublishVersion(string definitionJson)
+    {
+        CurrentVersion++;
+        return new WorkflowVersion(
+            Guid.NewGuid(),
+            Id,
+            CurrentVersion,
+            definitionJson ?? "{}",
+            TenantId);
+    }
 }
 
 // Entidad que representa una versión inmutable del diseño de un Workflow.

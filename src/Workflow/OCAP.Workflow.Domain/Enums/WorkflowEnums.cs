@@ -37,5 +37,10 @@ public enum WorkflowNodeType
     RetrieveContext = 20,
     AskKnowledgeBase = 21,
     DocumentUpload = 22,
-    Reindex = 23
+    Reindex = 23,
+    Agent = 24,
+    Database = 25,
+    Email = 26,
+    VariableAssign = 27,
+    ForEach = 28
 }
