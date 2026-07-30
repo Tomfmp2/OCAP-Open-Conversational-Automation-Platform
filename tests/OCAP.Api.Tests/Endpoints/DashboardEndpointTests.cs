@@ -8,20 +8,28 @@ namespace OCAP.Api.Tests.Endpoints;
 
 public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
 {
+    private readonly OcapApiFactory _factory;
     private readonly HttpClient _client;
 
     public DashboardEndpointTests(OcapApiFactory factory)
     {
-        _client = factory.CreateClient();
+        _factory = factory;
+        _client = TestAuthHelper.CreateAuthenticatedClient(factory);
+    }
+
+    [Fact]
+    public async Task GetStatus_WithoutToken_Returns401()
+    {
+        var anonymous = _factory.CreateClient();
+        var response = await anonymous.GetAsync("/api/dashboard/status");
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
     public async Task GetStatus_Returns200OkWithStatusDto()
     {
-        // Act
         var response = await _client.GetAsync("/api/dashboard/status");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var dto = await response.Content.ReadFromJsonAsync<DashboardStatusDto>();
@@ -32,10 +40,8 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task GetMetrics_Returns200OkWithMetricsDto()
     {
-        // Act
         var response = await _client.GetAsync("/api/dashboard/metrics");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var dto = await response.Content.ReadFromJsonAsync<DashboardMetricsDto>();
@@ -46,10 +52,8 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task GetAgents_Returns200OkWithAgentsList()
     {
-        // Act
         var response = await _client.GetAsync("/api/agents");
 
-        // Assert
         var content = await response.Content.ReadAsStringAsync();
         response.StatusCode.Should().Be(HttpStatusCode.OK, content);
 
@@ -60,10 +64,8 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task GetTools_Returns200OkWithToolsList()
     {
-        // Act
         var response = await _client.GetAsync("/api/tools");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var list = await response.Content.ReadFromJsonAsync<List<ToolDto>>();
@@ -74,10 +76,8 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task GetExecutions_Returns200OkWithExecutionsList()
     {
-        // Act
         var response = await _client.GetAsync("/api/executions");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var list = await response.Content.ReadFromJsonAsync<List<ExecutionDto>>();
@@ -87,10 +87,8 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task GetGoogleIntegration_Returns200OkWithIntegrationDto()
     {
-        // Act
         var response = await _client.GetAsync("/api/integrations/google");
 
-        // Assert - include body in failure message for diagnosing non-200 responses
         var body = await response.Content.ReadAsStringAsync();
         response.StatusCode.Should().Be(HttpStatusCode.OK, $"Response body: {body}");
 

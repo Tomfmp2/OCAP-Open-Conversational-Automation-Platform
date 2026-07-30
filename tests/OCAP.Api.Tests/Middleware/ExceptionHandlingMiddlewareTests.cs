@@ -1,51 +1,65 @@
 using System.Net;
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
+using System.Text;
 using FluentAssertions;
 using OCAP.Api.Tests.Infrastructure;
 
 namespace OCAP.Api.Tests.Middleware;
 
-// Pruebas de integración que verifican el comportamiento del ExceptionHandlingMiddleware.
-// Se prueba a través de endpoints reales que generan excepciones controladas.
 public class ExceptionHandlingMiddlewareTests : IClassFixture<OcapApiFactory>
 {
+    private readonly OcapApiFactory _factory;
     private readonly HttpClient _client;
 
     public ExceptionHandlingMiddlewareTests(OcapApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
     [Fact]
     public async Task Api_WhenRequestIsValid_DoesNotReturnServerError()
     {
-        // Act: el health check nunca debería devolver 500 bajo condiciones normales.
         var response = await _client.GetAsync("/api/health");
 
-        // Assert
         response.StatusCode.Should().NotBe(HttpStatusCode.InternalServerError);
     }
 
     [Fact]
     public async Task Api_WhenBodyIsInvalidJson_Returns400BadRequest()
     {
-        // Arrange: enviar JSON malformado para provocar un error de deserialización.
-        var content = new StringContent("{ invalid json }", System.Text.Encoding.UTF8, "application/json");
+        var content = new StringContent("{ invalid json }", Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/messages")
+        {
+            Content = content
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            TestAuthHelper.CreateAccessToken(_factory));
 
-        // Act
-        var response = await _client.PostAsync("/api/messages", content);
+        var response = await _client.SendAsync(request);
 
-        // Assert: ASP.NET debe rechazar el JSON malformado con 400.
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
     public async Task Api_WhenRouteDoesNotExist_Returns404NotFound()
     {
-        // Act: ruta que no está registrada en el gateway.
         var response = await _client.GetAsync("/api/ruta-que-no-existe");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Api_PropagatesCorrelationIdInResponseHeaders()
+    {
+        const string correlation = "corr-rc-mega-sprint-1";
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/health");
+        request.Headers.TryAddWithoutValidation("X-Correlation-Id", correlation);
+
+        var response = await _client.SendAsync(request);
+
+        response.Headers.TryGetValues("X-Correlation-Id", out var values).Should().BeTrue();
+        values!.Should().Contain(correlation);
     }
 }

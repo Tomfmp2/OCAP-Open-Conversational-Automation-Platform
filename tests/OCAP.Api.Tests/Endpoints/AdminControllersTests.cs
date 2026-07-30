@@ -27,11 +27,12 @@ public class AdminControllersTests
 
         var controller = new UsersController(userMock.Object, tenantContextMock.Object);
 
-        var result = await controller.GetUsers(CancellationToken.None);
+        var result = await controller.GetUsers(new OCAP.Api.Models.Common.PagedQuery { Page = 1, PageSize = 20 }, CancellationToken.None);
 
         var okResult = Assert.IsType<OkObjectResult>(result);
-        var users = Assert.IsAssignableFrom<IReadOnlyList<UserDetailDto>>(okResult.Value);
-        Assert.Single(users);
+        var page = Assert.IsType<OCAP.Api.Models.Common.PagedResult<UserDetailDto>>(okResult.Value);
+        Assert.Single(page.Items);
+        Assert.Equal(1, page.TotalCount);
     }
 
     [Fact]
