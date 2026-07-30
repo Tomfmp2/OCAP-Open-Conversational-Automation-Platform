@@ -20,7 +20,12 @@ public class OcapApiFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["UseInMemory"] = "true",
-                ["InMemoryDbName"] = $"OCAP_Test_{Guid.NewGuid()}"
+                ["InMemoryDbName"] = $"OCAP_Test_{Guid.NewGuid()}",
+                ["Jwt:SecretKey"] = "OCAP_TESTING_JWT_SECRET_KEY_32CHARS_MINIMUM!",
+                ["Jwt:Issuer"] = "OCAP",
+                ["Jwt:Audience"] = "OCAP.Clients",
+                ["Jwt:AccessTokenExpiryMinutes"] = "60",
+                ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!"
             });
         });
     }

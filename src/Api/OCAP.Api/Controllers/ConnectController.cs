@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Infrastructure.Persistence.Context;
@@ -11,6 +12,7 @@ namespace OCAP.Api.Controllers;
 
 // Controlador para Servidor de Autorización OAuth2 / OpenID Connect (OpenIddict) con soporte de Code Flow y PKCE (CAP-14)
 [ApiController]
+[AllowAnonymous]
 public class ConnectController : ControllerBase
 {
     private readonly IOpenIddictApplicationManager _applicationManager;
