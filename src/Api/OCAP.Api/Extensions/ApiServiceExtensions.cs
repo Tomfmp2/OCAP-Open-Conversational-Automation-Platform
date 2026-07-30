@@ -1,6 +1,3 @@
-using System.Reflection;
-using Asp.Versioning;
-using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,8 +10,11 @@ using Microsoft.OpenApi.Models;
 using OCAP.Api.Configuration;
 using OCAP.Api.Filters;
 using OCAP.Api.Middlewares;
+using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
+using Asp.Versioning;
+using FluentValidation;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
 
@@ -326,6 +326,24 @@ public static class ApiServiceExtensions
                     Array.Empty<string>()
                 }
             });
+
+            c.MapType<ProblemDetails>(() => new OpenApiSchema
+            {
+                Type = "object",
+                Properties = new Dictionary<string, OpenApiSchema>
+                {
+                    ["type"] = new OpenApiSchema { Type = "string" },
+                    ["title"] = new OpenApiSchema { Type = "string" },
+                    ["status"] = new OpenApiSchema { Type = "integer" },
+                    ["detail"] = new OpenApiSchema { Type = "string" },
+                    ["instance"] = new OpenApiSchema { Type = "string" },
+                    ["correlationId"] = new OpenApiSchema { Type = "string" },
+                    ["requestId"] = new OpenApiSchema { Type = "string" }
+                }
+            });
+
+            c.OperationFilter<OCAP.Api.Swagger.ProblemDetailsOperationFilter>();
+            c.DocumentFilter<OCAP.Api.Swagger.TagDescriptionsDocumentFilter>();
 
             var xmlPath = Path.Combine(AppContext.BaseDirectory, "OCAP.Api.xml");
             if (File.Exists(xmlPath))
