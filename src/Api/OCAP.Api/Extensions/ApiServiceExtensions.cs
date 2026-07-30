@@ -388,6 +388,20 @@ public static class ApiServiceExtensions
                     RoleClaimType = System.Security.Claims.ClaimTypes.Role,
                     NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier
                 };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrWhiteSpace(accessToken)
+                            && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
+                };
             });
     }
 

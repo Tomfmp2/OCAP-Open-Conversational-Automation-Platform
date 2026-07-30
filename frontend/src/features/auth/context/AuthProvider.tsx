@@ -9,6 +9,7 @@ import {
 import {
   clearAuthSession,
   getAccessToken,
+  getRefreshToken,
   getStoredUser,
   setAuthSession,
   updateAccessToken,
@@ -178,8 +179,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = React.useCallback(async () => {
+    const refreshToken = getRefreshToken();
     try {
-      await authApi.logout();
+      await authApi.logout(refreshToken);
     } catch {
       // ignore logout errors
     } finally {

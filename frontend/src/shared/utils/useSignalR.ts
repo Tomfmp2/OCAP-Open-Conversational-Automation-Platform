@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
+import {
+  HubConnection,
+  HubConnectionBuilder,
+  HubConnectionState,
+  LogLevel,
+} from "@microsoft/signalr";
 import { useQueryClient } from "@tanstack/react-query";
+import { getAccessToken } from "@/shared/api/tokenStorage";
 
 export interface PlatformEventLog {
   id: string;
@@ -13,34 +19,38 @@ export interface PlatformEventLog {
 
 export function useSignalR(tenantId?: string) {
   const queryClient = useQueryClient();
-  const [connectionState, setConnectionState] = useState<"Connecting" | "Connected" | "Reconnecting" | "Disconnected">("Connecting");
+  const [connectionState, setConnectionState] = useState<
+    "Connecting" | "Connected" | "Reconnecting" | "Disconnected"
+  >("Connecting");
   const [liveEvents, setLiveEvents] = useState<PlatformEventLog[]>([]);
   const connectionRef = useRef<HubConnection | null>(null);
 
-  const handleEvent = useCallback((eventName: string, payload: unknown) => {
-    const newLog: PlatformEventLog = {
-      id: Math.random().toString(36).substring(2, 9),
-      eventName,
-      payload,
-      timestamp: new Date().toISOString(),
-    };
+  const handleEvent = useCallback(
+    (eventName: string, payload: unknown) => {
+      const newLog: PlatformEventLog = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        eventName,
+        payload,
+        timestamp: new Date().toISOString(),
+      };
 
-    setLiveEvents((prev) => [newLog, ...prev.slice(0, 49)]);
+      setLiveEvents((prev) => [newLog, ...prev.slice(0, 49)]);
 
-    // Invalidate relevant React Query caches based on event
-    if (eventName.startsWith("Workflow")) {
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-      queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
-    } else if (eventName.startsWith("Agent")) {
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-      queryClient.invalidateQueries({ queryKey: ["agentsData"] });
-    } else if (eventName.startsWith("Message") || eventName.includes("Channel")) {
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-      queryClient.invalidateQueries({ queryKey: ["channelsData"] });
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-    }
-  }, [queryClient]);
+      if (eventName.startsWith("Workflow")) {
+        queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+        queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
+      } else if (eventName.startsWith("Agent")) {
+        queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+        queryClient.invalidateQueries({ queryKey: ["agentsData"] });
+      } else if (eventName.startsWith("Message") || eventName.includes("Channel")) {
+        queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+        queryClient.invalidateQueries({ queryKey: ["channelsData"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+      }
+    },
+    [queryClient]
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -49,7 +59,9 @@ export function useSignalR(tenantId?: string) {
     const hubUrl = `${baseUrl}/hubs/events`;
 
     const connection = new HubConnectionBuilder()
-      .withUrl(hubUrl)
+      .withUrl(hubUrl, {
+        accessTokenFactory: () => getAccessToken() || "",
+      })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (retryContext) => {
           setConnectionState("Reconnecting");
@@ -76,10 +88,19 @@ export function useSignalR(tenantId?: string) {
       connection.on(evt, (data: unknown) => handleEvent(evt, data));
     });
 
-    connection.on("ReceiveEvent", (evtName: string, data: unknown) => handleEvent(evtName, data));
+    connection.on("ReceiveEvent", (evtName: string, data: unknown) =>
+      handleEvent(evtName, data)
+    );
 
-    connection.onreconnected(() => {
+    connection.onreconnected(async () => {
       setConnectionState("Connected");
+      if (tenantId) {
+        try {
+          await connection.invoke("SubscribeTenant", tenantId);
+        } catch {
+          // hub may not expose tenant groups in all environments
+        }
+      }
       queryClient.invalidateQueries();
     });
 
@@ -89,10 +110,14 @@ export function useSignalR(tenantId?: string) {
 
     connection
       .start()
-      .then(() => {
+      .then(async () => {
         setConnectionState("Connected");
         if (tenantId) {
-          connection.invoke("JoinTenantGroup", tenantId).catch(() => {});
+          try {
+            await connection.invoke("SubscribeTenant", tenantId);
+          } catch {
+            // degrade gracefully
+          }
         }
       })
       .catch(() => {
@@ -100,21 +125,27 @@ export function useSignalR(tenantId?: string) {
       });
 
     return () => {
-      connection.stop();
+      void connection.stop();
     };
   }, [handleEvent, queryClient, tenantId]);
 
   const reconnect = useCallback(async () => {
-    if (connectionRef.current && connectionRef.current.state === HubConnectionState.Disconnected) {
+    if (
+      connectionRef.current &&
+      connectionRef.current.state === HubConnectionState.Disconnected
+    ) {
       setConnectionState("Connecting");
       try {
         await connectionRef.current.start();
+        if (tenantId) {
+          await connectionRef.current.invoke("SubscribeTenant", tenantId);
+        }
         setConnectionState("Connected");
       } catch {
         setConnectionState("Disconnected");
       }
     }
-  }, []);
+  }, [tenantId]);
 
   return {
     connectionState,

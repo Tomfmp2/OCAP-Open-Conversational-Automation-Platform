@@ -47,8 +47,10 @@ export const authApi = {
     );
   },
 
-  logout(): Promise<{ message: string }> {
-    return apiClient.post<{ message: string }>("/api/auth/logout");
+  logout(refreshToken?: string | null): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>("/api/auth/logout", {
+      refreshToken: refreshToken || undefined,
+    });
   },
 
   getProfile(): Promise<ProfileResponse> {
