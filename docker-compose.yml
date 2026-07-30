@@ -111,7 +111,6 @@ services:
       OpenTelemetry__ServiceName: "OCAP.Api"
       Storage__Provider: ${STORAGE_PROVIDER:-Local}
       Storage__RootPath: /app/storage
-      ConnectionStrings__Redis: "redis:6379"
       Bootstrap__Enabled: "true"
       Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-admin@ocap.io}
       Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe_Admin_2026!}
