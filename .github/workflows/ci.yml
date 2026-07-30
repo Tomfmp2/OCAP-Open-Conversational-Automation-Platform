@@ -6,27 +6,43 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     name: Backend Build & Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup .NET SDK 10.0
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore OCAP.slnx
 
-      - name: Build solution (Release mode)
+      - name: Build
         run: dotnet build OCAP.slnx -c Release --no-restore
 
-      - name: Run test suite
-        run: dotnet test OCAP.slnx -c Release --no-build --verbosity normal
+      - name: Test with coverage
+        run: >
+          dotnet test OCAP.slnx -c Release --no-build --verbosity normal
+          --collect:"XPlat Code Coverage"
+          --results-directory ./test-results
+          --logger "trx;LogFileName=backend.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            ./test-results/**
+          if-no-files-found: ignore
 
   frontend:
     name: Frontend Lint Typecheck Build
@@ -35,8 +51,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -45,7 +60,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
 
       - name: Lint
@@ -58,3 +73,117 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: ""
+
+  security-scan:
+    name: Security & Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: dotnet vulnerable packages
+        run: |
+          dotnet restore OCAP.slnx
+          dotnet list OCAP.slnx package --vulnerable --include-transitive 2>&1 | tee vuln-dotnet.txt || true
+
+      - name: npm audit (frontend)
+        working-directory: frontend
+        run: npm audit --omit=dev 2>&1 | tee ../vuln-npm.txt || true
+
+      - name: Upload vulnerability reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-reports
+          path: |
+            vuln-dotnet.txt
+            vuln-npm.txt
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate CycloneDX SBOM (filesystem)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cyclonedx.json
+
+  docker:
+    name: Docker Build & Container Scan
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/backend/Dockerfile
+          push: false
+          load: true
+          tags: ocap-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/frontend/Dockerfile
+          push: false
+          load: true
+          tags: ocap-frontend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan API image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ocap-api:ci
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+
+      - name: Trivy scan Frontend image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ocap-frontend:ci
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+
+      - name: Save images as artifacts
+        run: |
+          docker save ocap-api:ci | gzip > ocap-api-ci.tar.gz
+          docker save ocap-frontend:ci | gzip > ocap-frontend-ci.tar.gz
+
+      - name: Upload docker artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: |
+            ocap-api-ci.tar.gz
+            ocap-frontend-ci.tar.gz
