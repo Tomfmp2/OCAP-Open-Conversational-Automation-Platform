@@ -3,10 +3,12 @@
 import React from "react";
 import { Search, Bell, Sun, Moon, Globe, User } from "lucide-react";
 import { useThemeStore } from "@/shared/stores/useThemeStore";
+import { useAuth } from "@/features/auth/context/AuthProvider";
 import { CommandPalette } from "./CommandPalette";
 
 export function Topbar() {
   const { theme, toggleTheme } = useThemeStore();
+  const { user, logout } = useAuth();
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
   const [currentLocale, setCurrentLocale] = React.useState("es");
 
@@ -81,16 +83,23 @@ export function Topbar() {
 
           <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-1" />
 
-          {/* User Profile Dropdown */}
-          <div className="flex items-center gap-2 pl-1 cursor-pointer">
+          {/* User Profile */}
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex items-center gap-2 pl-1 cursor-pointer hover:opacity-80 transition-opacity"
+            title="Cerrar sesión"
+          >
             <div className="w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-700 dark:text-zinc-300">
               <User className="w-4 h-4" />
             </div>
             <div className="hidden lg:block text-left">
-              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-none">Admin Enterprise</p>
-              <p className="text-[10px] text-zinc-500 leading-tight">admin@ocap.io</p>
+              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-none">
+                {user?.fullName || user?.roleName || "Usuario"}
+              </p>
+              <p className="text-[10px] text-zinc-500 leading-tight">{user?.email || "—"}</p>
             </div>
-          </div>
+          </button>
         </div>
       </header>
 
