@@ -63,17 +63,17 @@ public class KnowledgeRetriever : IKnowledgeRetriever
             {
                 case SearchStrategyType.Similarity:
                 case SearchStrategyType.Semantic:
-                    results = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
+                    results = await ExecuteVectorSearchAsync(tenantId, knowledgeBaseId, query, topK, minScore, cancellationToken);
                     break;
 
                 case SearchStrategyType.Keyword:
-                    results = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                    results = await ExecuteKeywordSearchAsync(tenantId, knowledgeBaseId, query, topK, cancellationToken);
                     break;
 
                 case SearchStrategyType.Hybrid:
                 default:
-                    var vectorResults = await ExecuteVectorSearchAsync(tenantId, query, topK, minScore, cancellationToken);
-                    var keywordResults = await ExecuteKeywordSearchAsync(tenantId, query, topK, cancellationToken);
+                    var vectorResults = await ExecuteVectorSearchAsync(tenantId, knowledgeBaseId, query, topK, minScore, cancellationToken);
+                    var keywordResults = await ExecuteKeywordSearchAsync(tenantId, knowledgeBaseId, query, topK, cancellationToken);
                     results = MergeHybridResults(vectorResults, keywordResults, topK);
                     break;
             }
@@ -92,23 +92,40 @@ public class KnowledgeRetriever : IKnowledgeRetriever
         }
     }
 
-    private async Task<List<KnowledgeSearchResult>> ExecuteVectorSearchAsync(Guid tenantId, string query, int topK, double minScore, CancellationToken cancellationToken)
+    private async Task<List<KnowledgeSearchResult>> ExecuteVectorSearchAsync(
+        Guid tenantId,
+        Guid? knowledgeBaseId,
+        string query,
+        int topK,
+        double minScore,
+        CancellationToken cancellationToken)
     {
-        var queryVector = await _embeddingGenerator.GenerateVectorAsync(query, "OpenAI", "text-embedding-3-small", cancellationToken);
-        var results = await _vectorDatabase.SearchVectorsAsync(tenantId, queryVector, topK, minScore, cancellationToken);
-        return results;
+        var queryVector = await _embeddingGenerator.GenerateVectorAsync(query, cancellationToken: cancellationToken);
+        return await _vectorDatabase.SearchVectorsAsync(
+            tenantId,
+            queryVector,
+            topK,
+            minScore,
+            knowledgeBaseId,
+            tags: null,
+            cancellationToken);
     }
 
-    private async Task<List<KnowledgeSearchResult>> ExecuteKeywordSearchAsync(Guid tenantId, string query, int topK, CancellationToken cancellationToken)
+    private async Task<List<KnowledgeSearchResult>> ExecuteKeywordSearchAsync(
+        Guid tenantId,
+        Guid? knowledgeBaseId,
+        string query,
+        int topK,
+        CancellationToken cancellationToken)
     {
-        // Optimized in-memory BM25/keyword scoring fallback over tenant chunks
+        // Optimized keyword scoring over tenant chunks (optionally scoped to a knowledge base).
         var results = new List<KnowledgeSearchResult>();
         var queryTerms = new HashSet<string>(query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
         if (queryTerms.Count == 0) return results;
 
-        // Fetch documents for tenant
-        var docs = await _documentRepository.GetByKnowledgeBaseAsync(Guid.Empty, tenantId, cancellationToken);
+        var kbFilter = knowledgeBaseId ?? Guid.Empty;
+        var docs = await _documentRepository.GetByKnowledgeBaseAsync(kbFilter, tenantId, cancellationToken);
         foreach (var doc in docs)
         {
             cancellationToken.ThrowIfCancellationRequested();

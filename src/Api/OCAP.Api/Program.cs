@@ -39,7 +39,7 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddApplicationServices();
 
 // Registra el módulo de Knowledge Base y RAG
-builder.Services.AddKnowledgeModule();
+builder.Services.AddKnowledgeModule(builder.Configuration);
 
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);
