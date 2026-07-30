@@ -151,6 +151,7 @@ services:
       dockerfile: docker/frontend/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ""
+        API_INTERNAL_URL: http://ocap-api:5000
     container_name: ocap-frontend
     restart: always
     environment:
