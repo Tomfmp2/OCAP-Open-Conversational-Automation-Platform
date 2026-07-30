@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Security.Abstractions;
 
 namespace OCAP.Infrastructure.Persistence.Interceptors;
@@ -9,6 +7,7 @@ namespace OCAP.Infrastructure.Persistence.Interceptors;
 /// <summary>
 /// Enforce tenant isolation on write paths: assign TenantId on insert,
 /// reject cross-tenant writes, and block TenantId mutations.
+/// Login/anonymous flows may persist when every entity already carries TenantId.
 /// </summary>
 public sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
 {
@@ -42,14 +41,30 @@ public sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
         if (_tenantContext.BypassTenantFilters) return;
 
         var currentTenantId = _tenantContext.TenantId;
+        var entries = context.ChangeTracker.Entries()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToList();
+
         if (currentTenantId == Guid.Empty)
-            throw new InvalidOperationException("Cannot persist tenant-scoped data without a resolved TenantId.");
-
-        foreach (var entry in context.ChangeTracker.Entries())
         {
-            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
-                continue;
+            foreach (var entry in entries)
+            {
+                var tenantProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == TenantIdPropertyName);
+                if (tenantProperty is null || tenantProperty.Metadata.ClrType != typeof(Guid)) continue;
 
+                var value = (Guid)(tenantProperty.CurrentValue ?? Guid.Empty);
+                if (value == Guid.Empty)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot persist {entry.Metadata.ClrType.Name} without an explicit TenantId when no tenant context is resolved.");
+                }
+            }
+
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
             var tenantProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == TenantIdPropertyName);
             if (tenantProperty is null) continue;
             if (tenantProperty.Metadata.ClrType != typeof(Guid)) continue;
