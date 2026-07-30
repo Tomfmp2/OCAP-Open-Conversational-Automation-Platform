@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: ocap-postgres
     restart: always
     environment:
@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ocap_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-OcapSecurePass2026!}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -19,6 +19,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ocap-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ocap}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-OcapRabbit2026!}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: ocap-nats
+    restart: always
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: ocap-jaeger
+    restart: always
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: ocap-prometheus
+    restart: always
+    volumes:
+      - ./docker/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - ocap-api
 
   ocap-api:
     build:
@@ -32,16 +84,31 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Knowledge__UseInMemory: "false"
       Knowledge__VectorStore: "PgVector"
+      EventBus__Provider: ${EVENTBUS_PROVIDER:-RabbitMQ}
+      EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:-OcapRabbit2026!}@rabbitmq:5672/"
+      EventBus__NatsUrl: "nats://nats:4222"
+      EventBus__ImmediateDispatch: "false"
+      EventBus__EnableOutbox: "true"
+      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+      OpenTelemetry__ServiceName: "OCAP.Api"
+      Storage__Provider: ${STORAGE_PROVIDER:-Local}
+      Storage__RootPath: /app/storage
     ports:
       - "5000:5000"
+    volumes:
+      - api_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/ready || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 5
 
   ocap-frontend:
     build:
@@ -96,3 +163,4 @@ services:
 
 volumes:
   postgres_data:
+  api_storage:
