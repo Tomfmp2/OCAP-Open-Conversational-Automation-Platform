@@ -14,6 +14,7 @@ public enum AgentStatus
 public class Agent
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public AgentName Name { get; private set; }
     public string Description { get; private set; }
     public AgentStatus Status { get; private set; }
@@ -28,11 +29,12 @@ public class Agent
         Configuration = new AgentConfiguration(string.Empty);
     } // Constructor ORM
 
-    public Agent(Guid id, AgentName name, string description, AgentConfiguration configuration)
+    public Agent(Guid id, AgentName name, string description, AgentConfiguration configuration, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("El ID del agente no puede ser vacío.", nameof(id));
 
         Id = id;
+        TenantId = tenantId;
         Name = name ?? throw new ArgumentNullException(nameof(name));
         Description = description ?? string.Empty;
         Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));

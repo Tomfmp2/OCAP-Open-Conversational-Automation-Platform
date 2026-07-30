@@ -12,6 +12,7 @@ public enum UserStatus
 public class User
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public string DisplayName { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
@@ -23,12 +24,13 @@ public class User
         DisplayName = string.Empty;
     }
 
-    public User(Guid id, string displayName)
+    public User(Guid id, string displayName, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("User identifier cannot be empty.", nameof(id));
         if (string.IsNullOrWhiteSpace(displayName)) throw new ArgumentException("Display name cannot be empty.", nameof(displayName));
 
         Id = id;
+        TenantId = tenantId;
         DisplayName = displayName;
         CreatedAt = DateTime.UtcNow;
         Status = UserStatus.Active;

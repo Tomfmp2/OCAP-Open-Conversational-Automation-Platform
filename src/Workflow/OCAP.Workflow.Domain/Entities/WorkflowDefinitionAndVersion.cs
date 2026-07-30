@@ -38,14 +38,16 @@ public class WorkflowDefinition
 public class WorkflowVersion
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid WorkflowDefinitionId { get; private set; }
     public int VersionNumber { get; private set; }
     public string DefinitionJson { get; private set; } = "{}";
     public DateTime PublishedAtUtc { get; private set; } = DateTime.UtcNow;
 
-    public WorkflowVersion(Guid id, Guid workflowDefinitionId, int versionNumber, string definitionJson)
+    public WorkflowVersion(Guid id, Guid workflowDefinitionId, int versionNumber, string definitionJson, Guid tenantId = default)
     {
         Id = id;
+        TenantId = tenantId;
         WorkflowDefinitionId = workflowDefinitionId;
         VersionNumber = versionNumber;
         DefinitionJson = definitionJson ?? "{}";

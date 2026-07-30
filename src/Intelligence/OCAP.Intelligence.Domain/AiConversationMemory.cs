@@ -4,6 +4,7 @@ namespace OCAP.Intelligence.Domain;
 public class AiConversationMemory
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid ConversationId { get; private set; }
     public string MemoryType { get; private set; } = "ShortTerm";
     public string Content { get; private set; } = string.Empty;
@@ -11,12 +12,13 @@ public class AiConversationMemory
 
     private AiConversationMemory() { } // Constructor ORM
 
-    public AiConversationMemory(Guid id, Guid conversationId, string memoryType, string content)
+    public AiConversationMemory(Guid id, Guid conversationId, string memoryType, string content, Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("El ID de memoria no puede ser vacío.", nameof(id));
         if (conversationId == Guid.Empty) throw new ArgumentException("El ID de conversación no puede ser vacío.", nameof(conversationId));
 
         Id = id;
+        TenantId = tenantId;
         ConversationId = conversationId;
         MemoryType = string.IsNullOrWhiteSpace(memoryType) ? "ShortTerm" : memoryType.Trim();
         Content = content ?? string.Empty;

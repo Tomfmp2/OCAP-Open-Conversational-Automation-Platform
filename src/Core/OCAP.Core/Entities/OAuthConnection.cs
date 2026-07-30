@@ -4,6 +4,7 @@ namespace OCAP.Core.Entities;
 public class OAuthConnection
 {
     public Guid Id { private set; get; }
+    public Guid TenantId { private set; get; }
     public Guid UserId { private set; get; }
     public string Provider { private set; get; } = string.Empty;
     public string AccessToken { private set; get; } = string.Empty;
@@ -21,12 +22,14 @@ public class OAuthConnection
         string accessToken,
         string refreshToken,
         DateTime tokenExpiration,
-        string scopes)
+        string scopes,
+        Guid tenantId = default)
     {
         if (id == Guid.Empty) throw new ArgumentException("El ID de conexión no puede ser vacío.", nameof(id));
         if (userId == Guid.Empty) throw new ArgumentException("El ID de usuario no puede ser vacío.", nameof(userId));
 
         Id = id;
+        TenantId = tenantId;
         UserId = userId;
         Provider = provider ?? throw new ArgumentNullException(nameof(provider));
         AccessToken = accessToken ?? string.Empty;

@@ -4,6 +4,7 @@ namespace OCAP.Core.Entities;
 public class OutboxMessage
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public string Type { get; private set; } = string.Empty;
     public string Content { get; private set; } = string.Empty;
     public DateTime OccurredOnUtc { get; private set; }
@@ -12,9 +13,10 @@ public class OutboxMessage
 
     private OutboxMessage() { } // Para el ORM
 
-    public OutboxMessage(Guid id, string type, string content)
+    public OutboxMessage(Guid id, string type, string content, Guid tenantId = default)
     {
         Id = id;
+        TenantId = tenantId;
         Type = type;
         Content = content;
         OccurredOnUtc = DateTime.UtcNow;

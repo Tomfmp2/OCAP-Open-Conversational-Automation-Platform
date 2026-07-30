@@ -4,6 +4,7 @@ namespace OCAP.Workflow.Domain.Entities;
 public class WorkflowExecutionHistory
 {
     public Guid Id { get; private set; }
+    public Guid TenantId { get; private set; }
     public Guid ExecutionId { get; private set; }
     public string StepId { get; private set; } = string.Empty;
     public string StepName { get; private set; } = string.Empty;
@@ -25,9 +26,11 @@ public class WorkflowExecutionHistory
         double durationMs,
         string inputJson,
         string outputJson,
-        string? errorMessage = null)
+        string? errorMessage = null,
+        Guid tenantId = default)
     {
         Id = id;
+        TenantId = tenantId;
         ExecutionId = executionId;
         StepId = stepId;
         StepName = stepName;
