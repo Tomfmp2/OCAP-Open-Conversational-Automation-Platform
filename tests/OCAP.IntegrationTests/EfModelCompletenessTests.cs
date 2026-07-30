@@ -30,7 +30,7 @@ public class EfModelCompletenessTests
             .Select(p => p.PropertyType.GetGenericArguments()[0])
             .ToList();
 
-        dbSetEntityTypes.Should().HaveCount(52);
+        dbSetEntityTypes.Should().HaveCount(53);
 
         foreach (var clrType in dbSetEntityTypes)
         {
@@ -57,7 +57,7 @@ public class EfModelCompletenessTests
             "User", "Conversation", "Message", "Session",
             "Tenant", "UserIdentity", "Role", "Permission",
             "WorkflowDefinition", "WorkflowExecution", "WorkflowVariable",
-            "KnowledgeBase", "KnowledgeDocument", "KnowledgeChunk",
+            "KnowledgeBase", "KnowledgeDocument", "KnowledgeChunk", "KnowledgeEmbedding",
             "OutboxMessage", "Agent", "ToolExecution"
         });
     }
