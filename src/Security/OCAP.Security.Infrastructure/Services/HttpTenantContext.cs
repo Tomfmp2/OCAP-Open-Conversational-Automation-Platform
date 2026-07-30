@@ -7,10 +7,9 @@ using OCAP.Security.Abstractions;
 namespace OCAP.Security.Infrastructure.Services;
 
 /// <summary>
-/// Contexto multi-tenant basado en claims autenticados.
-/// En producción el header X-Tenant-ID no puede suplantar el tenant de un usuario autenticado
-/// ni fijar un tenant arbitrario en peticiones anónimas.
-/// Sin HttpContext (background jobs) se activa BypassTenantFilters.
+/// Contexto multi-tenant basado en claims autenticados (fail-safe).
+/// En producción: sin claim de tenant → Guid.Empty (no inventar tenants).
+/// En Development/Testing anónimo: X-Tenant-ID o tenant de prueba controlado.
 /// </summary>
 public class HttpTenantContext : ITenantContext
 {
@@ -29,6 +28,7 @@ public class HttpTenantContext : ITenantContext
         get
         {
             var httpContext = _httpContextAccessor.HttpContext;
+            // Jobs sin HTTP: tenant por defecto + BypassTenantFilters.
             if (httpContext == null) return DefaultTenantId;
 
             var isAuthenticated = httpContext.User?.Identity?.IsAuthenticated == true;
@@ -45,11 +45,10 @@ public class HttpTenantContext : ITenantContext
                     return claimTenantId;
                 }
 
-                // Usuario autenticado sin claim de tenant: no aceptar header spoofable.
-                return DefaultTenantId;
+                // Fail-safe: autenticado sin claim → no aceptar header spoofable ni inventar tenant.
+                return Guid.Empty;
             }
 
-            // Anónimo: solo permitir X-Tenant-ID en Development/Testing para escenarios locales.
             if (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))
             {
                 if (httpContext.Request.Headers.TryGetValue("X-Tenant-ID", out var headerValue)
@@ -59,19 +58,17 @@ public class HttpTenantContext : ITenantContext
                 {
                     return headerTenantId;
                 }
+
+                return DefaultTenantId;
             }
 
-            return DefaultTenantId;
+            return Guid.Empty;
         }
     }
 
-    public string TenantName => $"Tenant-{TenantId:N}";
+    public string TenantName => TenantId == Guid.Empty ? "Unresolved" : $"Tenant-{TenantId:N}";
 
     public bool IsResolved => _httpContextAccessor.HttpContext != null && TenantId != Guid.Empty;
 
-    /// <summary>
-    /// Jobs sin HTTP deben ver datos cross-tenant de forma controlada (p. ej. outbox retention).
-    /// Las peticiones HTTP nunca bypasean filtros.
-    /// </summary>
     public bool BypassTenantFilters => _httpContextAccessor.HttpContext == null;
 }
