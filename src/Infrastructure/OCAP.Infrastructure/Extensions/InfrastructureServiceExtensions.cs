@@ -66,8 +66,18 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAiExecutionLogRepository, AiExecutionLogRepository>();
         services.AddScoped<IAiConversationMemoryRepository, AiConversationMemoryRepository>();
 
-        // Caching Foundation
-        services.AddDistributedMemoryCache();
+        // Caching Foundation — MemoryCache + distributed adapter (Redis when ConnectionStrings:Redis is set)
+        services.AddMemoryCache();
+        var redisConnection = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisConnection))
+        {
+            services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+
         services.AddSingleton<OCAP.Core.Caching.ICacheService, OCAP.Infrastructure.Caching.DistributedCacheService>();
 
         // Retention & Maintenance Options
@@ -79,13 +89,44 @@ public static class InfrastructureServiceExtensions
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
-        // Real-Time Distributed Event Bus Foundation (CAP-20)
+        // Distributed Event Bus (InMemory | RabbitMQ | NATS)
+        services.Configure<OCAP.Infrastructure.Events.Distributed.EventBusOptions>(
+            configuration.GetSection(OCAP.Infrastructure.Events.Distributed.EventBusOptions.SectionName));
+        services.PostConfigure<OCAP.Infrastructure.Events.Distributed.EventBusOptions>(opts =>
+        {
+            var env = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"];
+            var isDev = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(env, "Testing", StringComparison.OrdinalIgnoreCase);
+            if (!isDev && string.Equals(opts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase))
+            {
+                opts.Provider = configuration["EventBus:Provider"] ?? "RabbitMQ";
+            }
+
+            if (string.Equals(opts.Provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(opts.Provider, "NATS", StringComparison.OrdinalIgnoreCase))
+            {
+                opts.ImmediateDispatch = false;
+            }
+        });
+
         services.AddSingleton<OCAP.Core.Events.Distributed.IEventSerializer, OCAP.Infrastructure.Events.Distributed.JsonEventSerializer>();
-        services.AddSingleton<OCAP.Core.Events.Distributed.IEventTransport, OCAP.Infrastructure.Events.Distributed.InMemoryEventTransport>();
+        services.AddSingleton<OCAP.Core.Events.Distributed.IMessageRetryPolicy, OCAP.Infrastructure.Events.Distributed.ExponentialBackoffRetryPolicy>();
+        services.AddSingleton<OCAP.Core.Events.Distributed.IEventTransport>(sp =>
+        {
+            var opts = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OCAP.Infrastructure.Events.Distributed.EventBusOptions>>().Value;
+            var serializer = sp.GetRequiredService<OCAP.Core.Events.Distributed.IEventSerializer>();
+            return opts.Provider.Trim().ToUpperInvariant() switch
+            {
+                "RABBITMQ" => ActivatorUtilities.CreateInstance<OCAP.Infrastructure.Events.Distributed.RabbitMqEventTransport>(sp),
+                "NATS" => ActivatorUtilities.CreateInstance<OCAP.Infrastructure.Events.Distributed.NatsJetStreamEventTransport>(sp),
+                _ => new OCAP.Infrastructure.Events.Distributed.InMemoryEventTransport(serializer)
+            };
+        });
         services.AddScoped<OCAP.Core.Events.Distributed.IOutboxStore, OCAP.Infrastructure.Events.Distributed.EfOutboxStore>();
         services.AddScoped<OCAP.Core.Events.Distributed.IInboxStore, OCAP.Infrastructure.Events.Distributed.EfInboxStore>();
         services.AddScoped<OCAP.Core.Events.Distributed.IMessageDeadLetterHandler, OCAP.Infrastructure.Events.Distributed.MessageDeadLetterHandler>();
         services.AddSingleton<OCAP.Core.Events.IEventBus, OCAP.Infrastructure.Events.Distributed.DistributedEventBus>();
+        services.AddHostedService<OCAP.Infrastructure.Events.Distributed.EventBusConnectionHostedService>();
 
         return services;
     }

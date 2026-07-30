@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using OCAP.Core.Events.Distributed;
 using OCAP.Infrastructure.Persistence.Context;
 
@@ -7,10 +8,12 @@ namespace OCAP.Infrastructure.Events.Distributed;
 public class MessageDeadLetterHandler : IMessageDeadLetterHandler
 {
     private readonly OCAPDbContext _dbContext;
+    private readonly IServiceProvider _serviceProvider;
 
-    public MessageDeadLetterHandler(OCAPDbContext dbContext)
+    public MessageDeadLetterHandler(OCAPDbContext dbContext, IServiceProvider serviceProvider)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
     public async Task HandleDeadLetterAsync(Guid tenantId, string eventType, string payloadJson, string reason, int retryCount, CancellationToken cancellationToken = default)
@@ -32,6 +35,11 @@ public class MessageDeadLetterHandler : IMessageDeadLetterHandler
     {
         var msg = await _dbContext.DeadLetterMessages.FirstOrDefaultAsync(m => m.Id == deadLetterId, cancellationToken);
         if (msg == null) return false;
+
+        var outbox = _serviceProvider.GetRequiredService<IOutboxStore>();
+        await outbox.SaveAsync(
+            new OutboxMessage(Guid.NewGuid(), msg.TenantId, msg.EventType, msg.OriginalPayloadJson),
+            cancellationToken);
 
         msg.MarkAsReplayed();
         await _dbContext.SaveChangesAsync(cancellationToken);
