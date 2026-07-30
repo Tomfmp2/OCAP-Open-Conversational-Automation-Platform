@@ -52,6 +52,12 @@ builder.Services.AddTelegramChannel(builder.Configuration);
 // Registra servicios del gateway: controladores, Swagger, CORS, Rate Limiting, Seguridad.
 builder.Services.AddApiServices(builder.Configuration);
 
+// Un fallo en un BackgroundService no debe tumbar el host (jobs de retención/workflow).
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+});
+
 // Compresión HTTP y response caching para APIs de lectura.
 builder.Services.AddResponseCompression(options =>
 {
@@ -118,7 +124,7 @@ app.MapOcapHealthEndpoints();
 app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
     Predicate = r => r.Tags.Contains("ready") || r.Tags.Contains("live") || r.Name == "Database" || r.Name == "postgres"
-});
+}).AllowAnonymous();
 
 await app.RunAsync();
 

@@ -20,7 +20,12 @@ RUN dotnet publish "OCAP.Api.csproj" -c Release -o /app/publish /p:UseAppHost=fa
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
+  CMD curl -fsS http://localhost:5000/health/ready || exit 1
 ENTRYPOINT ["dotnet", "OCAP.Api.dll"]

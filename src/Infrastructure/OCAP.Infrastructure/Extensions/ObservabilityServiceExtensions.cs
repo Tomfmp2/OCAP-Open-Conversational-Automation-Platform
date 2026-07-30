@@ -63,9 +63,10 @@ public static class ObservabilityServiceExtensions
             .AddCheck("self", () => HealthCheckResult.Healthy("process"), tags: new[] { "live" })
             .AddCheck("startup", () => HealthCheckResult.Healthy("started"), tags: new[] { "startup" });
 
-        if (!string.IsNullOrWhiteSpace(configuration.GetConnectionString("DefaultConnection")))
+        var redis = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redis))
         {
-            // postgres already covered by DbContext check
+            health.AddRedis(redis, name: "redis", tags: new[] { "ready", "cache" });
         }
 
         health.AddCheck<ObjectStorageHealthCheck>("storage", tags: new[] { "ready", "storage" });
@@ -79,15 +80,15 @@ public static class ObservabilityServiceExtensions
         app.MapHealthChecks("/health/live", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live")
-        });
+        }).AllowAnonymous();
         app.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("ready")
-        });
+        }).AllowAnonymous();
         app.MapHealthChecks("/health/startup", new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("startup")
-        });
+        }).AllowAnonymous();
         app.MapHealthChecks("/api/health/system", new HealthCheckOptions
         {
             ResponseWriter = async (context, report) =>
@@ -106,9 +107,9 @@ public static class ObservabilityServiceExtensions
                     })
                 });
             }
-        });
+        }).AllowAnonymous();
 
-        app.MapPrometheusScrapingEndpoint("/metrics");
+        app.MapPrometheusScrapingEndpoint("/metrics").AllowAnonymous();
         return app;
     }
 }
