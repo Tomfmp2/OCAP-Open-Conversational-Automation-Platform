@@ -44,6 +44,7 @@ public class KnowledgeController : ControllerBase
         foreach (var kb in list)
         {
             var docs = await _knowledgeService.GetDocumentsAsync(tenantId, kb.Id, cancellationToken);
+            var chunkCount = docs.Sum(d => d.TotalChunks);
             summaries.Add(new
             {
                 kb.Id,
@@ -53,7 +54,7 @@ public class KnowledgeController : ControllerBase
                 kb.Strategy,
                 kb.CreatedAtUtc,
                 DocumentCount = docs.Count,
-                VectorCount   = (long)docs.Count * 15  // Estimado: ~15 chunks por documento en promedio
+                VectorCount = chunkCount
             });
         }
 
