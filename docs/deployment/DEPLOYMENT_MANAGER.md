@@ -1,48 +1,23 @@
-# OCAP — Asistente de Despliegue (Deployment Manager Foundation)
+# Deployment (Sprint 4)
 
-## Descripción General
+## Compose
 
-**OCAP Deployment Manager** es la herramienta oficial de asistencia interactiva para el autohospedaje (*self-hosting*) seguro y guiado de la plataforma OCAP.
+Servicios: `postgres` (pgvector, host port `5433` por defecto), `rabbitmq`, `nats`, `jaeger`, `prometheus`, `ocap-api`, `ocap-frontend`, `ocap-dashboard`, `evolution-api`, `nginx`.
 
-Diseñada como una herramienta de consola independiente (`OCAP.DeploymentManager`), guía a los administradores paso a paso sin realizar instalaciones silenciosas ni no supervisadas.
+## Deployment Manager
 
----
+`OCAP.DeploymentManager` valida de forma real:
 
-## Flujo del Asistente
+- Parámetros de configuración
+- Disponibilidad de `docker` / `docker compose`
+- Existencia de `docker-compose.yml`
+- TCP a Postgres / RabbitMQ / NATS
+- Escritura de storage
+- Endpoint OTLP / health (si configurados)
+- Genera `.env` (no inventa métricas ni simula éxito de contenedores)
 
-```
-OCAP Deployment Manager
-        │
-        ▼
-1. Selección del Modo de Instalación
-   ├── [1] Desarrollo Local
-   ├── [2] Servidor Personal
-   └── [3] Servidor Empresarial
-        │
-        ▼
-2. Configuración de Base de Datos PostgreSQL
-   ├── Host, Puerto, Base de Datos, Usuario y Contraseña
-        │
-        ▼
-3. Configuración de Canales (WhatsApp Evolution API / Telegram)
-        │
-        ▼
-4. Configuración de Google Workspace (OAuth Client ID / Secret)
-        │
-        ▼
-5. Generación de Claves de Seguridad & Validación (.env)
-        │
-        ▼
-6. Verificación de Docker Compose & Ejecución de Contenedores
-```
+No ejecuta automáticamente `docker compose up` (imprime el comando sugerido).
 
----
+## Variables clave
 
-## Generación del Archivo `.env`
-
-El servicio `EnvironmentGenerator` produce un archivo `.env` estandarizado en la raíz del proyecto con variables como:
-
-- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-- `JWT_SECRET_KEY`
+Ver `.env.example`: JWT, Postgres, EventBus, Storage, OTEL.
