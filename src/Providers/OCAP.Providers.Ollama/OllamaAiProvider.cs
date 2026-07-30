@@ -68,25 +68,14 @@ public class OllamaAiProvider : IAiProvider
                     }
                 };
             }
-        }
-        catch
-        {
-            // Silencioso para permitir ejecución offline simulada en pruebas
-        }
 
-        stopwatch.Stop();
-        return new AiResponse
+            var err = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new InvalidOperationException($"Error en respuesta HTTP de Ollama ({response.StatusCode}): {err}");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
         {
-            GeneratedText = $"[Ollama - {model} (Self-Hosted)]: Procesamiento local de '{request.UserMessage}'.",
-            TokensUsed = 75,
-            ModelName = model,
-            ProviderName = Name,
-            Metadata = new Dictionary<string, object>
-            {
-                ["LatencyMs"] = stopwatch.Elapsed.TotalMilliseconds,
-                ["OfflineSimulation"] = true
-            }
-        };
+            throw new InvalidOperationException($"No se pudo establecer comunicación con el servidor Ollama en '{baseUrl}' para el modelo '{model}'. Detalle: {ex.Message}", ex);
+        }
     }
 
     public async IAsyncEnumerable<string> StreamResponseAsync(AiRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)

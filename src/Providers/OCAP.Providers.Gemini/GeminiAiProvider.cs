@@ -30,18 +30,7 @@ public class GeminiAiProvider : IAiProvider
 
         if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
         {
-            return new AiResponse
-            {
-                GeneratedText = $"[Gemini - {_settings.ModelName}]: Respuesta procesada en modo seguro: '{request.UserMessage}'.",
-                TokensUsed = 90,
-                ModelName = _settings.ModelName ?? "gemini-1.5-flash",
-                ProviderName = Name,
-                Metadata = new Dictionary<string, object>
-                {
-                    ["LatencyMs"] = 14.0,
-                    ["OfflineSimulation"] = true
-                }
-            };
+            throw new InvalidOperationException($"No se ha configurado una API Key válida para Google Gemini ({_settings.ModelName ?? "gemini-1.5-flash"}). Proporcione un API Key real en la configuración de la plataforma.");
         }
 
         var model = _settings.ModelName ?? "gemini-1.5-flash";
@@ -106,14 +95,7 @@ public class GeminiAiProvider : IAiProvider
     {
         if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey == "mock-key")
         {
-            var simulatedText = $"[Gemini Streaming]: {request.UserMessage}";
-            foreach (var chunk in simulatedText.Split(' '))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                yield return chunk + " ";
-                await Task.Delay(20, cancellationToken);
-            }
-            yield break;
+            throw new InvalidOperationException($"No se ha configurado una API Key válida para el proveedor Google Gemini ({_settings.ModelName ?? "gemini-1.5-flash"}).");
         }
 
         var fullResponse = (await GenerateResponseAsync(request, cancellationToken)).GeneratedText;

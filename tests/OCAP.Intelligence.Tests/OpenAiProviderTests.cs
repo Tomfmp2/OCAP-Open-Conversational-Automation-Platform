@@ -7,7 +7,7 @@ namespace OCAP.Intelligence.Tests;
 public class OpenAiProviderTests
 {
     [Fact]
-    public async Task GenerateResponseAsync_WithOfflineSettings_ReturnsSimulatedResponse()
+    public async Task GenerateResponseAsync_WithoutValidApiKey_ThrowsInvalidOperationException()
     {
         // Arrange
         using var httpClient = new HttpClient();
@@ -15,18 +15,13 @@ public class OpenAiProviderTests
         var provider = new OpenAiProvider(httpClient, settings);
         var request = new AiRequest { UserMessage = "Hola OpenAI" };
 
-        // Act
-        var response = await provider.GenerateResponseAsync(request);
-
-        // Assert
-        response.Should().NotBeNull();
-        response.ProviderName.Should().Be("OpenAI");
-        response.ModelName.Should().Be("gpt-4o");
-        response.GeneratedText.Should().Contain("Hola OpenAI");
+        // Act & Assert
+        var act = async () => await provider.GenerateResponseAsync(request);
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task StreamResponseAsync_YieldsTokens()
+    public async Task StreamResponseAsync_WithoutValidApiKey_ThrowsInvalidOperationException()
     {
         // Arrange
         using var httpClient = new HttpClient();
@@ -34,15 +29,13 @@ public class OpenAiProviderTests
         var provider = new OpenAiProvider(httpClient, settings);
         var request = new AiRequest { UserMessage = "Streaming Test" };
 
-        // Act
-        var chunks = new List<string>();
-        await foreach (var chunk in provider.StreamResponseAsync(request))
+        // Act & Assert
+        var act = async () =>
         {
-            chunks.Add(chunk);
-        }
+            await foreach (var _ in provider.StreamResponseAsync(request)) { }
+        };
 
-        // Assert
-        chunks.Should().NotBeEmpty();
+        await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
     [Fact]
