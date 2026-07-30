@@ -29,16 +29,17 @@ public class AiController : ControllerBase
     }
 
     [HttpGet("status")]
-    public ActionResult<AiStatusDto> GetStatus()
+    public async Task<ActionResult<AiStatusDto>> GetStatus(CancellationToken cancellationToken)
     {
         var activeName = _selector.ActiveProviderName;
-        var activeProvider = _registry.GetProvider(activeName);
-        var modelInfo = activeProvider?.GetModelInformation() ?? _aiProvider.GetModelInformation();
-        
+        var activeProvider = _registry.GetProvider(activeName) ?? _aiProvider;
+        var modelInfo = activeProvider.GetModelInformation();
+        var health = await activeProvider.HealthAsync(cancellationToken);
+
         var dto = new AiStatusDto(
             ActiveProvider: modelInfo.Provider,
             ActiveModel: modelInfo.Model,
-            Status: "Online",
+            Status: health.IsHealthy ? "Online" : (string.IsNullOrWhiteSpace(health.StatusMessage) ? "Offline" : "Degraded"),
             LastCheckedUtc: DateTime.UtcNow
         );
         return Ok(dto);
@@ -53,7 +54,7 @@ public class AiController : ControllerBase
         var totalExecutions = logs.Count;
         var avgLatency = logs.Any() ? logs.Average(l => l.ExecutionTimeMs) : 0.0;
         var successCount = logs.Count(l => l.Success);
-        var successRate = logs.Any() ? (successCount / (double)totalExecutions) * 100.0 : 100.0;
+        var successRate = logs.Any() ? (successCount / (double)totalExecutions) * 100.0 : 0.0;
 
         var dto = new AiUsageDto(
             TotalTokensUsed: totalTokens,

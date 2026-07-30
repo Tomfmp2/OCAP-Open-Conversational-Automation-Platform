@@ -237,70 +237,113 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión eliminada exitosamente.", Data = null });
     }
 
-    // GET /api/channels/{provider}/status - Retorna el estado de conexión del canal especificado (Telegram / WhatsApp)
+    // GET /api/channels/{provider}/status - Estado real seg?n conexiones del tenant
     [HttpGet("{provider}/status")]
-    public IActionResult GetProviderStatus(string provider)
+    public async Task<IActionResult> GetProviderStatus(string provider, CancellationToken cancellationToken)
     {
-        var normalized = (provider ?? string.Empty).ToLowerInvariant();
-        var isSupported = normalized == "telegram" || normalized == "whatsapp";
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty)
+        {
+            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto de Tenant no v?lido.", Data = null });
+        }
 
+        var connections = await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken);
+        var match = connections.FirstOrDefault(c =>
+            string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase));
+
+        var connected = match is { Enabled: true };
         var response = new
         {
             Provider = provider,
-            Status = isSupported ? "Connected" : "Disconnected",
-            IsOperational = isSupported,
+            Status = connected ? "Connected" : (match is null ? "NotConfigured" : "Disabled"),
+            IsOperational = connected,
+            ConnectionId = match?.Id,
             CheckedAtUtc = DateTime.UtcNow
         };
 
         return Ok(new ApiResponse<object> { Success = true, Message = $"Estado del canal {provider} obtenido.", Data = response });
     }
 
-    // GET /api/channels/{provider}/health - Retorna el estado de salud detallado del canal.
+    // GET /api/channels/{provider}/health
     [HttpGet("{provider}/health")]
-    public IActionResult GetProviderHealth(string provider)
+    public async Task<IActionResult> GetProviderHealth(string provider, CancellationToken cancellationToken)
     {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty)
+        {
+            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto de Tenant no v?lido.", Data = null });
+        }
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var connections = await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken);
+        sw.Stop();
+        var match = connections.FirstOrDefault(c =>
+            string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase) && c.Enabled);
+
         var response = new
         {
             Provider = provider,
-            Health = "Healthy",
-            LatencyMs = 45.2,
-            LastPingAtUtc = DateTime.UtcNow.AddSeconds(-30),
-            ErrorMessage = (string?)null
+            Health = match is null ? "NotConfigured" : "Healthy",
+            LatencyMs = sw.Elapsed.TotalMilliseconds,
+            LastPingAtUtc = DateTime.UtcNow,
+            ErrorMessage = match is null ? "No hay conexi?n habilitada para este proveedor." : (string?)null
         };
 
         return Ok(new ApiResponse<object> { Success = true, Message = $"Salud del canal {provider} obtenida.", Data = response });
     }
 
-    // GET /api/channels/{provider}/configuration - Retorna la configuración (enmascarada) del canal.
+    // GET /api/channels/{provider}/configuration
     [HttpGet("{provider}/configuration")]
-    public IActionResult GetProviderConfiguration(string provider)
+    public async Task<IActionResult> GetProviderConfiguration(string provider, CancellationToken cancellationToken)
     {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty)
+        {
+            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto de Tenant no v?lido.", Data = null });
+        }
+
+        var connections = await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken);
+        var match = connections.FirstOrDefault(c =>
+            string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase));
+
         var response = new
         {
             Provider = provider,
-            IsEnabled = true,
-            WebhookUrlConfigured = true,
-            BotUsernameOrIdentifier = provider?.ToLowerInvariant() == "telegram" ? "@ocap_bot" : "+14155552671",
-            MaskedToken = "********************"
+            IsEnabled = match?.Enabled ?? false,
+            WebhookUrlConfigured = match?.ConfigurationMetadata?.ContainsKey("WebhookUrl") == true
+                || match?.ConfigurationMetadata?.ContainsKey("webhookUrl") == true,
+            DisplayName = match?.DisplayName,
+            MaskedToken = match is null ? null : "********************",
+            ConnectionId = match?.Id
         };
 
-        return Ok(new ApiResponse<object> { Success = true, Message = $"Configuración del canal {provider} obtenida.", Data = response });
+        return Ok(new ApiResponse<object> { Success = true, Message = $"Configuraci?n del canal {provider} obtenida.", Data = response });
     }
 
-    // GET /api/channels/{provider}/statistics - Retorna las estadísticas operativas del canal.
+    // GET /api/channels/{provider}/statistics ? sin m?tricas inventadas
     [HttpGet("{provider}/statistics")]
-    public IActionResult GetProviderStatistics(string provider)
+    public async Task<IActionResult> GetProviderStatistics(string provider, CancellationToken cancellationToken)
     {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty)
+        {
+            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto de Tenant no v?lido.", Data = null });
+        }
+
+        var connections = await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken);
+        var match = connections.FirstOrDefault(c =>
+            string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase));
+
         var response = new
         {
             Provider = provider,
-            MessagesReceivedToday = 142,
-            MessagesSentToday = 138,
-            SuccessRatePercentage = 99.2,
-            AverageResponseTimeMs = 310.5,
-            LastMessageAtUtc = DateTime.UtcNow.AddMinutes(-3)
+            ConnectionConfigured = match is not null,
+            Enabled = match?.Enabled ?? false,
+            CreatedAtUtc = match?.CreatedAtUtc,
+            UpdatedAtUtc = match?.UpdatedAtUtc,
+            Note = "Las m?tricas de mensajes requieren telemetr?a de canal persistida; no se inventan contadores."
         };
 
-        return Ok(new ApiResponse<object> { Success = true, Message = $"Estadísticas del canal {provider} obtenidas.", Data = response });
+        return Ok(new ApiResponse<object> { Success = true, Message = $"Estad?sticas del canal {provider} obtenidas.", Data = response });
     }
 }

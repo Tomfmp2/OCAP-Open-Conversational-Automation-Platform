@@ -1,8 +1,11 @@
+using System.Net.Http.Headers;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Core.Entities;
 using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Providers.Google.Abstractions;
 using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
@@ -28,11 +31,22 @@ public class IntegrationsController : ControllerBase
 {
     private readonly OCAPDbContext _dbContext;
     private readonly IUserContext _userContext;
+    private readonly ITenantContext _tenantContext;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public IntegrationsController(OCAPDbContext dbContext, IUserContext userContext)
+    public IntegrationsController(
+        OCAPDbContext dbContext,
+        IUserContext userContext,
+        ITenantContext tenantContext,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
+        _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
     // GET /api/integrations - Retorna el estado de todas las integraciones soportadas
@@ -100,24 +114,80 @@ public class IntegrationsController : ControllerBase
             return BadRequest("El código de autorización es requerido.");
         }
 
-        var userId = _userContext.UserId != Guid.Empty ? _userContext.UserId : Guid.NewGuid();
+        if (!_userContext.IsAuthenticated || _userContext.UserId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
+
+        if (!string.Equals(provider, "Google", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status501NotImplemented,
+                $"El intercambio OAuth real para '{provider}' aún no está implementado.");
+        }
+
+        var googleSettings = _configuration.GetSection(GoogleWorkspaceOptions.SectionName).Get<GoogleSettings>()
+            ?? new GoogleSettings();
+        if (string.IsNullOrWhiteSpace(googleSettings.ClientId) ||
+            string.IsNullOrWhiteSpace(googleSettings.ClientSecret))
+        {
+            return StatusCode(StatusCodes.Status501NotImplemented,
+                "Se requieren Google:ClientId y Google:ClientSecret para intercambiar el código OAuth.");
+        }
+
+        var redirectUri = string.IsNullOrWhiteSpace(request.RedirectUri)
+            ? googleSettings.RedirectUri
+            : request.RedirectUri;
+        if (string.IsNullOrWhiteSpace(redirectUri))
+        {
+            return BadRequest("RedirectUri es requerido (en la petición o en Google:RedirectUri).");
+        }
+
+        GoogleTokenResponse tokenResponse;
+        try
+        {
+            tokenResponse = await ExchangeGoogleAuthCodeAsync(
+                request.AuthCode,
+                googleSettings.ClientId,
+                googleSettings.ClientSecret,
+                redirectUri,
+                cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            return BadRequest($"No se pudo intercambiar el código OAuth de Google: {ex.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(tokenResponse.AccessToken))
+        {
+            return BadRequest("Google no devolvió un access_token válido.");
+        }
+
+        var scopes = !string.IsNullOrWhiteSpace(tokenResponse.Scope)
+            ? tokenResponse.Scope.Replace(' ', ',')
+            : (request.Scopes ?? string.Join(',', googleSettings.Scopes));
+        var expiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn > 0 ? tokenResponse.ExpiresIn : 3600);
+        var accountEmail = await TryGetGoogleAccountEmailAsync(tokenResponse.AccessToken, cancellationToken)
+            ?? _userContext.Email
+            ?? "connected@google.com";
+
         var existing = await _dbContext.OAuthConnections
             .FirstOrDefaultAsync(c => c.Provider.ToLower() == provider.ToLower(), cancellationToken);
 
         if (existing != null)
         {
-            existing.UpdateTokens($"access_token_{provider}_{Guid.NewGuid()}", $"refresh_token_{provider}", DateTime.UtcNow.AddDays(30));
+            existing.UpdateTokens(tokenResponse.AccessToken, tokenResponse.RefreshToken ?? string.Empty, expiration);
         }
         else
         {
             var newConn = new OAuthConnection(
                 Guid.NewGuid(),
-                userId,
+                _userContext.UserId,
                 provider,
-                $"access_token_{provider}_{Guid.NewGuid()}",
-                $"refresh_token_{provider}",
-                DateTime.UtcNow.AddDays(30),
-                request.Scopes ?? "read,write"
+                tokenResponse.AccessToken,
+                tokenResponse.RefreshToken ?? string.Empty,
+                expiration,
+                scopes,
+                _tenantContext.TenantId
             );
             _dbContext.OAuthConnections.Add(newConn);
         }
@@ -127,9 +197,9 @@ public class IntegrationsController : ControllerBase
         return Ok(new IntegrationStatusDto(
             Provider: provider,
             IsConnected: true,
-            AccountEmail: $"user@{provider.ToLower()}.com",
+            AccountEmail: accountEmail,
             OAuthStatus: "Authorized",
-            GrantedScopes: (request.Scopes ?? "read,write").Split(',').ToList(),
+            GrantedScopes: scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList(),
             LastSyncedAt: DateTime.UtcNow
         ));
     }
@@ -164,5 +234,82 @@ public class IntegrationsController : ControllerBase
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(new { Message = $"Sincronización completada con {provider}.", SyncedAt = existing.UpdatedAt });
+    }
+
+    private async Task<GoogleTokenResponse> ExchangeGoogleAuthCodeAsync(
+        string authCode,
+        string clientId,
+        string clientSecret,
+        string redirectUri,
+        CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient();
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["code"] = authCode,
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["redirect_uri"] = redirectUri,
+            ["grant_type"] = "authorization_code"
+        });
+
+        using var response = await client.PostAsync("https://oauth2.googleapis.com/token", content, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Google token endpoint respondió {(int)response.StatusCode}: {body}",
+                null,
+                response.StatusCode);
+        }
+
+        var parsed = JsonSerializer.Deserialize<GoogleTokenResponse>(body, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        return parsed ?? throw new HttpRequestException("Respuesta de token de Google vacía o inválida.");
+    }
+
+    private async Task<string?> TryGetGoogleAccountEmailAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://www.googleapis.com/oauth2/v3/userinfo");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var response = await client.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            return document.RootElement.TryGetProperty("email", out var email)
+                ? email.GetString()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private sealed class GoogleTokenResponse
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("access_token")]
+        public string? AccessToken { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("refresh_token")]
+        public string? RefreshToken { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("scope")]
+        public string? Scope { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("token_type")]
+        public string? TokenType { get; set; }
     }
 }

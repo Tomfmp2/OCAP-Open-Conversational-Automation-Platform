@@ -12,7 +12,7 @@ namespace OCAP.Api.Controllers;
 // Controlador de API que expone el estado general, métricas y diagnóstico para el Enterprise Dashboard (CAP-12).
 public class DashboardController : ControllerBase
 {
-    private static readonly DateTime ServerStartTimeUtc = DateTime.UtcNow.AddHours(-12);
+    private static readonly DateTime ServerStartTimeUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
     private readonly OCAPDbContext _dbContext;
 
     public DashboardController(OCAPDbContext dbContext)

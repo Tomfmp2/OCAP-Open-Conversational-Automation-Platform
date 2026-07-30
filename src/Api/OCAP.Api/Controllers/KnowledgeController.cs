@@ -24,11 +24,12 @@ public class KnowledgeController : ControllerBase
     {
         return Ok(new
         {
-            Status = "Healthy",
+            Status = "Ready",
             TenantId = _tenantContext.TenantId,
             SupportedTypes = Enum.GetNames<DocumentType>(),
             SupportedChunkingStrategies = Enum.GetNames<ChunkingStrategy>(),
-            VectorDbProviders = Enum.GetNames<VectorDbProviderType>(),
+            VectorDbProvidersImplemented = new[] { "PgVector", "InMemory" },
+            VectorDbProvidersNotImplemented = new[] { "Qdrant", "Chroma", "Pinecone" },
             MultiTenantIsolation = "Enforced"
         });
     }
