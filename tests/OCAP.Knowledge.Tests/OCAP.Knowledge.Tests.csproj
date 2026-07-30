@@ -9,6 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.10" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,6 +26,7 @@
     <ProjectReference Include="..\..\src\Knowledge\OCAP.Knowledge.Abstractions\OCAP.Knowledge.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Knowledge\OCAP.Knowledge.Application\OCAP.Knowledge.Application.csproj" />
     <ProjectReference Include="..\..\src\Knowledge\OCAP.Knowledge.Infrastructure\OCAP.Knowledge.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\OCAP.Infrastructure\OCAP.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
