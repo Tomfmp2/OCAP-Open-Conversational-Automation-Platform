@@ -54,6 +54,9 @@ builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
+// Aplica migraciones pendientes de EF Core antes de aceptar tráfico.
+await app.Services.ApplyMigrationsAsync();
+
 // Configuración del pipeline HTTP — el orden importa para la seguridad.
 
 // El middleware de manejo de excepciones va primero para capturar errores de cualquier capa posterior.
