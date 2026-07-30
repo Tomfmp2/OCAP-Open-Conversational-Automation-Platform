@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/shared/api/apiClient";
 
 export interface SystemMetricPoint {
   time: string;
@@ -34,7 +35,6 @@ export interface MonitoringData {
   };
 }
 
-// Historial de puntos de métricas acumulados en memoria para el gráfico
 const metricsHistory: SystemMetricPoint[] = [];
 const MAX_HISTORY_POINTS = 8;
 
@@ -42,76 +42,69 @@ export function useMonitoringData() {
   return useQuery<MonitoringData>({
     queryKey: ["monitoringData"],
     queryFn: async () => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-
-      // Llamadas paralelas al backend real
-      const [overviewRes, diagRes, metricsRes] = await Promise.allSettled([
-        fetch(`${baseUrl}/api/dashboard/overview`),
-        fetch(`${baseUrl}/api/dashboard/signalr-diagnostics`),
-        fetch(`${baseUrl}/api/dashboard/system-metrics`),
+      const [overview, diag, sysMetric] = await Promise.allSettled([
+        apiClient.get<{
+          health: string;
+          lastActivity?: Array<{
+            id: string;
+            occurredAtUtc: string;
+            eventType: string;
+            description: string;
+            source: string;
+          }>;
+        }>("/api/dashboard/overview"),
+        apiClient.get<{
+          hubName?: string;
+          endpointUri?: string;
+          status?: string;
+          streamedEvents?: string[];
+        }>("/api/dashboard/signalr-diagnostics"),
+        apiClient.get<{
+          cpuPercent?: number;
+          memoryMb?: number;
+          activeThreads?: number;
+        }>("/api/dashboard/system-metrics"),
       ]);
 
       let logs: AuditLogEntry[] = [];
       let uptimePercent = 100;
 
-      if (overviewRes.status === "fulfilled" && overviewRes.value.ok) {
-        const overview = await overviewRes.value.json();
-        uptimePercent = overview.health === "Healthy" ? 99.98 : 95.0;
+      if (overview.status === "fulfilled") {
+        uptimePercent = overview.value.health === "Healthy" ? 99.98 : 95.0;
 
-        if (Array.isArray(overview.lastActivity)) {
-          logs = overview.lastActivity.map(
-            (act: {
-              id: string;
-              occurredAtUtc: string;
-              eventType: string;
-              description: string;
-              source: string;
-            }) => ({
-              id: act.id,
-              timestamp: new Date(act.occurredAtUtc).toLocaleTimeString(),
-              level:
-                act.eventType.includes("Revoke") ||
-                act.eventType.includes("Delete")
-                  ? "warn"
-                  : "info",
-              category: act.eventType,
-              source: act.source,
-              message: act.description || act.eventType,
-              details: `Origen IP: ${act.source}`,
-            })
-          );
+        if (Array.isArray(overview.value.lastActivity)) {
+          logs = overview.value.lastActivity.map((act) => ({
+            id: act.id,
+            timestamp: new Date(act.occurredAtUtc).toLocaleTimeString(),
+            level:
+              act.eventType.includes("Revoke") || act.eventType.includes("Delete")
+                ? "warn"
+                : "info",
+            category: act.eventType,
+            source: act.source,
+            message: act.description || act.eventType,
+            details: `Origen IP: ${act.source}`,
+          }));
         }
       }
 
-      let diagnostics:
-        | {
-            hubName: string;
-            endpointUri: string;
-            status: string;
-            streamedEvents: string[];
-          }
-        | undefined = undefined;
-
-      if (diagRes.status === "fulfilled" && diagRes.value.ok) {
-        const diag = await diagRes.value.json();
+      let diagnostics: MonitoringData["diagnostics"];
+      if (diag.status === "fulfilled") {
         diagnostics = {
-          hubName: diag.hubName || "EventsHub",
-          endpointUri: diag.endpointUri || "/hubs/events",
-          status: diag.status || "Operational",
-          streamedEvents: diag.streamedEvents || [],
+          hubName: diag.value.hubName || "EventsHub",
+          endpointUri: diag.value.endpointUri || "/hubs/events",
+          status: diag.value.status || "Operational",
+          streamedEvents: diag.value.streamedEvents || [],
         };
       }
 
-      // Métricas de sistema reales desde el proceso .NET
       let cpuPercent = 0;
       let memoryMb = 0;
 
-      if (metricsRes.status === "fulfilled" && metricsRes.value.ok) {
-        const sysMetric = await metricsRes.value.json();
-        cpuPercent = sysMetric.cpuPercent ?? 0;
-        memoryMb = sysMetric.memoryMb ?? 0;
+      if (sysMetric.status === "fulfilled") {
+        cpuPercent = sysMetric.value.cpuPercent ?? 0;
+        memoryMb = sysMetric.value.memoryMb ?? 0;
 
-        // Acumular en historial para el gráfico de series de tiempo
         const point: SystemMetricPoint = {
           time: new Date().toLocaleTimeString("es-MX", {
             hour: "2-digit",
@@ -119,7 +112,7 @@ export function useMonitoringData() {
           }),
           cpuPercent,
           memoryMb,
-          activeRequests: sysMetric.activeThreads ?? 0,
+          activeRequests: sysMetric.value.activeThreads ?? 0,
         };
 
         metricsHistory.push(point);
@@ -132,7 +125,6 @@ export function useMonitoringData() {
         metricsHistory.length > 0
           ? [...metricsHistory]
           : [
-              // Fallback inicial con un punto real mientras se acumula historial
               {
                 time: new Date().toLocaleTimeString("es-MX", {
                   hour: "2-digit",
@@ -158,13 +150,13 @@ export function useMonitoringData() {
           cpuAverage: Math.round(cpuAverage * 10) / 10,
           memoryPeakMb: Math.round(memoryPeak * 10) / 10,
           uptimePercent,
-          errorRate: "0.00%", // Se calculará en el futuro desde audit logs del backend
+          errorRate: "0.00%",
         },
         diagnostics,
       };
     },
     staleTime: 10000,
-    refetchInterval: 15000, // Actualiza cada 15s para el gráfico de métricas
+    refetchInterval: 15000,
     retry: 2,
   });
 }

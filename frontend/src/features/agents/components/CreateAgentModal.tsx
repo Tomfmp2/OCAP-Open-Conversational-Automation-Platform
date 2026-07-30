@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Bot, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { X, Bot, AlertCircle, Loader2 } from "lucide-react";
 import { useCreateAgentMutation } from "../api/useAgentsData";
 
 interface CreateAgentModalProps {
@@ -15,7 +15,6 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
   const [description, setDescription] = React.useState("");
   const [model, setModel] = React.useState("gpt-4o");
   const [systemPrompt, setSystemPrompt] = React.useState("Eres un agente autónomo especializado en orquestación de tareas enterprise.");
-  const [success, setSuccess] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const createAgentMutation = useCreateAgentMutation();
@@ -34,13 +33,9 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
         allowedTools: ["CreateCalendarEventTool", "SendEmailTool", "QueryKnowledgeTool"]
       });
 
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setName("");
-        setDescription("");
-        onClose();
-      }, 1000);
+      setName("");
+      setDescription("");
+      onClose();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al conectar con la API de Agentes.";
       setErrorMessage(msg);
@@ -68,16 +63,7 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
             </div>
           )}
 
-          {success ? (
-            <div className="py-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">¡Agente Creado Exitosamente!</h3>
-              <p className="text-xs text-zinc-400">Registrado en la base de datos de PostgreSQL e integrado con el runtime de orquestación.</p>
-            </div>
-          ) : (
-            <>
+          <>
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block">
                   Nombre del Agente
@@ -164,7 +150,6 @@ export function CreateAgentModal({ open, onClose }: CreateAgentModalProps) {
                 </button>
               </div>
             </>
-          )}
         </form>
       </div>
     </div>

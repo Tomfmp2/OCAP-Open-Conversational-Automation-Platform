@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/shared/api/apiClient";
 
 export interface CostUsageDataPoint {
   date: string;
@@ -125,59 +126,69 @@ export function useDashboardData() {
   return useQuery<DashboardDataDto>({
     queryKey: ["dashboardOverview"],
     queryFn: async () => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-
-      const [overviewRes, metricsRes, toolsRes, convosRes] = await Promise.allSettled([
-        fetch(`${baseUrl}/api/dashboard/overview`),
-        fetch(`${baseUrl}/api/dashboard/metrics`),
-        fetch(`${baseUrl}/api/tools`),
-        fetch(`${baseUrl}/api/conversations?pageSize=5`)
+      const [overview, metricsBackend, toolsList, convosJson] = await Promise.all([
+        apiClient.get<DashboardOverviewDto>("/api/dashboard/overview"),
+        apiClient.get<{
+          averageResponseTimeMs: number;
+          successRatePercentage: number;
+          activeConversationsToday: number;
+          messagesProcessedToday: number;
+        }>("/api/dashboard/metrics").catch(() => ({
+          averageResponseTimeMs: 0,
+          successRatePercentage: 100,
+          activeConversationsToday: 0,
+          messagesProcessedToday: 0,
+        })),
+        apiClient.get<unknown[]>("/api/tools").catch(() => []),
+        apiClient
+          .get<{ data?: { items?: unknown[] }; items?: unknown[] }>(
+            "/api/conversations?pageSize=5"
+          )
+          .catch(() => ({ data: { items: [] as unknown[] } })),
       ]);
 
-      if (overviewRes.status === "rejected" || !overviewRes.value.ok) {
-        throw new Error(`Error en servidor: No se pudo cargar la vista general del dashboard`);
-      }
+      const toolCount = Array.isArray(toolsList) ? toolsList.length : 0;
+      const convoPayload = convosJson as { data?: { items?: unknown[] }; items?: unknown[] };
+      const items = convoPayload?.data?.items ?? convoPayload?.items ?? [];
 
-      const overview: DashboardOverviewDto = await overviewRes.value.json();
+      const conversationsList: ConversationSummary[] = Array.isArray(items)
+        ? (items as Array<{
+            id: string;
+            userId: string;
+            channel: string;
+            status: string;
+            updatedAt: string;
+            messageCount: number;
+            lastMessageSnippet?: string;
+          }>).map((c) => ({
+              id: c.id,
+              user: c.userId || "Usuario",
+              senderName: c.userId ? `User-${c.userId.substring(0, 6)}` : "Cliente",
+              channel: c.channel || "Web",
+              lastMessage: c.lastMessageSnippet || "Sin mensajes",
+              timestamp: c.updatedAt ? new Date(c.updatedAt).toLocaleTimeString() : "Hoy",
+              tokensUsed: c.messageCount || 0,
+              status: c.status || "Active",
+            }))
+        : [];
 
-      let metricsBackend = { averageResponseTimeMs: 0, successRatePercentage: 100, activeConversationsToday: 0, messagesProcessedToday: 0 };
-      if (metricsRes.status === "fulfilled" && metricsRes.value.ok) {
-        metricsBackend = await metricsRes.value.json();
-      }
-
-      let toolCount = 0;
-      if (toolsRes.status === "fulfilled" && toolsRes.value.ok) {
-        const toolsList = await toolsRes.value.json();
-        if (Array.isArray(toolsList)) toolCount = toolsList.length;
-      }
-
-      let conversationsList: ConversationSummary[] = [];
-      if (convosRes.status === "fulfilled" && convosRes.value.ok) {
-        const convosJson = await convosRes.value.json();
-        const items = convosJson?.data?.items || convosJson?.data || [];
-        if (Array.isArray(items)) {
-          conversationsList = items.map((c: { id: string; userId: string; channel: string; status: string; updatedAt: string; messageCount: number; lastMessageSnippet?: string }) => ({
-            id: c.id,
-            user: c.userId || "Usuario",
-            senderName: c.userId ? `User-${c.userId.substring(0, 6)}` : "Cliente",
-            channel: c.channel || "Web",
-            lastMessage: c.lastMessageSnippet || "Sin mensajes",
-            timestamp: c.updatedAt ? new Date(c.updatedAt).toLocaleTimeString() : "Hoy",
-            tokensUsed: (c.messageCount || 1) * 35,
-            status: c.status || "Active"
-          }));
-        }
-      }
-
-      const systemHealth = metricsBackend.successRatePercentage > 0 ? metricsBackend.successRatePercentage : (overview.health === "Healthy" ? 100 : 85);
+      const systemHealth =
+        metricsBackend.successRatePercentage > 0
+          ? metricsBackend.successRatePercentage
+          : overview.health === "Healthy"
+            ? 100
+            : 85;
 
       return {
         metrics: {
           totalExecutions: overview.workflows?.executionsToday || 0,
-          executionsChange: metricsBackend.messagesProcessedToday > 0 ? `+${metricsBackend.messagesProcessedToday} msgs` : "0%",
+          executionsChange:
+            metricsBackend.messagesProcessedToday > 0
+              ? `+${metricsBackend.messagesProcessedToday} msgs`
+              : "0%",
           activeChannelsCount: overview.channels?.connectedCount || 0,
           totalChannelsCount: overview.channels?.totalCount || 0,
-          monthlyAiCostUsd: Number((((overview.workflows?.executionsToday || 0) * 0.002) + (metricsBackend.messagesProcessedToday * 0.001)).toFixed(2)),
+          monthlyAiCostUsd: 0,
           aiCostChange: "0%",
           systemHealthPercentage: Math.round(systemHealth),
         },
@@ -186,10 +197,13 @@ export function useDashboardData() {
         costTrends: [],
         throughputTrends: [],
         agentStatus: {
-          name: overview.agents?.totalCount > 0 ? `${overview.agents.activeCount} Agente(s) Activo(s)` : "Sin Agentes Registrados",
+          name:
+            overview.agents?.totalCount > 0
+              ? `${overview.agents.activeCount} Agente(s) Activo(s)`
+              : "Sin Agentes Registrados",
           status: overview.agents?.runtimeStatus || "Operational",
-          activeProvider: "OpenAI & Gemini",
-          memoryUsedMb: Math.round((overview.uptime?.uptimeSeconds || 100) % 256 + 64),
+          activeProvider: "—",
+          memoryUsedMb: 0,
           registeredTools: toolCount,
         },
       };

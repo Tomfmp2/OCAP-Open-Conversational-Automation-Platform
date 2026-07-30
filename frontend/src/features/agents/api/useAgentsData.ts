@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/shared/api/apiClient";
 
 export interface AgentBackendDto {
   id: string;
@@ -7,15 +8,6 @@ export interface AgentBackendDto {
   status: string;
   enabledTools: string[];
   createdAt: string;
-}
-
-export interface AgentRuntimeStatusDto {
-  agentId: string;
-  status: string;
-  activeConversationsCount: number;
-  messagesProcessedTotal: number;
-  averageResponseTimeMs: number;
-  lastExecutedAtUtc: string;
 }
 
 export interface AgentDto {
@@ -53,12 +45,7 @@ export function useAgentsData() {
   return useQuery<AgentsData>({
     queryKey: ["agentsData"],
     queryFn: async () => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/agents`);
-      if (!res.ok) {
-        throw new Error(`Error en servidor (${res.status}): No se pudieron cargar los agentes`);
-      }
-      const data: AgentBackendDto[] = await res.json();
+      const data = await apiClient.get<AgentBackendDto[]>("/api/agents");
 
       const mappedAgents: AgentDto[] = data.map((agent, index) => ({
         id: agent.id,
@@ -66,28 +53,15 @@ export function useAgentsData() {
         role: index === 0 ? "orchestrator" : "specialist",
         description: agent.description,
         status: agent.status.toLowerCase() === "active" ? "idle" : "executing",
-        activeModel: "Claude 3.5 Sonnet / Gemini 1.5 Pro",
+        activeModel: "—",
         toolsCount: agent.enabledTools?.length || 0,
-        executionsCount: (index + 1) * 78,
-        successRate: 99.5,
+        executionsCount: 0,
+        successRate: 0,
       }));
-
-      const recentTraces: ReasoningStep[] = [
-        {
-          stepIndex: 1,
-          phase: "Planificación de Intención",
-          agentName: "Asistente Principal OCAP",
-          toolUsed: "CreateCalendarEventTool",
-          action: "Validación de parámetros y disponibilidad de calendario",
-          thought: "Analizando la solicitud del usuario para programar reunión de onboarding.",
-          timestamp: new Date().toLocaleTimeString(),
-          durationMs: 340,
-        },
-      ];
 
       return {
         agents: mappedAgents,
-        recentTraces,
+        recentTraces: [],
       };
     },
     staleTime: 10000,
@@ -99,20 +73,13 @@ export function useCreateAgentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { name: string; description: string; systemPrompt: string; allowedTools?: string[] }) => {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-      const res = await fetch(`${baseUrl}/api/agents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || `Error (${res.status}): No se pudo crear el agente`);
-      }
-
-      return res.json();
+    mutationFn: async (payload: {
+      name: string;
+      description: string;
+      systemPrompt: string;
+      allowedTools?: string[];
+    }) => {
+      return apiClient.post("/api/agents", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agentsData"] });
