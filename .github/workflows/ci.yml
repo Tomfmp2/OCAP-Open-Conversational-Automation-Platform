@@ -156,6 +156,9 @@ jobs:
           push: false
           load: true
           tags: ocap-frontend:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=
+            API_INTERNAL_URL=http://ocap-api:5000
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

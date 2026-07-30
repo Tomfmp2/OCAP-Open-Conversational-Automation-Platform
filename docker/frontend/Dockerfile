@@ -11,6 +11,9 @@ COPY frontend/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# next.config rewrites se evalúan en build; debe coincidir con la red Docker.
+ARG API_INTERNAL_URL=http://ocap-api:5000
+ENV API_INTERNAL_URL=$API_INTERNAL_URL
 RUN npm run build
 
 FROM node:22-alpine AS runner
