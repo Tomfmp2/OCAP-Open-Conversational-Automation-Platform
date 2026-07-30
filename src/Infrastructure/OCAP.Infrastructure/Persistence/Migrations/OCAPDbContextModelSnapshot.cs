@@ -2022,6 +2022,12 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AgentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CompensationJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValue("[]");
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2038,6 +2044,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<string>("ResumePayloadJson")
+                        .HasColumnType("jsonb");
+
                     b.Property<DateTime>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2052,12 +2061,26 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("WaitSignal")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("WaitUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("WorkflowDefinitionId")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("WorkflowVersionNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
                     b.HasIndex("WorkflowDefinitionId");
+
+                    b.HasIndex("Status", "WaitUntilUtc");
 
                     b.HasIndex("TenantId", "StartedAtUtc");
 
