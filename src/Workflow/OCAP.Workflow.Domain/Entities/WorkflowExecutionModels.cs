@@ -26,6 +26,14 @@ public class WorkflowContext
     public Guid TenantId { get; set; }
     public Guid UserId { get; set; }
     public Guid? AgentId { get; set; }
+    public Guid ExecutionId { get; set; }
+    public string? ResumeSignal { get; set; }
+    public string? ResumePayloadJson { get; set; }
+    public WorkflowDefinition? Definition { get; set; }
+    public bool ShouldPause { get; set; }
+    public string? WaitSignal { get; set; }
+    public DateTime? WaitUntilUtc { get; set; }
+    public List<string> CompensationStack { get; set; } = new();
 }
 
 // Modelo de resultado de ejecución de un paso o workflow completo.
