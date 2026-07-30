@@ -17,6 +17,7 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var useInMemory = string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase);
+        services.AddObjectStorage(configuration);
 
         // Fallback tenant context for non-HTTP hosts; API replaces with HttpTenantContext.
         if (!services.Any(d => d.ServiceType == typeof(ITenantContext)))

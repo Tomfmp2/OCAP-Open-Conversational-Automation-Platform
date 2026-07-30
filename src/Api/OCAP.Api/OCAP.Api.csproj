@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\Providers\OCAP.Providers.Ollama\OCAP.Providers.Ollama.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.LocalStorage\OCAP.Providers.LocalStorage.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.S3\OCAP.Providers.S3.csproj" />
+    <ProjectReference Include="..\..\Providers\OCAP.Providers.AzureBlob\OCAP.Providers.AzureBlob.csproj" />
     <ProjectReference Include="..\..\Providers\OCAP.Providers.GoogleDrive\OCAP.Providers.GoogleDrive.csproj" />
     <ProjectReference Include="..\..\Application\OCAP.Application\OCAP.Application.csproj" />
     <ProjectReference Include="..\..\Channels\OCAP.Channels.Abstractions\OCAP.Channels.Abstractions.csproj" />

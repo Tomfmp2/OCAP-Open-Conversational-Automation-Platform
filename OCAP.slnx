@@ -53,6 +53,7 @@
     <Project Path="src/Prompts/OCAP.Prompts/OCAP.Prompts.csproj" />
   </Folder>
   <Folder Name="/src/Providers/">
+    <Project Path="src/Providers/OCAP.Providers.AzureBlob/OCAP.Providers.AzureBlob.csproj" />
     <Project Path="src/Providers/OCAP.Providers.Claude/OCAP.Providers.Claude.csproj" />
     <Project Path="src/Providers/OCAP.Providers.Gemini/OCAP.Providers.Gemini.csproj" />
     <Project Path="src/Providers/OCAP.Providers.Google/OCAP.Providers.Google.csproj" />

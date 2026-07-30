@@ -56,6 +56,7 @@ public class AiProviderRegistry : IAiProviderRegistry
             "gemini" => new OCAP.Providers.Gemini.GeminiAiProvider(_httpClient, settings),
             "ollama" => new OCAP.Providers.Ollama.OllamaAiProvider(_httpClient, settings),
             "local" => new OCAP.Providers.Ollama.LocalAiProvider(_httpClient, settings),
+            "claude" or "anthropic" => new OCAP.Providers.Claude.ClaudeAiProvider(_httpClient, settings),
             _ => GetProvider(providerName) ?? throw new NotSupportedException($"Proveedor de IA no soportado o no configurado: {providerName}")
         };
     }
