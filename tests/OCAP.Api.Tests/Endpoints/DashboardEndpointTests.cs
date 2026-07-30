@@ -90,8 +90,9 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
         // Act
         var response = await _client.GetAsync("/api/integrations/google");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert - include body in failure message for diagnosing non-200 responses
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, $"Response body: {body}");
 
         var dto = await response.Content.ReadFromJsonAsync<GoogleIntegrationDto>();
         dto.Should().NotBeNull();
