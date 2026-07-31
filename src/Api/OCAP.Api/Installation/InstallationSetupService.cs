@@ -210,22 +210,51 @@ public sealed class InstallationSetupService : IInstallationSetupService
             return;
 
         var provider = InstallationArtifactStore.NormalizeAiProvider(request.AiProvider);
-        var existing = await _aiConfigs.GetConfigurationsByTenantAsync(tenant.Id, cancellationToken);
-        if (existing.Any(c => string.Equals(c.ProviderName, provider, StringComparison.OrdinalIgnoreCase)))
+        var existing = await _db.AiProviderConfigurations.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                c => c.TenantId == tenant.Id && c.ProviderName.ToLower() == provider.ToLower(),
+                cancellationToken);
+
+        if (existing is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(request.AiApiKey) ||
+                string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                await _aiConfigs.UpdateConfigurationAsync(
+                    tenant.Id,
+                    existing.Id,
+                    new UpdateAiProviderConfigurationDto(
+                        request.AiModelName,
+                        request.AiApiKey,
+                        request.AiBaseUrl),
+                    cancellationToken);
+            }
+
             return;
+        }
 
         if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
             !string.IsNullOrWhiteSpace(request.AiApiKey))
         {
-            await _aiConfigs.CreateConfigurationAsync(
-                new CreateAiProviderConfigurationDto(
-                    tenant.Id,
-                    provider,
-                    $"{provider} (instalador)",
-                    request.AiModelName,
-                    request.AiApiKey ?? string.Empty,
-                    request.AiBaseUrl),
-                cancellationToken);
+            try
+            {
+                await _aiConfigs.CreateConfigurationAsync(
+                    new CreateAiProviderConfigurationDto(
+                        tenant.Id,
+                        provider,
+                        $"{provider} (instalador)",
+                        request.AiModelName,
+                        request.AiApiKey ?? string.Empty,
+                        request.AiBaseUrl),
+                    cancellationToken);
+            }
+            catch (DbUpdateException ex)
+            {
+                // Carrera / reintento: ya existe el proveedor para el tenant.
+                _logger.LogWarning(ex,
+                    "Proveedor IA {Provider} ya existía para tenant {TenantId}; se omite recreación.",
+                    provider, tenant.Id);
+            }
         }
     }
 }

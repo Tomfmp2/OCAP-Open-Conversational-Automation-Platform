@@ -81,7 +81,9 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
     public async Task<IReadOnlyList<AiProviderConfigurationResponseDto>> GetConfigurationsByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
     {
+        // IgnoreQueryFilters: el caller ya pasa tenantId explícito (p. ej. instalador anónimo).
         var list = await _dbContext.AiProviderConfigurations
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(c => c.TenantId == tenantId)
             .ToListAsync(cancellationToken);
@@ -92,6 +94,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
     public async Task<AiProviderConfigurationResponseDto?> UpdateConfigurationAsync(Guid tenantId, Guid id, UpdateAiProviderConfigurationDto dto, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.AiProviderConfigurations
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == id, cancellationToken);
 
         if (entity == null) return null;
