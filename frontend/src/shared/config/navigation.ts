@@ -46,7 +46,7 @@ export const PRIMARY_NAV: NavItem[] = [
 
 export const SECONDARY_NAV_FOOTER: NavItem[] = [
   { href: "/settings", label: "Ajustes", icon: Settings },
-  { href: "/installer", label: "Diagnóstico", icon: Wrench },
+  { href: "/installer", label: "Instalador", icon: Wrench },
 ];
 
 export const COMMAND_ITEMS = [
@@ -60,7 +60,7 @@ export const COMMAND_ITEMS = [
   { label: "Developer Center", href: "/developer", category: "Navegación" },
   { label: "Seguridad", href: "/security", category: "Navegación" },
   { label: "Ajustes", href: "/settings", category: "Navegación" },
-  { label: "Diagnóstico de instalación", href: "/installer", category: "Sistema" },
+  { label: "Instalador", href: "/installer", category: "Sistema" },
 ] as const;
 
 export function getSubmenuForPath(pathname: string): NavSection {
@@ -145,8 +145,11 @@ export function getSubmenuForPath(pathname: string): NavSection {
   }
   if (pathname.startsWith("/installer")) {
     return {
-      label: "Diagnóstico",
-      items: [{ label: "Health checks", href: "/installer" }],
+      label: "Instalador",
+      items: [
+        { label: "Asistente de configuración", href: "/installer" },
+        { label: "Diagnóstico", href: "/installer" },
+      ],
     };
   }
   return {

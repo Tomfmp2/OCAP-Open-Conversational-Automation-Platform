@@ -12,12 +12,12 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
     private const string BaseUrl = "https://sheets.googleapis.com/v4/spreadsheets";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly GoogleWorkspaceOptions _options;
+    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
 
-    public GoogleSheetsHttpProvider(HttpClient httpClient, IOptions<GoogleWorkspaceOptions> options)
+    public GoogleSheetsHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task<bool> AppendRowAsync(
@@ -62,14 +62,15 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
     {
-        if (string.IsNullOrWhiteSpace(_options.AccessToken))
+        var accessToken = _options.CurrentValue.AccessToken;
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
                 "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Sheets.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.AccessToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return request;
     }
 

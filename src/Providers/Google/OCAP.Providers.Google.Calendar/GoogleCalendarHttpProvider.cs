@@ -13,12 +13,12 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
     private const string BaseUrl = "https://www.googleapis.com/calendar/v3";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly GoogleWorkspaceOptions _options;
+    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
 
-    public GoogleCalendarHttpProvider(HttpClient httpClient, IOptions<GoogleWorkspaceOptions> options)
+    public GoogleCalendarHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task<CalendarEvent> CreateEventAsync(
@@ -79,14 +79,15 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
     {
-        if (string.IsNullOrWhiteSpace(_options.AccessToken))
+        var accessToken = _options.CurrentValue.AccessToken;
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
                 "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Calendar.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.AccessToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return request;
     }
 

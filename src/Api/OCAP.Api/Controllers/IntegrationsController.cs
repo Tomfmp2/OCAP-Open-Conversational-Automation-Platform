@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OCAP.Api.Installation;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Core.Entities;
 using OCAP.Infrastructure.Persistence.Context;
@@ -34,19 +35,22 @@ public class IntegrationsController : ControllerBase
     private readonly ITenantContext _tenantContext;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly InstallationArtifactStore _artifactStore;
 
     public IntegrationsController(
         OCAPDbContext dbContext,
         IUserContext userContext,
         ITenantContext tenantContext,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        InstallationArtifactStore artifactStore)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+        _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
     }
 
     // GET /api/integrations - Retorna el estado de todas las integraciones soportadas
@@ -193,6 +197,8 @@ public class IntegrationsController : ControllerBase
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _artifactStore.MergeGoogleAccessTokenAsync(tokenResponse.AccessToken, cancellationToken);
 
         return Ok(new IntegrationStatusDto(
             Provider: provider,

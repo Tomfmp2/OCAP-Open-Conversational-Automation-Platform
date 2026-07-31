@@ -12,7 +12,14 @@ public class DeploymentValidatorTests
     public void Validate_WithValidConfiguration_ReturnsSuccess()
     {
         // Arrange
-        var config = new DeploymentConfiguration();
+        var config = new DeploymentConfiguration
+        {
+            EnableGoogleWorkspace = false,
+            EnableWhatsApp = false,
+            EnableTelegram = false,
+            BootstrapAdminEmail = "admin@example.com",
+            BootstrapAdminPassword = "SecurePass_2026!"
+        };
 
         // Act
         var (isValid, errors) = _validator.Validate(config);

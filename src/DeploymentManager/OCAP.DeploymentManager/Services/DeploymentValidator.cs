@@ -31,6 +31,30 @@ public class DeploymentValidator
             if (string.IsNullOrWhiteSpace(config.EvolutionApiKey)) errors.Add("La API Key de Evolution API es obligatoria.");
         }
 
+        if (config.EnableTelegram && string.IsNullOrWhiteSpace(config.TelegramBotToken))
+            errors.Add("El bot token de Telegram es obligatorio cuando Telegram está activo.");
+
+        if (config.EnableGoogleWorkspace)
+        {
+            if (string.IsNullOrWhiteSpace(config.GoogleClientId)) errors.Add("Google Client ID es obligatorio.");
+            if (string.IsNullOrWhiteSpace(config.GoogleClientSecret)) errors.Add("Google Client Secret es obligatorio.");
+        }
+
+        if (string.IsNullOrWhiteSpace(config.BootstrapAdminEmail)) errors.Add("El email admin es obligatorio.");
+        if (string.IsNullOrWhiteSpace(config.BootstrapAdminPassword) || config.BootstrapAdminPassword.Length < 10)
+            errors.Add("La contraseña admin debe tener al menos 10 caracteres.");
+
+        if (config.Target == DeploymentTarget.Local)
+        {
+            if (config.FrontendHostPort is < 1 or > 65535) errors.Add("Puerto frontend inválido.");
+            if (config.ApiHostPort is < 1 or > 65535) errors.Add("Puerto API inválido.");
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(config.PublicApiUrl)) errors.Add("PublicApiUrl es obligatoria en modo Web.");
+            if (string.IsNullOrWhiteSpace(config.PublicPanelUrl)) errors.Add("PublicPanelUrl es obligatoria en modo Web.");
+        }
+
         if (config.JwtSecretKey.Length < 16) errors.Add("La clave secreta JWT debe tener al menos 16 caracteres.");
 
         return (errors.Count == 0, errors);

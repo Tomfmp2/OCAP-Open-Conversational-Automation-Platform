@@ -130,6 +130,8 @@ public static class ApiServiceExtensions
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IUserAuthenticationQuery, EfUserAuthenticationQuery>();
         services.AddHostedService<BootstrapAdminHostedService>();
+        services.AddSingleton<OCAP.Api.Installation.InstallationArtifactStore>();
+        services.AddScoped<OCAP.Api.Installation.IInstallationSetupService, OCAP.Api.Installation.InstallationSetupService>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IConsentService, ConsentService>();
 
