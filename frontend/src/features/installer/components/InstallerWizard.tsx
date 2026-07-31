@@ -51,6 +51,7 @@ export function InstallerWizard() {
   const [setupMeta, setSetupMeta] = React.useState<{
     requiresRestart: boolean;
     adminCreated: boolean;
+    adminUpdated?: boolean;
     restartHint: string;
     envFilePath?: string;
   } | null>(null);
@@ -106,6 +107,7 @@ export function InstallerWizard() {
       setSetupMeta({
         requiresRestart: result.requiresRestart,
         adminCreated: result.adminCreated,
+        adminUpdated: result.adminUpdated,
         restartHint: result.restartHint,
         envFilePath: result.envFilePath || result.dotEnvPath,
       });
@@ -447,7 +449,10 @@ export function InstallerWizard() {
                 {setupMeta && (
                   <ul className="list-disc space-y-1 pl-4 text-emerald-100/90">
                     <li>
-                      Admin creado: {setupMeta.adminCreated ? "sí" : "no (ya había usuarios; usa el admin anterior o borra volúmenes)"}
+                      Admin:{" "}
+                      {setupMeta.adminCreated
+                        ? "creado"
+                        : "actualizado (usa el email/contraseña del wizard en /login)"}
                     </li>
                     <li>
                       Reinicio Compose: {setupMeta.requiresRestart ? "necesario para puertos/Postgres" : "opcional"}

@@ -45,6 +45,13 @@ public class UserIdentity
         PasswordResetToken = null;
     }
 
+    public void ChangeEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            throw new ArgumentException("El email es requerido.", nameof(email));
+        Email = email.Trim().ToLowerInvariant();
+    }
+
     public void UpdateProfile(string fullName)
     {
         FullName = fullName ?? string.Empty;

@@ -52,7 +52,10 @@ public sealed class InstallerController : ControllerBase
 
         var completed = _store.IsCompleted(_configuration);
         var authenticated = User.Identity?.IsAuthenticated ?? false;
-        if (completed && !authenticated)
+        var isLocal = string.Equals(request.Target, "Local", StringComparison.OrdinalIgnoreCase);
+        // Local self-hosted: permitir reaplicar admin/producto sin login (evita quedarse fuera).
+        // Web: tras la primera instalación exige autenticación.
+        if (completed && !authenticated && !isLocal)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new
             {

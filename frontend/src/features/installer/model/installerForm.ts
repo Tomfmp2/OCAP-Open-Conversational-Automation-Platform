@@ -48,6 +48,7 @@ export interface InstallerSetupResponse {
   success: boolean;
   requiresRestart: boolean;
   adminCreated: boolean;
+  adminUpdated?: boolean;
   dotEnvWritten?: boolean;
   message: string;
   envFilePreview: string;

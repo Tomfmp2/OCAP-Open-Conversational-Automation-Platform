@@ -102,15 +102,15 @@ public sealed class InstallationSetupService : IInstallationSetupService
         var document = InstallationArtifactStore.BuildInstallationDocument(request, target, apiUrl, panelUrl, redirectUri);
         var (dotEnvWritten, dotEnvPath) = await _store.WriteArtifactsAsync(request, envContent, document, cancellationToken);
 
-        var adminCreated = await EnsureAdminAsync(request, cancellationToken);
+        var (adminCreated, adminUpdated) = await EnsureAdminAsync(request, cancellationToken);
         await EnsureAiProviderAsync(request, cancellationToken);
 
         // Producto en caliente: no exige recreate en Local. Web solo si cambian URLs públicas vs defaults.
         var requiresRestart = false;
 
         _logger.LogInformation(
-            "Instalación aplicada. AdminCreated={AdminCreated} RequiresRestart={RequiresRestart} DotEnvWritten={DotEnvWritten}",
-            adminCreated, requiresRestart, dotEnvWritten);
+            "Instalación aplicada. AdminCreated={AdminCreated} AdminUpdated={AdminUpdated} RequiresRestart={RequiresRestart} DotEnvWritten={DotEnvWritten}",
+            adminCreated, adminUpdated, requiresRestart, dotEnvWritten);
 
         var status = await GetStatusAsync(cancellationToken);
         status.Completed = true;
@@ -121,8 +121,10 @@ public sealed class InstallationSetupService : IInstallationSetupService
         status.PublicPanelUrl = panelUrl;
 
         var message = adminCreated
-            ? "Configuración de producto guardada. Se creó la cuenta admin."
-            : "Configuración de producto guardada. Ya había usuarios: el admin del wizard no se recreó.";
+            ? $"Configuración guardada. Admin creado: {request.AdminEmail.Trim()}."
+            : adminUpdated
+                ? $"Configuración guardada. Admin actualizado: {request.AdminEmail.Trim()} (usa esa contraseña en /login)."
+                : "Configuración de producto guardada.";
 
         if (dotEnvWritten)
             message += " Se actualizó .env (para el próximo ./scripts/ocap-up.sh).";
@@ -136,6 +138,7 @@ public sealed class InstallationSetupService : IInstallationSetupService
             Success = true,
             RequiresRestart = requiresRestart,
             AdminCreated = adminCreated,
+            AdminUpdated = adminUpdated,
             DotEnvWritten = dotEnvWritten,
             Message = message,
             EnvFilePreview = envContent,
@@ -148,16 +151,36 @@ public sealed class InstallationSetupService : IInstallationSetupService
         };
     }
 
-    private async Task<bool> EnsureAdminAsync(InstallerSetupRequest request, CancellationToken cancellationToken)
+    private async Task<(bool Created, bool Updated)> EnsureAdminAsync(InstallerSetupRequest request, CancellationToken cancellationToken)
     {
-        var hasUsers = await _db.UserIdentities.IgnoreQueryFilters().AnyAsync(cancellationToken);
-        if (hasUsers)
-            return false;
+        var email = request.AdminEmail.Trim().ToLowerInvariant();
+        var (hash, salt) = _hasher.HashPassword(request.AdminPassword);
+
+        var existingUser = await _db.UserIdentities.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+        if (existingUser is null)
+        {
+            existingUser = await _db.UserIdentities.IgnoreQueryFilters()
+                .OrderBy(u => u.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (existingUser is not null)
+        {
+            if (!string.Equals(existingUser.Email, email, StringComparison.OrdinalIgnoreCase))
+                existingUser.ChangeEmail(email);
+            existingUser.UpdatePassword(hash, salt);
+            existingUser.Unlock();
+            existingUser.Activate();
+            existingUser.VerifyEmail();
+            await _db.SaveChangesAsync(cancellationToken);
+            return (false, true);
+        }
 
         var tenantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var roleId = Guid.NewGuid();
-        var (hash, salt) = _hasher.HashPassword(request.AdminPassword);
 
         var tenant = new Tenant(tenantId, request.TenantName.Trim(), request.TenantSlug.Trim().ToLowerInvariant());
         var role = new Role(roleId, tenantId, "Admin", "Administrador del tenant", new[]
@@ -168,7 +191,7 @@ public sealed class InstallationSetupService : IInstallationSetupService
             "Settings.Manage", "OAuth.Manage", "Knowledge.Manage", "Workflow.Manage",
             "Security.Manage", "Channel.Manage"
         });
-        var user = new UserIdentity(userId, tenantId, request.AdminEmail.Trim(), hash, salt, "Administrator");
+        var user = new UserIdentity(userId, tenantId, email, hash, salt, "Administrator");
         user.VerifyEmail();
         var userRole = new UserRole(Guid.NewGuid(), userId, roleId, tenantId);
 
@@ -177,7 +200,7 @@ public sealed class InstallationSetupService : IInstallationSetupService
         _db.UserIdentities.Add(user);
         _db.UserRoles.Add(userRole);
         await _db.SaveChangesAsync(cancellationToken);
-        return true;
+        return (true, false);
     }
 
     private async Task EnsureAiProviderAsync(InstallerSetupRequest request, CancellationToken cancellationToken)

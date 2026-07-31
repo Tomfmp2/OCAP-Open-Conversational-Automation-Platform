@@ -35,6 +35,11 @@ export function AuthGuard({
     }
   }, [isAuthenticated, isLoading, isPublic, pathname, router]);
 
+  // Rutas públicas (login/instalador) se muestran de inmediato.
+  if (isPublic) {
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-zinc-50 dark:bg-zinc-950">
@@ -43,7 +48,7 @@ export function AuthGuard({
     );
   }
 
-  if (!isAuthenticated && !isPublic) {
+  if (!isAuthenticated) {
     return null;
   }
 

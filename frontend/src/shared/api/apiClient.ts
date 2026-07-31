@@ -151,10 +151,17 @@ class ApiClient {
 
           const message =
             typeof errorBody === "object" &&
-            errorBody !== null &&
-            "message" in errorBody &&
-            typeof (errorBody as { message: unknown }).message === "string"
-              ? (errorBody as { message: string }).message
+            errorBody !== null
+              ? ("detail" in errorBody &&
+                typeof (errorBody as { detail: unknown }).detail === "string" &&
+                (errorBody as { detail: string }).detail) ||
+                ("title" in errorBody &&
+                  typeof (errorBody as { title: unknown }).title === "string" &&
+                  (errorBody as { title: string }).title) ||
+                ("message" in errorBody &&
+                  typeof (errorBody as { message: unknown }).message === "string" &&
+                  (errorBody as { message: string }).message) ||
+                `Error HTTP ${response.status}`
               : `Error HTTP ${response.status}`;
 
           throw new ApiError(message, response.status, errorBody);
