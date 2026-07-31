@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+});
+
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
-  title: "OCAP Enterprise Control Plane",
-  description: "Plataforma empresarial inteligente de gestión de agentes autónomos, canales y flujos de automatización.",
+  title: "OCAP",
+  description:
+    "Plataforma de automatización conversacional: agentes, canales, workflows y conocimiento.",
 };
 
 export default function RootLayout({
@@ -19,9 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark h-full">
+    <html lang="es" className="h-full">
       <body
-        className={`${inter.variable} flex h-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] antialiased`}
+        className={`${plexSans.variable} ${plexMono.variable} flex h-full overflow-hidden bg-[var(--background)] text-[var(--foreground)] antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

@@ -13,37 +13,43 @@ interface ProviderCardProps {
 
 export function ProviderCard({ provider, onTest, isTesting }: ProviderCardProps) {
   return (
-    <Surface variant="glass" glow={provider.isActive} className="space-y-4">
+    <Surface className="space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold text-sm border border-blue-500/20">
-            <Cpu className="w-5 h-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-neutral-800">
+            <Cpu className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{provider.displayName}</h3>
+              <h3 className="text-sm font-semibold text-neutral-950">
+                {provider.displayName}
+              </h3>
               {provider.isEncrypted && (
                 <Badge tone="warning">
-                  <Lock className="w-2.5 h-2.5" /> AES-256
+                  <Lock className="h-2.5 w-2.5" /> Cifrado
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-zinc-400 font-mono">Modelo por defecto: {provider.defaultModel}</p>
+            <p className="font-mono text-xs text-neutral-500">
+              Modelo: {provider.defaultModel}
+            </p>
           </div>
         </div>
 
         {provider.isActive ? (
           <Badge tone="success">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Activo (Prioridad #{provider.priorityOrder})
+            <CheckCircle2 className="h-3.5 w-3.5" /> Activo
           </Badge>
         ) : (
           <Badge tone="neutral">Inactivo</Badge>
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <span className="text-[11px] text-zinc-400 font-mono">
-          {provider.lastPingMs > 0 ? `${provider.lastPingMs} ms` : "Latencia no disponible"}
+      <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
+        <span className="font-mono text-[11px] text-neutral-500">
+          {provider.lastPingMs > 0
+            ? `${provider.lastPingMs} ms`
+            : "Latencia no disponible"}
         </span>
         <Button
           type="button"
@@ -52,7 +58,7 @@ export function ProviderCard({ provider, onTest, isTesting }: ProviderCardProps)
           onClick={() => onTest(provider.providerType)}
           loading={isTesting}
         >
-          <RefreshCw className="w-3 h-3" /> Probar proveedor
+          <RefreshCw className="h-3 w-3" /> Probar proveedor
         </Button>
       </div>
     </Surface>

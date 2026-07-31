@@ -12,14 +12,13 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/20 disabled:opacity-50",
+    "bg-neutral-950 hover:bg-neutral-800 text-neutral-50 disabled:opacity-50",
   secondary:
-    "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800",
-  ghost:
-    "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/80",
+    "bg-white border border-neutral-300 text-neutral-900 hover:bg-neutral-100",
+  ghost: "text-neutral-700 hover:bg-neutral-200/70",
   danger:
-    "bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-500/20 disabled:opacity-50",
-  mono: "bg-zinc-950 hover:bg-zinc-800 text-white rounded-full disabled:opacity-50",
+    "bg-neutral-950 hover:bg-neutral-800 text-neutral-50 border border-neutral-950 disabled:opacity-50 underline-offset-2",
+  mono: "bg-neutral-950 hover:bg-neutral-800 text-neutral-50 disabled:opacity-50",
 };
 
 const sizes: Record<ButtonSize, string> = {
@@ -40,7 +39,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-colors focus-ring disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-ring disabled:cursor-not-allowed",
         variants[variant],
         sizes[size],
         className

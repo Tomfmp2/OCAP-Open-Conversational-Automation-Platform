@@ -17,7 +17,7 @@ const paddingMap = {
 export function Surface({
   className,
   variant = "card",
-  glow = false,
+  glow: _glow = false,
   padding = "md",
   children,
   ...props
@@ -25,12 +25,10 @@ export function Surface({
   return (
     <div
       className={cn(
-        "rounded-2xl border transition-colors",
-        variant === "card" && "bg-white/90 dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-800 shadow-sm",
-        variant === "glass" &&
-          "bg-white/70 dark:bg-zinc-950/55 border-zinc-200/80 dark:border-zinc-800/80 backdrop-blur-xl",
-        variant === "plain" && "bg-transparent border-transparent",
-        glow && "glow-ring",
+        "rounded-md border transition-colors",
+        variant === "card" && "border-neutral-200 bg-white",
+        variant === "glass" && "border-neutral-200 bg-white",
+        variant === "plain" && "border-transparent bg-transparent",
         paddingMap[padding],
         className
       )}

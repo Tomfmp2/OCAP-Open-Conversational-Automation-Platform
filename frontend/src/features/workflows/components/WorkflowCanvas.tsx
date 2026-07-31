@@ -8,143 +8,143 @@ import { Button } from "@/shared/components/ui/Button";
 import { EmptyState } from "@/shared/components/ui/EmptyState";
 
 interface WorkflowCanvasProps {
-  nodes: WorkflowNode[];
-  workflowName: string;
-  workflowId?: string;
+ nodes: WorkflowNode[];
+ workflowName: string;
+ workflowId?: string;
 }
 
 export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanvasProps) {
-  const [executionResult, setExecutionResult] = React.useState<{ success: boolean; message: string } | null>(null);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+ const [executionResult, setExecutionResult] = React.useState<{ success: boolean; message: string } | null>(null);
+ const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const { validateWorkflowMutation, saveWorkflowMutation, executeWorkflowMutation } = useWorkflowsData();
+ const { validateWorkflowMutation, saveWorkflowMutation, executeWorkflowMutation } = useWorkflowsData();
 
-  const handleValidate = async () => {
-    setErrorMessage(null);
-    setExecutionResult(null);
-    try {
-      await validateWorkflowMutation.mutateAsync({ name: workflowName, nodes });
-      setExecutionResult({ success: true, message: "Validación exitosa: Estructura del workflow sin errores sintácticos ni ciclos infalibles." });
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Error al validar el workflow.");
-    }
-  };
+ const handleValidate = async () => {
+ setErrorMessage(null);
+ setExecutionResult(null);
+ try {
+ await validateWorkflowMutation.mutateAsync({ name: workflowName, nodes });
+ setExecutionResult({ success: true, message: "Validación correcta: la estructura del workflow es válida." });
+ } catch (err: unknown) {
+ setErrorMessage(err instanceof Error ? err.message : "Error al validar el workflow.");
+ }
+ };
 
-  const handleSave = async () => {
-    setErrorMessage(null);
-    setExecutionResult(null);
-    try {
-      await saveWorkflowMutation.mutateAsync({ id: workflowId, name: workflowName, nodes });
-      setExecutionResult({ success: true, message: "Workflow guardado exitosamente en PostgreSQL." });
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Error al guardar el workflow.");
-    }
-  };
+ const handleSave = async () => {
+ setErrorMessage(null);
+ setExecutionResult(null);
+ try {
+ await saveWorkflowMutation.mutateAsync({ id: workflowId, name: workflowName, nodes });
+ setExecutionResult({ success: true, message: "Workflow guardado." });
+ } catch (err: unknown) {
+ setErrorMessage(err instanceof Error ? err.message : "Error al guardar el workflow.");
+ }
+ };
 
-  const handleExecute = async () => {
-    if (!workflowId) {
-      setErrorMessage("No se puede ejecutar un workflow sin un identificador válido.");
-      return;
-    }
-    setErrorMessage(null);
-    setExecutionResult(null);
-    try {
-      const result = await executeWorkflowMutation.mutateAsync(workflowId);
-      setExecutionResult({ success: true, message: `Ejecución real completada. ID de ejecución: ${result?.id || 'OK'}` });
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Error al ejecutar el workflow en el motor backend.");
-    }
-  };
+ const handleExecute = async () => {
+ if (!workflowId) {
+ setErrorMessage("No se puede ejecutar un workflow sin un identificador válido.");
+ return;
+ }
+ setErrorMessage(null);
+ setExecutionResult(null);
+ try {
+ const result = await executeWorkflowMutation.mutateAsync(workflowId);
+ setExecutionResult({ success: true, message: `Ejecución real completada. ID de ejecución: ${result?.id || 'OK'}` });
+ } catch (err: unknown) {
+ setErrorMessage(err instanceof Error ? err.message : "Error al ejecutar el workflow en el motor backend.");
+ }
+ };
 
-  const isLoading = validateWorkflowMutation.isPending || saveWorkflowMutation.isPending || executeWorkflowMutation.isPending;
+ const isLoading = validateWorkflowMutation.isPending || saveWorkflowMutation.isPending || executeWorkflowMutation.isPending;
 
-  return (
-    <Surface variant="glass" className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-        <div className="flex items-center gap-2">
-          <GitFork className="w-4 h-4 text-blue-500" />
-          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Canvas Studio Designer — {workflowName}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          {nodes.length > 0 && <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleValidate}
-            loading={validateWorkflowMutation.isPending}
-            disabled={isLoading}
-          >
-            <CheckSquare className="w-3.5 h-3.5" />
-            <span>Validar</span>
-          </Button>}
+ return (
+ <Surface variant="glass" className="space-y-4">
+ <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-3">
+ <div className="flex items-center gap-2">
+ <GitFork className="w-4 h-4 text-neutral-700" />
+ <h2 className="text-sm font-semibold text-neutral-950">
+ Canvas — {workflowName}
+ </h2>
+ </div>
+ <div className="flex items-center gap-2">
+ {nodes.length > 0 && <Button
+ type="button"
+ variant="secondary"
+ size="sm"
+ onClick={handleValidate}
+ loading={validateWorkflowMutation.isPending}
+ disabled={isLoading}
+ >
+ <CheckSquare className="w-3.5 h-3.5" />
+ <span>Validar</span>
+ </Button>}
 
-          {nodes.length > 0 && <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={handleSave}
-            loading={saveWorkflowMutation.isPending}
-            disabled={isLoading}
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>Guardar</span>
-          </Button>}
+ {nodes.length > 0 && <Button
+ type="button"
+ variant="secondary"
+ size="sm"
+ onClick={handleSave}
+ loading={saveWorkflowMutation.isPending}
+ disabled={isLoading}
+ >
+ <Save className="w-3.5 h-3.5" />
+ <span>Guardar</span>
+ </Button>}
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleExecute}
-            loading={executeWorkflowMutation.isPending}
-            disabled={isLoading || !workflowId}
-          >
-            <Play className="w-3.5 h-3.5" />
-            <span>Ejecutar Flujo</span>
-          </Button>
-        </div>
-      </div>
+ <Button
+ type="button"
+ size="sm"
+ onClick={handleExecute}
+ loading={executeWorkflowMutation.isPending}
+ disabled={isLoading || !workflowId}
+ >
+ <Play className="w-3.5 h-3.5" />
+ <span>Ejecutar Flujo</span>
+ </Button>
+ </div>
+ </div>
 
-      {errorMessage && (
-        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
+ {errorMessage && (
+<div className="flex items-center gap-2 rounded-md border-2 border-neutral-950 bg-white p-3 text-xs text-neutral-950">
+      <AlertCircle className="h-4 w-4 shrink-0" />
+      <span>{errorMessage}</span>
+    </div>
+ )}
 
-      {executionResult && (
-        <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{executionResult.message}</span>
-        </div>
-      )}
+ {executionResult && (
+ <div className="p-3 rounded-lg bg-neutral-100 border border-neutral-300 text-neutral-800 text-xs flex items-center gap-2">
+ <CheckCircle2 className="w-4 h-4 shrink-0" />
+ <span>{executionResult.message}</span>
+ </div>
+ )}
 
-      {nodes.length === 0 ? (
-        <EmptyState
-          title="Estructura no disponible"
-          description="La API actual no devuelve los nodos reales de esta definición; no se muestran nodos de muestra."
-          icon={<GitFork className="h-5 w-5" />}
-        />
-      ) : (
-      <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-4 bg-zinc-50 dark:bg-zinc-950/60 rounded-xl border border-zinc-200 dark:border-zinc-800/80 overflow-x-auto">
-        {nodes.map((node, index) => (
-          <React.Fragment key={node.id}>
-            <div className="flex-1 w-full p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
-                <span className="uppercase font-bold text-blue-500">{node.type}</span>
-                <span>Node #{index + 1}</span>
-              </div>
-              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{node.label}</p>
-              <p className="text-[10px] text-zinc-400 font-mono truncate">{node.configSummary || "Configurado"}</p>
-            </div>
+ {nodes.length === 0 ? (
+ <EmptyState
+ title="Estructura no disponible"
+ description="La API actual no devuelve los nodos reales de esta definición; no se muestran nodos de muestra."
+ icon={<GitFork className="h-5 w-5" />}
+ />
+ ) : (
+ <div className="flex flex-col md:flex-row items-center justify-between gap-3 p-4 bg-neutral-50 rounded-xl border border-neutral-200 overflow-x-auto">
+ {nodes.map((node, index) => (
+ <React.Fragment key={node.id}>
+ <div className="flex-1 w-full p-3 bg-white border border-neutral-200 rounded-lg shadow-sm space-y-1">
+ <div className="flex items-center justify-between text-[11px] text-neutral-500 font-mono">
+ <span className="uppercase font-bold text-neutral-700">{node.type}</span>
+ <span>Node #{index + 1}</span>
+ </div>
+ <p className="text-xs font-semibold text-neutral-950">{node.label}</p>
+ <p className="text-[10px] text-neutral-500 font-mono truncate">{node.configSummary || "Configurado"}</p>
+ </div>
 
-            {index < nodes.length - 1 && (
-              <ArrowRight className="w-5 h-5 text-zinc-400 shrink-0 hidden md:block" />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-      )}
-    </Surface>
-  );
+ {index < nodes.length - 1 && (
+ <ArrowRight className="w-5 h-5 text-neutral-500 shrink-0 hidden md:block" />
+ )}
+ </React.Fragment>
+ ))}
+ </div>
+ )}
+ </Surface>
+ );
 }

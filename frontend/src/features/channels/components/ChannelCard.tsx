@@ -13,46 +13,37 @@ interface ChannelCardProps {
 
 export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
   const isConnected = ["connected", "online"].includes(channel.status.toLowerCase());
-  const getProviderColor = (provider: string) => {
-    switch (provider) {
-      case "Telegram":
-        return "bg-sky-500/10 text-sky-500 border-sky-500/20";
-      case "WhatsApp":
-        return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-      case "Google":
-        return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-      default:
-        return "bg-purple-500/10 text-purple-500 border-purple-500/20";
-    }
-  };
 
   return (
-    <Surface variant="glass" glow={isConnected} className="space-y-4">
+    <Surface className="space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm border ${getProviderColor(channel.provider)}`}>
-            <MessageSquare className="w-5 h-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-neutral-800">
+            <MessageSquare className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{channel.name}</h3>
-            <p className="text-xs text-zinc-400 font-mono">{channel.accountIdentifier}</p>
+            <h3 className="text-sm font-semibold text-neutral-950">{channel.name}</h3>
+            <p className="font-mono text-xs text-neutral-500">{channel.accountIdentifier}</p>
+            <p className="mt-0.5 text-[11px] text-neutral-500">{channel.provider}</p>
           </div>
         </div>
 
         {isConnected ? (
           <Badge tone="success">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Conectado
+            <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
           </Badge>
         ) : (
           <Badge tone="neutral">
-            <Power className="w-3.5 h-3.5" /> Desconectado
+            <Power className="h-3.5 w-3.5" /> Desconectado
           </Badge>
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <span className="text-[11px] text-zinc-400 font-mono">
-          {channel.latencyMs > 0 ? `Latencia: ${channel.latencyMs} ms` : "Latencia no disponible"}
+      <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
+        <span className="font-mono text-[11px] text-neutral-500">
+          {channel.latencyMs > 0
+            ? `Latencia: ${channel.latencyMs} ms`
+            : "Latencia no disponible"}
         </span>
         <Button
           type="button"
@@ -62,7 +53,7 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           loading={isTesting}
           disabled={!isConnected}
         >
-          <RefreshCw className="w-3 h-3" /> Probar conexión
+          <RefreshCw className="h-3 w-3" /> Probar conexión
         </Button>
       </div>
     </Surface>
