@@ -28,14 +28,8 @@ static bool ReadYesNo(string label, bool defaultValue = false)
     return value is "s" or "si" or "sí" or "y" or "yes";
 }
 
-static int ReadInt(string label, int defaultValue)
-{
-    var raw = Read(label, defaultValue.ToString());
-    return int.TryParse(raw, out var n) ? n : defaultValue;
-}
-
 Console.WriteLine("Seleccione el modo de instalación:");
-Console.WriteLine("[1] Desarrollo Local");
+Console.WriteLine("[1] Desarrollo Local (Docker Compose, puertos 3000/5000)");
 Console.WriteLine("[2] Servidor Personal");
 Console.WriteLine("[3] Servidor Empresarial");
 var modeChoice = Read("Opción [1-3]", "1");
@@ -47,17 +41,19 @@ config.Mode = modeChoice switch
 };
 
 Console.WriteLine("\nDestino de despliegue:");
-Console.WriteLine("[1] Local (puertos)");
+Console.WriteLine("[1] Local (Docker Compose — panel :3000 / API :5000)");
 Console.WriteLine("[2] Web (URLs públicas)");
 var targetChoice = Read("Opción [1-2]", config.Mode == InstallationMode.LocalDevelopment ? "1" : "2");
 config.Target = targetChoice == "2" ? DeploymentTarget.Web : DeploymentTarget.Local;
 
 if (config.Target == DeploymentTarget.Local)
 {
-    config.FrontendHostPort = ReadInt("Puerto frontend (panel admin)", config.FrontendHostPort);
-    config.ApiHostPort = ReadInt("Puerto API", config.ApiHostPort);
-    config.PublicApiUrl = $"http://localhost:{config.ApiHostPort}";
-    config.PublicPanelUrl = $"http://localhost:{config.FrontendHostPort}";
+    // Puertos fijos para que el stack siempre sea alcanzable tras compose up.
+    config.FrontendHostPort = 3000;
+    config.ApiHostPort = 5000;
+    config.PublicApiUrl = "http://localhost:5000";
+    config.PublicPanelUrl = "http://localhost:3000";
+    Console.WriteLine("Puertos Local fijados: frontend 3000, API 5000.");
 }
 else
 {
@@ -67,13 +63,12 @@ else
 
 if (config.Mode == InstallationMode.LocalDevelopment)
 {
-    config.EventBusProvider = Read("EventBus provider (RabbitMQ/InMemory)", "InMemory");
+    config.EventBusProvider = "RabbitMQ";
     config.PostgresPort = 5433;
+    config.PostgresHost = "localhost";
 }
 
-Console.WriteLine("\n--- PostgreSQL ---");
-config.PostgresHost = Read("Host", config.PostgresHost);
-config.PostgresPort = ReadInt("Puerto host", config.PostgresPort);
+Console.WriteLine("\n--- PostgreSQL (Compose usa defaults; cambiar password requiere down -v) ---");
 config.PostgresDbName = Read("Base de datos", config.PostgresDbName);
 config.PostgresUsername = Read("Usuario", config.PostgresUsername);
 config.PostgresPassword = Read("Contraseña", config.PostgresPassword);
@@ -118,7 +113,8 @@ config.ApiHealthUrl = $"{config.ResolvePublicApiUrl()}/health/ready";
 
 Console.WriteLine($"\n[Configurando modo={config.Mode} target={config.Target}]");
 
-var composePath = Path.GetFullPath(config.ComposeFilePath);
+var workingDir = Directory.GetCurrentDirectory();
+var composePath = Path.GetFullPath(Path.Combine(workingDir, config.ComposeFilePath));
 var report = await validator.ValidateInfrastructureAsync(config, composePath);
 
 Console.WriteLine("\n--- Validación de infraestructura ---");
@@ -133,27 +129,54 @@ if (!report.ConfigValid)
 }
 
 var envContent = generator.GenerateEnvironmentFileContent(config);
-var outputPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+var outputPath = Path.Combine(workingDir, ".env");
 await File.WriteAllTextAsync(outputPath, envContent);
 Console.WriteLine($"\nArchivo .env generado: {outputPath}");
 
-var configDir = Path.Combine(Directory.GetCurrentDirectory(), "config");
+var configDir = Path.Combine(workingDir, "config");
 Directory.CreateDirectory(configDir);
 await File.WriteAllTextAsync(Path.Combine(configDir, "generated.env"), envContent);
 
-if (report.ComposeFileExists && report.ComposeAvailable)
-{
-    var upCommand = composeHelper.BuildUpCommand(composePath);
-    Console.WriteLine("\nComando sugerido (no ejecutado automáticamente):");
-    Console.WriteLine($"  {upCommand}");
-}
-else
+if (!(report.ComposeFileExists && report.ComposeAvailable))
 {
     Console.WriteLine("\nDocker Compose no disponible o docker-compose.yml ausente.");
+    return 2;
 }
 
-Console.WriteLine(report.IsReady
-    ? "\nValidación lista para despliegue. Tras levantar el stack abre /installer para diagnóstico o reconfiguración."
-    : "\nValidación incompleta: revise Docker/Compose/red antes de levantar servicios.");
+var runCompose = ReadYesNo("¿Ejecutar docker compose up --build -d ahora?", true);
+if (!runCompose)
+{
+    Console.WriteLine("\nComando sugerido:");
+    Console.WriteLine($"  {composeHelper.BuildUpCommand(composePath)}");
+    Console.WriteLine("O: ./scripts/ocap-up.sh");
+    return 0;
+}
 
-return report.IsReady ? 0 : 2;
+Console.WriteLine("\n--- Montando stack ---");
+var (upOk, upOutput) = await composeHelper.RunUpAsync(composePath, workingDir);
+Console.WriteLine(upOutput);
+if (!upOk)
+{
+    Console.WriteLine("docker compose up falló.");
+    return 3;
+}
+
+Console.WriteLine("Esperando API healthy...");
+var apiOk = await composeHelper.WaitForHttpOkAsync(config.ApiHealthUrl, retries: 72, delayMs: 5000);
+Console.WriteLine("Esperando frontend...");
+var frontOk = await composeHelper.WaitForHttpOkAsync(config.ResolvePublicPanelUrl() + "/", retries: 72, delayMs: 5000);
+
+if (!apiOk || !frontOk)
+{
+    Console.WriteLine($"API ready: {apiOk}, Frontend: {frontOk}. Revisa docker compose logs.");
+    return 4;
+}
+
+Console.WriteLine();
+Console.WriteLine("==============================================");
+Console.WriteLine("  OCAP montado");
+Console.WriteLine($"  Panel:      {config.ResolvePublicPanelUrl()}");
+Console.WriteLine($"  Instalador: {config.ResolvePublicPanelUrl()}/installer");
+Console.WriteLine($"  API:        {config.ResolvePublicApiUrl()}");
+Console.WriteLine("==============================================");
+return 0;

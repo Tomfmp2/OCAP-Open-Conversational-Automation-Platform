@@ -65,12 +65,28 @@ public sealed class InstallationSetupService : IInstallationSetupService
     public async Task<InstallerSetupResponse> ApplyAsync(InstallerSetupRequest request, CancellationToken cancellationToken)
     {
         var target = string.Equals(request.Target, "Web", StringComparison.OrdinalIgnoreCase) ? "Web" : "Local";
+
+        // Local Docker: puertos y Postgres de Compose fijos para no tumbar el stack montado.
+        if (target == "Local")
+        {
+            request.FrontendHostPort = 3000;
+            request.ApiHostPort = 5000;
+            request.PostgresHost = string.IsNullOrWhiteSpace(request.PostgresHost) ? "localhost" : request.PostgresHost;
+            request.PostgresPort = request.PostgresPort <= 0 ? 5433 : request.PostgresPort;
+            if (string.IsNullOrWhiteSpace(request.PostgresDbName))
+                request.PostgresDbName = "ocap_db";
+            if (string.IsNullOrWhiteSpace(request.PostgresUsername))
+                request.PostgresUsername = "ocap_user";
+            // No reescribir password del volumen: siempre el default de Compose en Local.
+            request.PostgresPassword = "OcapSecurePass2026!";
+        }
+
         var apiUrl = target == "Web"
             ? request.PublicApiUrl!.TrimEnd('/')
-            : $"http://localhost:{request.ApiHostPort}";
+            : "http://localhost:5000";
         var panelUrl = target == "Web"
             ? request.PublicPanelUrl!.TrimEnd('/')
-            : $"http://localhost:{request.FrontendHostPort}";
+            : "http://localhost:3000";
         var redirectUri = string.IsNullOrWhiteSpace(request.GoogleRedirectUri)
             ? $"{apiUrl}/api/integrations/Google/connect"
             : request.GoogleRedirectUri.Trim();
@@ -84,40 +100,50 @@ public sealed class InstallationSetupService : IInstallationSetupService
 
         var envContent = InstallationArtifactStore.BuildEnvFile(request, target, apiUrl, panelUrl, redirectUri, jwt, vault);
         var document = InstallationArtifactStore.BuildInstallationDocument(request, target, apiUrl, panelUrl, redirectUri);
-        await _store.WriteArtifactsAsync(request, envContent, document, cancellationToken);
+        var (dotEnvWritten, dotEnvPath) = await _store.WriteArtifactsAsync(request, envContent, document, cancellationToken);
 
         var adminCreated = await EnsureAdminAsync(request, cancellationToken);
         await EnsureAiProviderAsync(request, cancellationToken);
 
-        var requiresRestart =
-            request.FrontendHostPort != 3000 ||
-            request.ApiHostPort != 5000 ||
-            !string.Equals(request.PostgresPassword, "OcapSecurePass2026!", StringComparison.Ordinal) ||
-            target == "Web";
+        // Producto en caliente: no exige recreate en Local. Web solo si cambian URLs públicas vs defaults.
+        var requiresRestart = false;
 
-        _logger.LogInformation("Instalación aplicada. AdminCreated={AdminCreated} RequiresRestart={RequiresRestart}",
-            adminCreated, requiresRestart);
+        _logger.LogInformation(
+            "Instalación aplicada. AdminCreated={AdminCreated} RequiresRestart={RequiresRestart} DotEnvWritten={DotEnvWritten}",
+            adminCreated, requiresRestart, dotEnvWritten);
 
         var status = await GetStatusAsync(cancellationToken);
         status.Completed = true;
         status.Target = target;
-        status.FrontendHostPort = request.FrontendHostPort;
-        status.ApiHostPort = request.ApiHostPort;
+        status.FrontendHostPort = target == "Local" ? 3000 : request.FrontendHostPort;
+        status.ApiHostPort = target == "Local" ? 5000 : request.ApiHostPort;
         status.PublicApiUrl = apiUrl;
         status.PublicPanelUrl = panelUrl;
+
+        var message = adminCreated
+            ? "Configuración de producto guardada. Se creó la cuenta admin."
+            : "Configuración de producto guardada. Ya había usuarios: el admin del wizard no se recreó.";
+
+        if (dotEnvWritten)
+            message += " Se actualizó .env (para el próximo ./scripts/ocap-up.sh).";
+
+        message += target == "Local"
+            ? " Panel en http://localhost:3000 — API en http://localhost:5000."
+            : $" Panel: {panelUrl} — API: {apiUrl}.";
 
         return new InstallerSetupResponse
         {
             Success = true,
             RequiresRestart = requiresRestart,
             AdminCreated = adminCreated,
-            Message = adminCreated
-                ? "Instalación completada. Cuenta admin creada."
-                : "Instalación completada. Ya existían usuarios; no se recreó el admin.",
+            DotEnvWritten = dotEnvWritten,
+            Message = message,
             EnvFilePreview = envContent,
-            RestartHint = requiresRestart
-                ? "Copia config/generated.env a .env en la raíz del repo y ejecuta: docker compose up -d --force-recreate"
-                : "Reinicio opcional. Los valores de Google/IA quedaron en config/installation.json.",
+            EnvFilePath = _store.GeneratedEnvPath,
+            DotEnvPath = dotEnvPath,
+            RestartHint = target == "Local"
+                ? "Stack ya montado. Si acabas de clonar: ./scripts/ocap-up.sh. Reset total: docker compose down -v && ./scripts/ocap-up.sh"
+                : "Si nginx/CORS no reflejan las URLs nuevas, ejecuta ./scripts/ocap-up.sh en el servidor.",
             Status = status
         };
     }

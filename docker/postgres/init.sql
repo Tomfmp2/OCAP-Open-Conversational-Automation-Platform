@@ -1,2 +1,3 @@
--- Script de inicialización para PostgreSQL en producción/desarrollo OCAP
-CREATE DATABASE ocap_db;
+-- POSTGRES_DB ya crea ocap_db; aquí solo extensiones.
+\connect ocap_db
+CREATE EXTENSION IF NOT EXISTS vector;

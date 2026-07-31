@@ -30,6 +30,7 @@ public sealed class InstallationArtifactStore
     public string ConfigDirectory => _configDirectory;
     public string InstallationJsonPath => Path.Combine(_configDirectory, "installation.json");
     public string GeneratedEnvPath => Path.Combine(_configDirectory, "generated.env");
+    public string ProjectDotEnvPath => Path.GetFullPath(Path.Combine(_configDirectory, "..", ".env"));
 
     public bool IsCompleted(IConfiguration configuration)
     {
@@ -58,7 +59,7 @@ public sealed class InstallationArtifactStore
         return false;
     }
 
-    public async Task WriteArtifactsAsync(
+    public async Task<(bool DotEnvWritten, string DotEnvPath)> WriteArtifactsAsync(
         InstallerSetupRequest request,
         string envContent,
         JsonObject installationDocument,
@@ -71,7 +72,28 @@ public sealed class InstallationArtifactStore
             installationDocument.ToJsonString(JsonOptions),
             Encoding.UTF8,
             cancellationToken);
-        _logger.LogInformation("Artefactos de instalación escritos en {Dir}", _configDirectory);
+
+        var dotEnvWritten = false;
+        var dotEnvPath = ProjectDotEnvPath;
+        try
+        {
+            var projectRoot = Path.GetDirectoryName(dotEnvPath);
+            if (!string.IsNullOrWhiteSpace(projectRoot))
+                Directory.CreateDirectory(projectRoot);
+            await File.WriteAllTextAsync(dotEnvPath, envContent, Encoding.UTF8, cancellationToken);
+            dotEnvWritten = true;
+            _logger.LogInformation("Archivo .env del proyecto actualizado en {Path}", dotEnvPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudo escribir .env en {Path}. Queda disponible en {Generated}",
+                dotEnvPath, GeneratedEnvPath);
+        }
+
+        _logger.LogInformation(
+            "Artefactos de instalación escritos en {Dir} (installation.json, generated.env)",
+            _configDirectory);
+        return (dotEnvWritten, dotEnvPath);
     }
 
     public async Task MergeGoogleAccessTokenAsync(string accessToken, CancellationToken cancellationToken)

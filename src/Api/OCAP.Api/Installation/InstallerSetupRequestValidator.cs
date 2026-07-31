@@ -11,12 +11,6 @@ public sealed class InstallerSetupRequestValidator : AbstractValidator<Installer
                        string.Equals(t, "Web", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Target debe ser Local o Web.");
 
-        RuleFor(x => x.PostgresHost).NotEmpty();
-        RuleFor(x => x.PostgresDbName).NotEmpty();
-        RuleFor(x => x.PostgresUsername).NotEmpty();
-        RuleFor(x => x.PostgresPassword).NotEmpty().MinimumLength(8);
-        RuleFor(x => x.PostgresPort).InclusiveBetween(1, 65535);
-
         RuleFor(x => x.AdminEmail).NotEmpty().EmailAddress();
         RuleFor(x => x.AdminPassword).NotEmpty().MinimumLength(10);
         RuleFor(x => x.TenantName).NotEmpty();
@@ -32,18 +26,17 @@ public sealed class InstallerSetupRequestValidator : AbstractValidator<Installer
                 .WithMessage("AiApiKey es obligatorio salvo para Ollama.");
         });
 
-        When(x => string.Equals(x.Target, "Local", StringComparison.OrdinalIgnoreCase), () =>
-        {
-            RuleFor(x => x.FrontendHostPort).InclusiveBetween(1, 65535);
-            RuleFor(x => x.ApiHostPort).InclusiveBetween(1, 65535);
-        });
-
         When(x => string.Equals(x.Target, "Web", StringComparison.OrdinalIgnoreCase), () =>
         {
             RuleFor(x => x.PublicApiUrl).NotEmpty().Must(BeAbsoluteHttpUrl)
                 .WithMessage("PublicApiUrl debe ser una URL http(s) absoluta.");
             RuleFor(x => x.PublicPanelUrl).NotEmpty().Must(BeAbsoluteHttpUrl)
                 .WithMessage("PublicPanelUrl debe ser una URL http(s) absoluta.");
+            RuleFor(x => x.PostgresHost).NotEmpty();
+            RuleFor(x => x.PostgresDbName).NotEmpty();
+            RuleFor(x => x.PostgresUsername).NotEmpty();
+            RuleFor(x => x.PostgresPassword).NotEmpty().MinimumLength(8);
+            RuleFor(x => x.PostgresPort).InclusiveBetween(1, 65535);
         });
 
         When(x => x.EnableGoogleWorkspace, () =>
