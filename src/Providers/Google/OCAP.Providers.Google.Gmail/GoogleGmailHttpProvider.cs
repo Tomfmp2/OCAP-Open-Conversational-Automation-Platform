@@ -14,12 +14,12 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
     private const string BaseUrl = "https://gmail.googleapis.com/gmail/v1/users/me";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly GoogleWorkspaceOptions _options;
+    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
 
-    public GoogleGmailHttpProvider(HttpClient httpClient, IOptions<GoogleWorkspaceOptions> options)
+    public GoogleGmailHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task<EmailMessage> SendEmailAsync(
@@ -98,14 +98,15 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
     {
-        if (string.IsNullOrWhiteSpace(_options.AccessToken))
+        var accessToken = _options.CurrentValue.AccessToken;
+        if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
                 "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Gmail.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.AccessToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return request;
     }
 

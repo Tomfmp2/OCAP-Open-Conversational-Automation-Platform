@@ -29,7 +29,9 @@ public class OcapApiFactory : WebApplicationFactory<Program>
                 ["Jwt:Audience"] = "OCAP.Clients",
                 ["Jwt:AccessTokenExpiryMinutes"] = "60",
                 ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!",
-                ["Bootstrap:Enabled"] = "false"
+                ["Bootstrap:Enabled"] = "false",
+                ["Installation:Completed"] = "false",
+                ["Installation:ConfigPath"] = Path.Combine(Path.GetTempPath(), $"ocap-install-{Guid.NewGuid():N}")
             });
         });
     }

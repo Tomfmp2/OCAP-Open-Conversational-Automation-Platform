@@ -43,3 +43,6 @@ secrets/
 publish/
 out/
 .obsidian/
+config/installation.json
+config/generated.env
+!.gitkeep

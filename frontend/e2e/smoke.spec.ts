@@ -35,8 +35,9 @@ test("login, navegación principal y logout", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("diagnóstico público carga sin autenticación", async ({ page }) => {
+test("instalador público muestra el asistente sin autenticación", async ({ page }) => {
   await page.goto("/installer");
-  await expect(page.getByText(/Diagnóstico/i).first()).toBeVisible();
+  await expect(page.getByText(/Instalador OCAP/i).first()).toBeVisible();
+  await expect(page.getByText(/Dónde vas a desplegar|Instalación marcada como completa/i).first()).toBeVisible();
   await expect(page.locator("main")).toBeVisible();
 });

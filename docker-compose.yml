@@ -125,10 +125,28 @@ services:
       Bootstrap__Enabled: "true"
       Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-admin@ocap.io}
       Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe_Admin_2026!}
+      Bootstrap__TenantName: ${BOOTSTRAP_TENANT_NAME:-OCAP Default}
+      Bootstrap__TenantSlug: ${BOOTSTRAP_TENANT_SLUG:-default}
+      Google__ClientId: ${Google__ClientId:-}
+      Google__ClientSecret: ${Google__ClientSecret:-}
+      Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
+      Google__UseInMemory: ${Google__UseInMemory:-false}
+      AiProviders__OpenAI__ApiKey: ${AiProviders__OpenAI__ApiKey:-}
+      AiProviders__OpenAI__ModelName: ${AiProviders__OpenAI__ModelName:-gpt-4o}
+      AiProviders__Gemini__ApiKey: ${AiProviders__Gemini__ApiKey:-}
+      AiProviders__Gemini__ModelName: ${AiProviders__Gemini__ModelName:-gemini-1.5-flash}
+      AiProviders__Claude__ApiKey: ${AiProviders__Claude__ApiKey:-}
+      AiProviders__Claude__ModelName: ${AiProviders__Claude__ModelName:-claude-3-5-sonnet-latest}
+      AiProviders__Ollama__BaseUrl: ${AiProviders__Ollama__BaseUrl:-http://host.docker.internal:11434}
+      AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
+      Telegram__BotToken: ${Telegram__BotToken:-}
+      Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
+      Installation__ConfigPath: /app/config
     ports:
-      - "5000:5000"
+      - "${API_HOST_PORT:-5000}:5000"
     volumes:
       - api_storage:/app/storage
+      - ./config:/app/config
     depends_on:
       postgres:
         condition: service_healthy
@@ -159,7 +177,7 @@ services:
       API_INTERNAL_URL: http://ocap-api:5000
       NEXT_PUBLIC_API_URL: ""
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
       ocap-api:
         condition: service_healthy
@@ -186,7 +204,7 @@ services:
     container_name: ocap-evolution-api
     restart: always
     environment:
-      SERVER_URL: http://localhost:8088
+      SERVER_URL: ${EVOLUTION_API_URL:-http://localhost:8088}
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-EvolutionSecretApiKey}
     ports:
       - "8088:8080"

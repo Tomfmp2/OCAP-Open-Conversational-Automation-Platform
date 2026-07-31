@@ -22,6 +22,12 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    var installationConfigPath = builder.Configuration["Installation:ConfigPath"];
+    var installationJson = Path.Combine(
+        string.IsNullOrWhiteSpace(installationConfigPath) ? "config" : installationConfigPath,
+        "installation.json");
+    builder.Configuration.AddJsonFile(installationJson, optional: true, reloadOnChange: true);
+
     // Replace built-in logging with Serilog
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
