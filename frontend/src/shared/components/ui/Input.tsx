@@ -30,18 +30,18 @@ export function Input({
       <input
         id={inputId}
         className={cn(
-          "w-full rounded-xl border bg-white dark:bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus-ring",
+          "w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus-ring dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500",
           error
             ? "border-red-400 dark:border-red-700"
-            : "border-zinc-200 dark:border-zinc-800",
+            : "border-zinc-200 dark:border-zinc-700",
           className
         )}
         {...props}
       />
       {error ? (
-        <p className="text-[11px] text-red-500">{error}</p>
+        <p className="text-[11px] text-red-500 dark:text-red-400">{error}</p>
       ) : hint ? (
-        <p className="text-[11px] text-zinc-400">{hint}</p>
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{hint}</p>
       ) : null}
     </div>
   );

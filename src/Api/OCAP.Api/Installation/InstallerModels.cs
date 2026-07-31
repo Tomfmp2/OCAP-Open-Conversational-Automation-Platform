@@ -66,6 +66,7 @@ public sealed class InstallerSetupResponse
     public bool Success { get; set; }
     public bool RequiresRestart { get; set; }
     public bool AdminCreated { get; set; }
+    public bool AdminUpdated { get; set; }
     public bool DotEnvWritten { get; set; }
     public string Message { get; set; } = string.Empty;
     public string EnvFilePreview { get; set; } = string.Empty;

@@ -7,13 +7,13 @@ import { SecondarySidebar } from "@/shared/components/navigation/SecondarySideba
 import { Topbar } from "@/shared/components/navigation/Topbar";
 import { useThemeStore } from "@/shared/stores/useThemeStore";
 
-const MINIMAL_LAYOUT_ROUTES = ["/login"];
-const PUBLIC_DIAGNOSTIC_ROUTES = ["/installer"];
+const MINIMAL_LAYOUT_ROUTES = ["/login", "/installer"];
+const PUBLIC_DIAGNOSTIC_ROUTES: string[] = [];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
-  const isMinimal = MINIMAL_LAYOUT_ROUTES.includes(pathname);
+  const isMinimal = MINIMAL_LAYOUT_ROUTES.some((route) => pathname.startsWith(route));
   const isPublicDiagnostic = PUBLIC_DIAGNOSTIC_ROUTES.some((route) =>
     pathname.startsWith(route)
   );
