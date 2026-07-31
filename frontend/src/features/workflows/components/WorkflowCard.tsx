@@ -19,40 +19,47 @@ export function WorkflowCard({ workflow, onSelect, isSelected }: WorkflowCardPro
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") onSelect(workflow);
       }}
-      variant="glass"
       className={`cursor-pointer space-y-4 ${
         isSelected
-          ? "border-blue-500 ring-1 ring-blue-500"
-          : "hover:border-zinc-700"
+          ? "border-neutral-950 ring-1 ring-neutral-950"
+          : "hover:border-neutral-400"
       }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold text-sm border border-purple-500/20">
-            <GitFork className="w-5 h-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-neutral-800">
+            <GitFork className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{workflow.name}</h3>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+              <h3 className="text-sm font-semibold text-neutral-950">{workflow.name}</h3>
+              <span className="rounded bg-neutral-200 px-1.5 py-0.5 font-mono text-[10px] text-neutral-600">
                 {workflow.version}
               </span>
             </div>
-            <p className="text-xs text-zinc-400">Última actividad: {workflow.lastRun}</p>
+            <p className="text-xs text-neutral-500">Última actividad: {workflow.lastRun}</p>
           </div>
         </div>
 
-        <Badge tone={workflow.status === "published" || workflow.status === "Active" ? "success" : "neutral"}>
-          {(workflow.status === "published" || workflow.status === "Active") && <CheckCircle2 className="w-3.5 h-3.5" />}
+        <Badge
+          tone={
+            workflow.status === "published" || workflow.status === "Active"
+              ? "success"
+              : "neutral"
+          }
+        >
+          {(workflow.status === "published" || workflow.status === "Active") && (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          )}
           {workflow.status}
         </Badge>
       </div>
 
-      <div className="text-xs pt-2 border-t border-zinc-100 dark:border-zinc-800">
-        <div>
-          <span className="text-zinc-400 text-[10px]">Ejecuciones Totales</span>
-          <p className="font-semibold text-zinc-800 dark:text-zinc-200">{workflow.totalExecutions.toLocaleString()}</p>
-        </div>
+      <div className="border-t border-neutral-100 pt-2 text-xs">
+        <span className="text-[10px] text-neutral-500">Ejecuciones totales</span>
+        <p className="font-semibold text-neutral-800">
+          {workflow.totalExecutions.toLocaleString()}
+        </p>
       </div>
     </Surface>
   );

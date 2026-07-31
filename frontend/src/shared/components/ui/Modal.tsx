@@ -40,7 +40,7 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950/50 p-4"
       onClick={onClose}
       role="presentation"
     >
@@ -51,22 +51,22 @@ export function Modal({
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          "w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-2xl outline-none dark:border-zinc-800 dark:bg-zinc-900",
+          "w-full max-w-lg rounded-md border border-neutral-200 bg-white shadow-lg outline-none",
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800">
+        <div className="flex items-start justify-between border-b border-neutral-200 px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{title}</h2>
+            <h2 className="text-sm font-semibold text-neutral-950">{title}</h2>
             {description && (
-              <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{description}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4" />

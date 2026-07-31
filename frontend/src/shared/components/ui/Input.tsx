@@ -22,7 +22,7 @@ export function Input({
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-xs font-semibold tracking-wide text-zinc-700 dark:text-zinc-300"
+          className="block text-xs font-medium tracking-wide text-neutral-700"
         >
           {label}
         </label>
@@ -30,18 +30,16 @@ export function Input({
       <input
         id={inputId}
         className={cn(
-          "w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus-ring dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500",
-          error
-            ? "border-red-400 dark:border-red-700"
-            : "border-zinc-200 dark:border-zinc-700",
+          "w-full rounded-md border bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400 focus-ring",
+          error ? "border-neutral-950" : "border-neutral-300",
           className
         )}
         {...props}
       />
       {error ? (
-        <p className="text-[11px] text-red-500 dark:text-red-400">{error}</p>
+        <p className="text-[11px] font-medium text-neutral-950">{error}</p>
       ) : hint ? (
-        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{hint}</p>
+        <p className="text-[11px] text-neutral-500">{hint}</p>
       ) : null}
     </div>
   );

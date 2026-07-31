@@ -35,15 +35,14 @@ export function AuthGuard({
     }
   }, [isAuthenticated, isLoading, isPublic, pathname, router]);
 
-  // Rutas públicas (login/instalador) se muestran de inmediato.
   if (isPublic) {
     return <>{children}</>;
   }
 
   if (isLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-        <div className="text-sm text-zinc-500">Cargando sesión...</div>
+      <div className="flex h-full w-full items-center justify-center bg-neutral-50">
+        <div className="text-sm text-neutral-500">Cargando sesión…</div>
       </div>
     );
   }
@@ -58,12 +57,10 @@ export function AuthGuard({
 
   if (isAuthenticated && (lacksPermission || lacksRole)) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-zinc-50 p-6 dark:bg-zinc-950">
+      <div className="flex h-full w-full items-center justify-center bg-neutral-50 p-6">
         <div className="text-center">
-          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            Acceso denegado
-          </h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h1 className="text-lg font-semibold text-neutral-950">Acceso denegado</h1>
+          <p className="mt-2 text-sm text-neutral-500">
             No tienes los permisos necesarios para ver esta sección.
           </p>
         </div>

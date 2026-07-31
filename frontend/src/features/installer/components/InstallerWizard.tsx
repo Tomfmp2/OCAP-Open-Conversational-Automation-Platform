@@ -119,7 +119,7 @@ export function InstallerWizard() {
 
   if (statusLoading) {
     return (
-      <Surface className="flex items-center gap-2 p-6 text-sm text-zinc-400">
+      <Surface className="flex items-center gap-2 p-6 text-sm text-neutral-500">
         <Loader2 className="h-4 w-4 animate-spin" />
         Cargando estado del instalador…
       </Surface>
@@ -130,7 +130,7 @@ export function InstallerWizard() {
     return (
       <div className="space-y-4">
         <Surface className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-sm text-emerald-400">
+          <div className="flex items-center gap-2 text-sm text-neutral-950">
             <CheckCircle2 className="h-4 w-4" />
             Instalación marcada como completa.
           </div>
@@ -155,20 +155,20 @@ export function InstallerWizard() {
     <div className="space-y-6">
       <StepRail current={step} completedThrough={currentIndex} />
 
-      <Surface variant="glass" className="space-y-5 p-5">
+      <Surface  className="space-y-5 p-5">
         {step === "mode" && (
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-100">¿Dónde vas a desplegar OCAP?</h2>
+            <h2 className="text-sm font-semibold text-neutral-950">¿Dónde vas a desplegar OCAP?</h2>
             <div className="grid gap-3 sm:grid-cols-2">
                   {(["Local", "Web"] as const).map((target) => (
                 <button
                   key={target}
                   type="button"
                   onClick={() => patch("target", target)}
-                  className={`rounded-xl border p-4 text-left text-sm transition ${
+                  className={`rounded-md border p-4 text-left text-sm transition ${
                     form.target === target
-                      ? "border-zinc-100 bg-zinc-100 text-zinc-900"
-                      : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-600"
+                      ? "border-neutral-950 bg-neutral-950 text-white"
+                      : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"
                   }`}
                 >
                   <p className="font-semibold">{target === "Local" ? "Local (Docker)" : "Web / servidor"}</p>
@@ -184,15 +184,15 @@ export function InstallerWizard() {
         )}
 
         {step === "network" && form.target === "Local" && (
-          <div className="space-y-3 text-sm text-zinc-300">
-            <p className="font-semibold text-zinc-100">Docker Local — puertos fijos</p>
+          <div className="space-y-3 text-sm text-neutral-700">
+            <p className="font-semibold text-neutral-950">Docker Local — puertos fijos</p>
             <p>
-              El stack se monta con <code className="text-zinc-100">./scripts/ocap-up.sh</code> en
-              panel <strong className="text-zinc-100">:3000</strong> y API{" "}
-              <strong className="text-zinc-100">:5000</strong>. Este wizard no cambia esos puertos
+              El stack se monta con <code className="text-neutral-950">./scripts/ocap-up.sh</code> en
+              panel <strong className="text-neutral-950">:3000</strong> y API{" "}
+              <strong className="text-neutral-950">:5000</strong>. Este wizard no cambia esos puertos
               para no dejar el panel inaccesible.
             </p>
-            <ul className="list-disc space-y-1 pl-5 text-xs text-zinc-400">
+            <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
               <li>Panel: http://localhost:3000</li>
               <li>API: http://localhost:5000</li>
             </ul>
@@ -218,14 +218,14 @@ export function InstallerWizard() {
         )}
 
         {step === "database" && form.target === "Local" && (
-          <div className="space-y-3 text-sm text-zinc-300">
-            <p className="font-semibold text-zinc-100">PostgreSQL vía Docker Compose</p>
+          <div className="space-y-3 text-sm text-neutral-700">
+            <p className="font-semibold text-neutral-950">PostgreSQL vía Docker Compose</p>
             <p>
-              La API ya usa el contenedor <code className="text-zinc-100">postgres</code> con los
+              La API ya usa el contenedor <code className="text-neutral-950">postgres</code> con los
               defaults del compose. Cambiar la contraseña aquí rompería el volumen existente; para
-              reset total usa <code className="text-zinc-100">docker compose down -v && ./scripts/ocap-up.sh</code>.
+              reset total usa <code className="text-neutral-950">docker compose down -v && ./scripts/ocap-up.sh</code>.
             </p>
-            <ul className="list-disc space-y-1 pl-5 text-xs text-zinc-400">
+            <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
               <li>DB: ocap_db · user: ocap_user · host port: 5433</li>
             </ul>
           </div>
@@ -280,7 +280,7 @@ export function InstallerWizard() {
 
         {step === "google" && (
           <div className="space-y-4">
-            <label className="flex items-center gap-2 text-sm text-zinc-300">
+            <label className="flex items-center gap-2 text-sm text-neutral-700">
               <input
                 type="checkbox"
                 checked={form.enableGoogleWorkspace}
@@ -315,7 +315,7 @@ export function InstallerWizard() {
         {step === "ai" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
-              <p className="text-xs font-semibold text-zinc-300">Proveedor</p>
+              <p className="text-xs font-semibold text-neutral-700">Proveedor</p>
               <div className="flex flex-wrap gap-2">
                 {(["OpenAI", "Gemini", "Claude", "Ollama"] as const).map((p) => (
                   <Button
@@ -361,7 +361,7 @@ export function InstallerWizard() {
         {step === "channels" && (
           <div className="space-y-5">
             <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
                 <input
                   type="checkbox"
                   checked={form.enableWhatsApp}
@@ -386,7 +386,7 @@ export function InstallerWizard() {
               )}
             </div>
             <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-zinc-300">
+              <label className="flex items-center gap-2 text-sm text-neutral-700">
                 <input
                   type="checkbox"
                   checked={form.enableTelegram}
@@ -407,34 +407,34 @@ export function InstallerWizard() {
         )}
 
         {step === "review" && (
-          <div className="space-y-3 text-sm text-zinc-300">
+          <div className="space-y-3 text-sm text-neutral-700">
             <p>
-              <span className="text-zinc-500">Modo:</span> {form.target}
+              <span className="text-neutral-500">Modo:</span> {form.target}
             </p>
             <p>
-              <span className="text-zinc-500">Red:</span>{" "}
+              <span className="text-neutral-500">Red:</span>{" "}
               {form.target === "Local"
                 ? "frontend :3000, API :5000 (Compose)"
                 : `${form.publicPanelUrl} → ${form.publicApiUrl}`}
             </p>
             <p>
-              <span className="text-zinc-500">Postgres:</span>{" "}
+              <span className="text-neutral-500">Postgres:</span>{" "}
               {form.target === "Local"
                 ? "defaults Compose (ocap_db / ocap_user)"
                 : `${form.postgresUsername}@${form.postgresHost}:${form.postgresPort}/${form.postgresDbName}`}
             </p>
             <p>
-              <span className="text-zinc-500">Admin:</span> {form.adminEmail} ({form.tenantSlug})
+              <span className="text-neutral-500">Admin:</span> {form.adminEmail} ({form.tenantSlug})
             </p>
             <p>
-              <span className="text-zinc-500">Google:</span>{" "}
+              <span className="text-neutral-500">Google:</span>{" "}
               {form.enableGoogleWorkspace ? "activado" : "omitido"}
             </p>
             <p>
-              <span className="text-zinc-500">IA:</span> {form.aiProvider} / {form.aiModelName}
+              <span className="text-neutral-500">IA:</span> {form.aiProvider} / {form.aiModelName}
             </p>
             {setupResult && (
-              <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+              <p className="rounded-md border border-neutral-950 bg-neutral-100 p-3 text-xs text-neutral-800">
                 {setupResult}
               </p>
             )}
@@ -444,10 +444,10 @@ export function InstallerWizard() {
         {step === "diagnostic" && (
           <div className="space-y-4">
             {setupResult && (
-              <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+              <div className="space-y-2 rounded-md border border-neutral-950 bg-neutral-100 p-3 text-xs text-neutral-800">
                 <p>{setupResult}</p>
                 {setupMeta && (
-                  <ul className="list-disc space-y-1 pl-4 text-emerald-100/90">
+                  <ul className="list-disc space-y-1 pl-4 text-neutral-700">
                     <li>
                       Admin:{" "}
                       {setupMeta.adminCreated
@@ -472,19 +472,19 @@ export function InstallerWizard() {
                 onValidate={() => void diagnosticQuery.refetch()}
               />
             ) : (
-              <p className="text-sm text-zinc-400">Cargando diagnóstico…</p>
+              <p className="text-sm text-neutral-500">Cargando diagnóstico…</p>
             )}
           </div>
         )}
 
         {error && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+          <p className="rounded-md border border-2 border-neutral-950 bg-white px-3 py-2 text-xs text-neutral-950">
             {error}
           </p>
         )}
 
         {step !== "diagnostic" && (
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-800 pt-4">
+          <div className="flex items-center justify-between gap-3 border-t border-neutral-200 pt-4">
             <Button
               type="button"
               variant="secondary"
