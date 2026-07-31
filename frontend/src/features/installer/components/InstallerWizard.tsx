@@ -48,6 +48,12 @@ export function InstallerWizard() {
   const [form, setForm] = React.useState<InstallerFormState>(defaultInstallerForm);
   const [error, setError] = React.useState<string | null>(null);
   const [setupResult, setSetupResult] = React.useState<string | null>(null);
+  const [setupMeta, setSetupMeta] = React.useState<{
+    requiresRestart: boolean;
+    adminCreated: boolean;
+    restartHint: string;
+    envFilePath?: string;
+  } | null>(null);
   const [forceWizard, setForceWizard] = React.useState(false);
   const setupMutation = useInstallerSetupMutation();
 
@@ -96,9 +102,13 @@ export function InstallerWizard() {
 
     try {
       const result = await setupMutation.mutateAsync(form);
-      setSetupResult(
-        `${result.message}${result.requiresRestart ? ` ${result.restartHint}` : ""}`
-      );
+      setSetupResult(result.message);
+      setSetupMeta({
+        requiresRestart: result.requiresRestart,
+        adminCreated: result.adminCreated,
+        restartHint: result.restartHint,
+        envFilePath: result.envFilePath || result.dotEnvPath,
+      });
       setStep("diagnostic");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo completar la instalación.");
@@ -148,7 +158,7 @@ export function InstallerWizard() {
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-zinc-100">¿Dónde vas a desplegar OCAP?</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              {(["Local", "Web"] as const).map((target) => (
+                  {(["Local", "Web"] as const).map((target) => (
                 <button
                   key={target}
                   type="button"
@@ -159,10 +169,10 @@ export function InstallerWizard() {
                       : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-600"
                   }`}
                 >
-                  <p className="font-semibold">{target === "Local" ? "Local" : "Web / servidor"}</p>
+                  <p className="font-semibold">{target === "Local" ? "Local (Docker)" : "Web / servidor"}</p>
                   <p className="mt-1 text-xs opacity-70">
                     {target === "Local"
-                      ? "Pide puerto del panel admin (frontend) y de la API."
+                      ? "Stack con ./scripts/ocap-up.sh en :3000 / :5000. El wizard solo configura producto."
                       : "Pide URL pública de la API y del panel para CORS/OAuth."}
                   </p>
                 </button>
@@ -172,19 +182,18 @@ export function InstallerWizard() {
         )}
 
         {step === "network" && form.target === "Local" && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Puerto del frontend (panel admin)"
-              type="number"
-              value={form.frontendHostPort}
-              onChange={(e) => patch("frontendHostPort", Number(e.target.value))}
-            />
-            <Input
-              label="Puerto de la API"
-              type="number"
-              value={form.apiHostPort}
-              onChange={(e) => patch("apiHostPort", Number(e.target.value))}
-            />
+          <div className="space-y-3 text-sm text-zinc-300">
+            <p className="font-semibold text-zinc-100">Docker Local — puertos fijos</p>
+            <p>
+              El stack se monta con <code className="text-zinc-100">./scripts/ocap-up.sh</code> en
+              panel <strong className="text-zinc-100">:3000</strong> y API{" "}
+              <strong className="text-zinc-100">:5000</strong>. Este wizard no cambia esos puertos
+              para no dejar el panel inaccesible.
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-xs text-zinc-400">
+              <li>Panel: http://localhost:3000</li>
+              <li>API: http://localhost:5000</li>
+            </ul>
           </div>
         )}
 
@@ -206,7 +215,21 @@ export function InstallerWizard() {
           </div>
         )}
 
-        {step === "database" && (
+        {step === "database" && form.target === "Local" && (
+          <div className="space-y-3 text-sm text-zinc-300">
+            <p className="font-semibold text-zinc-100">PostgreSQL vía Docker Compose</p>
+            <p>
+              La API ya usa el contenedor <code className="text-zinc-100">postgres</code> con los
+              defaults del compose. Cambiar la contraseña aquí rompería el volumen existente; para
+              reset total usa <code className="text-zinc-100">docker compose down -v && ./scripts/ocap-up.sh</code>.
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-xs text-zinc-400">
+              <li>DB: ocap_db · user: ocap_user · host port: 5433</li>
+            </ul>
+          </div>
+        )}
+
+        {step === "database" && form.target === "Web" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Host" value={form.postgresHost} onChange={(e) => patch("postgresHost", e.target.value)} />
             <Input
@@ -389,11 +412,14 @@ export function InstallerWizard() {
             <p>
               <span className="text-zinc-500">Red:</span>{" "}
               {form.target === "Local"
-                ? `frontend :${form.frontendHostPort}, API :${form.apiHostPort}`
+                ? "frontend :3000, API :5000 (Compose)"
                 : `${form.publicPanelUrl} → ${form.publicApiUrl}`}
             </p>
             <p>
-              <span className="text-zinc-500">Postgres:</span> {form.postgresUsername}@{form.postgresHost}:{form.postgresPort}/{form.postgresDbName}
+              <span className="text-zinc-500">Postgres:</span>{" "}
+              {form.target === "Local"
+                ? "defaults Compose (ocap_db / ocap_user)"
+                : `${form.postgresUsername}@${form.postgresHost}:${form.postgresPort}/${form.postgresDbName}`}
             </p>
             <p>
               <span className="text-zinc-500">Admin:</span> {form.adminEmail} ({form.tenantSlug})
@@ -416,9 +442,21 @@ export function InstallerWizard() {
         {step === "diagnostic" && (
           <div className="space-y-4">
             {setupResult && (
-              <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-                {setupResult}
-              </p>
+              <div className="space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-200">
+                <p>{setupResult}</p>
+                {setupMeta && (
+                  <ul className="list-disc space-y-1 pl-4 text-emerald-100/90">
+                    <li>
+                      Admin creado: {setupMeta.adminCreated ? "sí" : "no (ya había usuarios; usa el admin anterior o borra volúmenes)"}
+                    </li>
+                    <li>
+                      Reinicio Compose: {setupMeta.requiresRestart ? "necesario para puertos/Postgres" : "opcional"}
+                    </li>
+                    {setupMeta.envFilePath && <li>Archivos: {setupMeta.envFilePath}</li>}
+                    {setupMeta.requiresRestart && <li className="font-mono text-[11px]">{setupMeta.restartHint}</li>}
+                  </ul>
+                )}
+              </div>
             )}
             {diagnosticQuery.data ? (
               <InstallerWizardSteps

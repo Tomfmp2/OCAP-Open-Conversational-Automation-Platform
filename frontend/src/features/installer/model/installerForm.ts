@@ -48,8 +48,11 @@ export interface InstallerSetupResponse {
   success: boolean;
   requiresRestart: boolean;
   adminCreated: boolean;
+  dotEnvWritten?: boolean;
   message: string;
   envFilePreview: string;
+  envFilePath?: string;
+  dotEnvPath?: string;
   restartHint: string;
   status: InstallerStatus;
 }
@@ -64,7 +67,7 @@ export const defaultInstallerForm = (): InstallerFormState => ({
   postgresPort: 5433,
   postgresDbName: "ocap_db",
   postgresUsername: "ocap_user",
-  postgresPassword: "",
+  postgresPassword: "OcapSecurePass2026!",
   adminEmail: "",
   adminPassword: "",
   adminPasswordConfirm: "",
@@ -106,18 +109,19 @@ export function validateInstallerStep(
   switch (step) {
     case "network":
       if (form.target === "Local") {
-        if (form.frontendHostPort < 1 || form.frontendHostPort > 65535)
-          return "Puerto del frontend inválido.";
-        if (form.apiHostPort < 1 || form.apiHostPort > 65535)
-          return "Puerto de la API inválido.";
-      } else {
-        if (!/^https?:\/\//i.test(form.publicApiUrl))
-          return "URL pública de la API requerida (http/https).";
-        if (!/^https?:\/\//i.test(form.publicPanelUrl))
-          return "URL pública del panel requerida (http/https).";
+        // Local Docker: puertos fijos 3000/5000 — el stack ya los publica.
+        return null;
       }
+      if (!/^https?:\/\//i.test(form.publicApiUrl))
+        return "URL pública de la API requerida (http/https).";
+      if (!/^https?:\/\//i.test(form.publicPanelUrl))
+        return "URL pública del panel requerida (http/https).";
       return null;
     case "database":
+      if (form.target === "Local") {
+        // Compose aporta Postgres; no se cambia el password del volumen desde el wizard.
+        return null;
+      }
       if (!form.postgresHost.trim()) return "Host de PostgreSQL requerido.";
       if (!form.postgresDbName.trim()) return "Nombre de base requerido.";
       if (!form.postgresUsername.trim()) return "Usuario de PostgreSQL requerido.";
@@ -160,25 +164,25 @@ export function validateInstallerStep(
 }
 
 export function toSetupPayload(form: InstallerFormState) {
-  const apiUrl =
-    form.target === "Web"
-      ? form.publicApiUrl.replace(/\/$/, "")
-      : `http://localhost:${form.apiHostPort}`;
+  const isLocal = form.target === "Local";
+  const apiUrl = isLocal
+    ? "http://localhost:5000"
+    : form.publicApiUrl.replace(/\/$/, "");
   const redirect =
     form.googleRedirectUri.trim() ||
     `${apiUrl}/api/integrations/Google/connect`;
 
   return {
     target: form.target,
-    frontendHostPort: form.frontendHostPort,
-    apiHostPort: form.apiHostPort,
-    publicApiUrl: form.publicApiUrl,
-    publicPanelUrl: form.publicPanelUrl,
+    frontendHostPort: isLocal ? 3000 : form.frontendHostPort,
+    apiHostPort: isLocal ? 5000 : form.apiHostPort,
+    publicApiUrl: isLocal ? "http://localhost:5000" : form.publicApiUrl,
+    publicPanelUrl: isLocal ? "http://localhost:3000" : form.publicPanelUrl,
     postgresHost: form.postgresHost,
     postgresPort: form.postgresPort,
     postgresDbName: form.postgresDbName,
     postgresUsername: form.postgresUsername,
-    postgresPassword: form.postgresPassword,
+    postgresPassword: isLocal ? "OcapSecurePass2026!" : form.postgresPassword,
     adminEmail: form.adminEmail,
     adminPassword: form.adminPassword,
     tenantName: form.tenantName,

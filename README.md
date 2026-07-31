@@ -22,11 +22,15 @@ Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada mó
 Requisitos: Docker Engine y Docker Compose.
 
 ```bash
-cp .env.example .env
-docker compose up --build
+./scripts/ocap-up.sh
 ```
 
-Antes de desplegar, reemplaza todas las credenciales de ejemplo de `.env` y configura secretos propios.
+Abre el instalador de producto en `http://localhost:3000/installer` (admin, Google, IA).  
+Reset total: `docker compose down -v && ./scripts/ocap-up.sh`.
+
+Equivalente manual: `cp .env.example .env && docker compose up --build -d`.
+
+Antes de producción, reemplaza las credenciales de ejemplo de `.env` y configura secretos propios.
 
 Servicios y puertos publicados por `docker-compose.yml`:
 
