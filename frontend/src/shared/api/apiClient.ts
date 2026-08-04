@@ -183,6 +183,17 @@ class ApiClient {
         if (error instanceof DOMException && error.name === "AbortError") {
           throw new ApiError("La solicitud excedió el tiempo de espera", 408);
         }
+        const msg = error instanceof Error ? error.message : String(error);
+        if (
+          error instanceof TypeError ||
+          /failed to fetch|networkerror|load failed/i.test(msg)
+        ) {
+          const apiHint = getBaseUrl() || "http://localhost:5229 (proxy Next → API)";
+          throw new ApiError(
+            `No hay conexión con la API (${apiHint}). Arranca ocap-dev / la API en :5229 y reintenta.`,
+            0
+          );
+        }
         throw error;
       } finally {
         clearTimeout(timeoutId);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Intelligence.Abstractions;
@@ -14,17 +15,20 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IAiProviderRegistry _providerRegistry;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AiProviderConfigurationService> _logger;
 
     public AiProviderConfigurationService(
         OCAPDbContext dbContext,
         ICredentialVault credentialVault,
         IAiProviderRegistry providerRegistry,
+        IConfiguration configuration,
         ILogger<AiProviderConfigurationService> logger)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _credentialVault = credentialVault ?? throw new ArgumentNullException(nameof(credentialVault));
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -129,6 +133,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
     public async Task<bool> SetStatusAsync(Guid tenantId, Guid id, bool enable, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.AiProviderConfigurations
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == id, cancellationToken);
 
         if (entity == null) return false;
@@ -143,6 +148,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
     public async Task<bool> DeleteConfigurationAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default)
     {
         var entity = await _dbContext.AiProviderConfigurations
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == id, cancellationToken);
 
         if (entity == null) return false;
@@ -159,7 +165,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         return true;
     }
 
-    public async Task<IAiProvider> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default)
+    public async Task<IAiProvider?> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default)
     {
         // 1. Buscar configuraciones habilitadas para el tenant
         var query = _dbContext.AiProviderConfigurations
@@ -177,8 +183,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         if (config == null)
         {
-            _logger.LogError("No se encontró configuración activa de proveedor de IA para Tenant {TenantId}.", tenantId);
-            throw new InvalidOperationException($"No se encontró configuración activa de proveedor de IA para Tenant {tenantId}.");
+            _logger.LogWarning(
+                "Sin configuración de IA en DB para Tenant {TenantId}. Se usará el proveedor estático (.env/appsettings).",
+                tenantId);
+            return null;
         }
 
         // 2. Recuperar la API key cifrada desde Credential Vault
@@ -186,6 +194,37 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         if (!string.IsNullOrWhiteSpace(config.VaultSecretReference))
         {
             apiKey = await _credentialVault.RetrieveSecretAsync(tenantId, config.VaultSecretReference, cancellationToken) ?? string.Empty;
+        }
+
+        // En Dev / UseInMemory: si hay key en .env, tiene prioridad sobre un vault viejo/incorrecto
+        // (el instalador o un "Registrar" con key de prueba suele dejar el vault inválido).
+        var envKey = ResolveEnvApiKey(config.ProviderName);
+        var useInMemory = _configuration.GetValue("UseInMemory", false);
+        var isDev = string.Equals(
+            _configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(envKey) && (useInMemory || isDev))
+        {
+            if (!string.Equals(apiKey.Trim(), envKey.Trim(), StringComparison.Ordinal))
+            {
+                _logger.LogInformation(
+                    "Dev: usando AiProviders__{Provider}__ApiKey del .env en lugar del vault (tenant {TenantId}).",
+                    config.ProviderName,
+                    tenantId);
+            }
+            apiKey = envKey.Trim();
+        }
+
+        // Si el vault está vacío y no hay .env, no forzar un proveedor roto: caer al estático del DI.
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogWarning(
+                "Configuración IA {Provider} sin API key (vault/.env) para Tenant {TenantId}. Fallback a estático.",
+                config.ProviderName,
+                tenantId);
+            return null;
         }
 
         // Parsear BaseUrl si existe en SettingsJson
@@ -201,10 +240,51 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
                 }
             }
         }
-        catch { }
+        catch { /* ignore */ }
 
-        return _providerRegistry.CreateDynamicProvider(config.ProviderName, config.ModelName, apiKey, baseUrl);
+        // Preferir modelo del entorno si la config guardada es un modelo obsoleto.
+        var modelName = config.ModelName;
+        var envModel = _configuration[$"AiProviders:{config.ProviderName}:ModelName"];
+        if (IsObsoleteGeminiModel(modelName))
+        {
+            modelName = !string.IsNullOrWhiteSpace(envModel) ? envModel.Trim() : "gemini-3.5-flash";
+            _logger.LogWarning(
+                "Modelo Gemini obsoleto '{Old}' en config {Id}; usando {New} en runtime.",
+                config.ModelName, config.Id, modelName);
+
+            // Persistimos la corrección para que la UI deje de mostrar 1.5-flash.
+            try
+            {
+                var tracked = await _dbContext.AiProviderConfigurations
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.Id == config.Id, cancellationToken);
+                if (tracked != null)
+                {
+                    tracked.UpdateConfiguration(modelName, tracked.VaultSecretReference, tracked.SettingsJson);
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "No se pudo persistir migración de modelo Gemini.");
+            }
+        }
+
+        return _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
     }
+
+    private string? ResolveEnvApiKey(string providerName)
+    {
+        var name = providerName.Trim();
+        return _configuration[$"AiProviders:{name}:ApiKey"]
+               ?? _configuration[$"AiProviders__{name}__ApiKey"];
+    }
+
+    private static bool IsObsoleteGeminiModel(string? model) =>
+        string.IsNullOrWhiteSpace(model) ||
+        model.Contains("1.5", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(model, "gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(model, "gemini-2.0-flash-001", StringComparison.OrdinalIgnoreCase);
 
     private static AiProviderConfigurationResponseDto MapToDto(AiProviderConfiguration config)
     {
