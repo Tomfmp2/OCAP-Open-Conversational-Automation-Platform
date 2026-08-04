@@ -14,6 +14,8 @@ public interface IInstallationSetupService
 
 public sealed class InstallationSetupService : IInstallationSetupService
 {
+    private static readonly Guid DefaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
     private readonly InstallationArtifactStore _store;
     private readonly OCAPDbContext _db;
     private readonly IPasswordHasher _hasher;
@@ -49,25 +51,32 @@ public sealed class InstallationSetupService : IInstallationSetupService
         return new InstallerStatusResponse
         {
             Completed = completed,
-            Target = _configuration["Installation:Target"] ?? "Local",
+            Target = _configuration["Installation:Target"]
+                     ?? (_configuration.GetValue("UseInMemory", false) ? "Dev" : "Local"),
             FrontendHostPort = _configuration.GetValue<int?>("Installation:FrontendHostPort"),
-            ApiHostPort = _configuration.GetValue<int?>("Installation:ApiHostPort"),
+            ApiHostPort = _configuration.GetValue<int?>("Installation:ApiHostPort")
+                          ?? (_configuration.GetValue("UseInMemory", false) ? 5229 : 5000),
             PublicApiUrl = _configuration["Installation:PublicApiUrl"],
             PublicPanelUrl = _configuration["Installation:PublicPanelUrl"],
             HasAdminUsers = hasUsers,
             GoogleConfigured = !string.IsNullOrWhiteSpace(googleId),
             AiConfigured = !string.IsNullOrWhiteSpace(aiKey) ||
                            !string.IsNullOrWhiteSpace(_configuration["AiProviders:Ollama:BaseUrl"]),
-            ConfigPath = _store.ConfigDirectory
+            ConfigPath = _store.ConfigDirectory,
+            AllowsAnonymousSetup = !completed
         };
     }
 
     public async Task<InstallerSetupResponse> ApplyAsync(InstallerSetupRequest request, CancellationToken cancellationToken)
     {
-        var target = string.Equals(request.Target, "Web", StringComparison.OrdinalIgnoreCase) ? "Web" : "Local";
+        var target = InstallationArtifactStore.NormalizeTarget(request.Target);
 
-        // Local Docker: puertos y Postgres de Compose fijos para no tumbar el stack montado.
-        if (target == "Local")
+        if (target == "Dev")
+        {
+            request.FrontendHostPort = 3000;
+            request.ApiHostPort = 5229;
+        }
+        else if (target == "Local")
         {
             request.FrontendHostPort = 3000;
             request.ApiHostPort = 5000;
@@ -77,48 +86,63 @@ public sealed class InstallationSetupService : IInstallationSetupService
                 request.PostgresDbName = "ocap_db";
             if (string.IsNullOrWhiteSpace(request.PostgresUsername))
                 request.PostgresUsername = "ocap_user";
-            // No reescribir password del volumen: siempre el default de Compose en Local.
             request.PostgresPassword = "OcapSecurePass2026!";
         }
 
-        var apiUrl = target == "Web"
-            ? request.PublicApiUrl!.TrimEnd('/')
-            : "http://localhost:5000";
-        var panelUrl = target == "Web"
-            ? request.PublicPanelUrl!.TrimEnd('/')
-            : "http://localhost:3000";
+        var apiUrl = target switch
+        {
+            "Web" => request.PublicApiUrl!.TrimEnd('/'),
+            "Local" => "http://localhost:5000",
+            _ => "http://localhost:5229"
+        };
+        var panelUrl = target switch
+        {
+            "Web" => request.PublicPanelUrl!.TrimEnd('/'),
+            _ => "http://localhost:3000"
+        };
         var redirectUri = string.IsNullOrWhiteSpace(request.GoogleRedirectUri)
             ? $"{apiUrl}/api/integrations/Google/connect"
             : request.GoogleRedirectUri.Trim();
 
-        var jwt = string.IsNullOrWhiteSpace(request.JwtSecretKey) || request.JwtSecretKey.Length < 32
-            ? Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")
-            : request.JwtSecretKey;
-        var vault = string.IsNullOrWhiteSpace(request.VaultMasterKey) || request.VaultMasterKey.Length < 32
-            ? Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")
-            : request.VaultMasterKey;
+        var existingEnv = await _store.ReadExistingDotEnvAsync(cancellationToken);
+        var existingMap = InstallationArtifactStore.ParseEnvFile(existingEnv);
 
-        var envContent = InstallationArtifactStore.BuildEnvFile(request, target, apiUrl, panelUrl, redirectUri, jwt, vault);
-        var document = InstallationArtifactStore.BuildInstallationDocument(request, target, apiUrl, panelUrl, redirectUri);
-        var (dotEnvWritten, dotEnvPath) = await _store.WriteArtifactsAsync(request, envContent, document, cancellationToken);
+        var jwt = ResolveSecret(
+            request.JwtSecretKey,
+            existingMap,
+            "JWT_SECRET_KEY",
+            () => Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
+        var vault = ResolveSecret(
+            request.VaultMasterKey,
+            existingMap,
+            "VAULT_MASTER_KEY",
+            () => Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"));
+
+        var updates = InstallationArtifactStore.BuildEnvUpdates(
+            request, target, apiUrl, panelUrl, redirectUri, jwt, vault);
+        var (envContent, updatedKeys) = InstallationArtifactStore.MergeEnvContent(existingEnv, updates);
+        var document = InstallationArtifactStore.BuildInstallationDocument(
+            request, target, apiUrl, panelUrl, redirectUri);
+        var (dotEnvWritten, dotEnvPath, _) =
+            await _store.WriteArtifactsAsync(envContent, updatedKeys, document, cancellationToken);
 
         var (adminCreated, adminUpdated) = await EnsureAdminAsync(request, cancellationToken);
         await EnsureAiProviderAsync(request, cancellationToken);
 
-        // Producto en caliente: no exige recreate en Local. Web solo si cambian URLs públicas vs defaults.
-        var requiresRestart = false;
+        var requiresRestart = target != "Dev";
 
         _logger.LogInformation(
-            "Instalación aplicada. AdminCreated={AdminCreated} AdminUpdated={AdminUpdated} RequiresRestart={RequiresRestart} DotEnvWritten={DotEnvWritten}",
-            adminCreated, adminUpdated, requiresRestart, dotEnvWritten);
+            "Instalación aplicada. Target={Target} AdminCreated={AdminCreated} AdminUpdated={AdminUpdated} Keys={KeyCount} DotEnvWritten={DotEnvWritten}",
+            target, adminCreated, adminUpdated, updatedKeys.Count, dotEnvWritten);
 
         var status = await GetStatusAsync(cancellationToken);
         status.Completed = true;
         status.Target = target;
-        status.FrontendHostPort = target == "Local" ? 3000 : request.FrontendHostPort;
-        status.ApiHostPort = target == "Local" ? 5000 : request.ApiHostPort;
+        status.FrontendHostPort = request.FrontendHostPort;
+        status.ApiHostPort = request.ApiHostPort;
         status.PublicApiUrl = apiUrl;
         status.PublicPanelUrl = panelUrl;
+        status.AllowsAnonymousSetup = false;
 
         var message = adminCreated
             ? $"Configuración guardada. Admin creado: {request.AdminEmail.Trim()}."
@@ -127,11 +151,14 @@ public sealed class InstallationSetupService : IInstallationSetupService
                 : "Configuración de producto guardada.";
 
         if (dotEnvWritten)
-            message += " Se actualizó .env (para el próximo ./scripts/ocap-up.sh).";
+            message += " Se fusionó .env (claves previas no tocadas se conservan).";
 
-        message += target == "Local"
-            ? " Panel en http://localhost:3000 — API en http://localhost:5000."
-            : $" Panel: {panelUrl} — API: {apiUrl}.";
+        message += target switch
+        {
+            "Dev" => " Panel en http://localhost:3000 — API en http://localhost:5229 (reinicia ocap-dev para cargar .env).",
+            "Local" => " Panel en http://localhost:3000 — API en http://localhost:5000.",
+            _ => $" Panel: {panelUrl} — API: {apiUrl}."
+        };
 
         return new InstallerSetupResponse
         {
@@ -141,17 +168,37 @@ public sealed class InstallationSetupService : IInstallationSetupService
             AdminUpdated = adminUpdated,
             DotEnvWritten = dotEnvWritten,
             Message = message,
-            EnvFilePreview = envContent,
+            EnvKeysUpdated = updatedKeys,
             EnvFilePath = _store.GeneratedEnvPath,
             DotEnvPath = dotEnvPath,
-            RestartHint = target == "Local"
-                ? "Stack ya montado. Si acabas de clonar: ./scripts/ocap-up.sh. Reset total: docker compose down -v && ./scripts/ocap-up.sh"
-                : "Si nginx/CORS no reflejan las URLs nuevas, ejecuta ./scripts/ocap-up.sh en el servidor.",
+            RestartHint = target switch
+            {
+                "Dev" => "Reinicia la API (scripts/ocap-dev.ps1) para aplicar variables nuevas del .env.",
+                "Local" => "Stack Compose: ./scripts/ocap-up.sh. Reset total: docker compose down -v && ./scripts/ocap-up.sh",
+                _ => "Si nginx/CORS no reflejan las URLs nuevas, ejecuta ./scripts/ocap-up.sh en el servidor."
+            },
             Status = status
         };
     }
 
-    private async Task<(bool Created, bool Updated)> EnsureAdminAsync(InstallerSetupRequest request, CancellationToken cancellationToken)
+    private static string ResolveSecret(
+        string? requestValue,
+        IReadOnlyDictionary<string, string> existing,
+        string envKey,
+        Func<string> generate)
+    {
+        if (!string.IsNullOrWhiteSpace(requestValue) && requestValue.Length >= 32)
+            return requestValue;
+        if (existing.TryGetValue(envKey, out var existingValue) &&
+            !string.IsNullOrWhiteSpace(existingValue) &&
+            existingValue.Length >= 32)
+            return existingValue;
+        return generate();
+    }
+
+    private async Task<(bool Created, bool Updated)> EnsureAdminAsync(
+        InstallerSetupRequest request,
+        CancellationToken cancellationToken)
     {
         var email = request.AdminEmail.Trim().ToLowerInvariant();
         var (hash, salt) = _hasher.HashPassword(request.AdminPassword);
@@ -178,12 +225,30 @@ public sealed class InstallationSetupService : IInstallationSetupService
             return (false, true);
         }
 
-        var tenantId = Guid.NewGuid();
+        var tenantId = Guid.TryParse(_configuration["Bootstrap:TenantId"], out var configuredTenantId)
+                       && configuredTenantId != Guid.Empty
+            ? configuredTenantId
+            : DefaultTenantId;
+
+        var existingTenant = await _db.Tenants.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken);
+
+        if (existingTenant is null)
+        {
+            var slug = request.TenantSlug.Trim().ToLowerInvariant();
+            existingTenant = await _db.Tenants.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Slug == slug, cancellationToken);
+        }
+
+        if (existingTenant is null)
+        {
+            existingTenant = new Tenant(tenantId, request.TenantName.Trim(), request.TenantSlug.Trim().ToLowerInvariant());
+            _db.Tenants.Add(existingTenant);
+        }
+
         var userId = Guid.NewGuid();
         var roleId = Guid.NewGuid();
-
-        var tenant = new Tenant(tenantId, request.TenantName.Trim(), request.TenantSlug.Trim().ToLowerInvariant());
-        var role = new Role(roleId, tenantId, "Admin", "Administrador del tenant", new[]
+        var role = new Role(roleId, existingTenant.Id, "Admin", "Administrador del tenant", new[]
         {
             "Conversation.Read", "Conversation.Write", "Conversation.Delete",
             "Agent.Read", "Agent.Write", "Agent.Execute", "Tool.Execute",
@@ -191,11 +256,10 @@ public sealed class InstallationSetupService : IInstallationSetupService
             "Settings.Manage", "OAuth.Manage", "Knowledge.Manage", "Workflow.Manage",
             "Security.Manage", "Channel.Manage"
         });
-        var user = new UserIdentity(userId, tenantId, email, hash, salt, "Administrator");
+        var user = new UserIdentity(userId, existingTenant.Id, email, hash, salt, "Administrator");
         user.VerifyEmail();
-        var userRole = new UserRole(Guid.NewGuid(), userId, roleId, tenantId);
+        var userRole = new UserRole(Guid.NewGuid(), userId, roleId, existingTenant.Id);
 
-        _db.Tenants.Add(tenant);
         _db.Roles.Add(role);
         _db.UserIdentities.Add(user);
         _db.UserRoles.Add(userRole);
@@ -250,7 +314,6 @@ public sealed class InstallationSetupService : IInstallationSetupService
             }
             catch (DbUpdateException ex)
             {
-                // Carrera / reintento: ya existe el proveedor para el tenant.
                 _logger.LogWarning(ex,
                     "Proveedor IA {Provider} ya existía para tenant {TenantId}; se omite recreación.",
                     provider, tenant.Id);

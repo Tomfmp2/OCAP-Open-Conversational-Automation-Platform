@@ -27,7 +27,9 @@ try
     var installationJson = Path.Combine(
         string.IsNullOrWhiteSpace(installationConfigPath) ? "config" : installationConfigPath,
         "installation.json");
+    // installation.json es metadato del wizard; NO debe pisar secretos del .env / variables de entorno.
     builder.Configuration.AddJsonFile(installationJson, optional: true, reloadOnChange: true);
+    builder.Configuration.AddEnvironmentVariables();
 
     // Replace built-in logging with Serilog
     builder.Host.UseSerilog((context, services, configuration) => configuration

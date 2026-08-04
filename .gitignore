@@ -46,4 +46,6 @@ out/
 .obsidian/
 config/installation.json
 config/generated.env
+src/Api/OCAP.Api/config/installation.json
+src/Api/OCAP.Api/config/generated.env
 !.gitkeep
