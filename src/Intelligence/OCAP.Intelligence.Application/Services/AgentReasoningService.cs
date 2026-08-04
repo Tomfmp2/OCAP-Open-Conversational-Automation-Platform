@@ -98,6 +98,25 @@ public class AgentReasoningService : IAgentReasoningService
                 responseText += $"\n\n[Error al ejecutar herramienta]: {dispatchResult.Message}";
             }
         }
+        else if (intent.Name == Intent.SendEmail || intent.Name == "SendEmail")
+        {
+            var to = intent.Parameters.TryGetValue("To", out var toVal) ? toVal : string.Empty;
+            var subject = intent.Parameters.TryGetValue("Subject", out var subVal) ? subVal : "Mensaje desde OCAP";
+            var body = intent.Parameters.TryGetValue("Body", out var bodyVal) ? bodyVal : userMessage;
+            if (!string.IsNullOrWhiteSpace(to))
+            {
+                var action = new AgentAction(AgentAction.SendEmail, "SendEmailTool", new Dictionary<string, object>
+                {
+                    ["To"] = to,
+                    ["Subject"] = subject,
+                    ["Body"] = body
+                });
+                var dispatchResult = await _actionDispatcher.DispatchActionAsync(agent.Id, userId, conversationId, action, cancellationToken);
+                responseText += dispatchResult.Success
+                    ? $"\n\n[Correo]: {dispatchResult.Message}"
+                    : $"\n\n[Error correo]: {dispatchResult.Message}";
+            }
+        }
 
         // 8. Registrar métricas de uso de IA si el tracker está configurado
         if (_usageTracker != null)

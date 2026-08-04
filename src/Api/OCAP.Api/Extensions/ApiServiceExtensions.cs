@@ -195,10 +195,24 @@ public static class ApiServiceExtensions
         services.AddHostedService<OCAP.Api.Services.LiveGatewayEventSubscriber>();
 
         // Registrar clientes HTTP y proveedores de IA Generativa con Resilience (Polly).
-        services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler();
-        services.AddHttpClient<GeminiAiProvider>().AddStandardResilienceHandler();
-        services.AddHttpClient<OllamaAiProvider>().AddStandardResilienceHandler();
-        services.AddHttpClient("Claude").AddStandardResilienceHandler();
+        // LLMs necesitan más de los 10s/30s por defecto del StandardResilienceHandler.
+        static void ConfigureLlmResilience(Microsoft.Extensions.Http.Resilience.HttpStandardResilienceOptions o)
+        {
+            o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+            o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
+            o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(130);
+            o.Retry.MaxRetryAttempts = 1;
+        }
+
+        services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler(ConfigureLlmResilience);
+        services.AddHttpClient<GeminiAiProvider>().AddStandardResilienceHandler(ConfigureLlmResilience);
+        services.AddHttpClient<OllamaAiProvider>().AddStandardResilienceHandler(ConfigureLlmResilience);
+        services.AddHttpClient("Claude").AddStandardResilienceHandler(ConfigureLlmResilience);
+
+        // Clientes con nombre para IAiProvider (el singleton no use un HttpClient “desnudo”).
+        services.AddHttpClient("OpenAI").AddStandardResilienceHandler(ConfigureLlmResilience);
+        services.AddHttpClient("Gemini").AddStandardResilienceHandler(ConfigureLlmResilience);
+        services.AddHttpClient("Ollama").AddStandardResilienceHandler(ConfigureLlmResilience);
 
         var openAiSettings = new AiProviderSettings
         {
@@ -210,7 +224,7 @@ public static class ApiServiceExtensions
         var geminiSettings = new AiProviderSettings
         {
             ApiKey = configuration["AiProviders:Gemini:ApiKey"] ?? string.Empty,
-            ModelName = configuration["AiProviders:Gemini:ModelName"] ?? "gemini-1.5-flash"
+            ModelName = configuration["AiProviders:Gemini:ModelName"] ?? "gemini-3.5-flash"
         };
 
         var ollamaSettings = new AiProviderSettings
@@ -226,12 +240,27 @@ public static class ApiServiceExtensions
             ModelName = configuration["AiProviders:Claude:ModelName"] ?? "claude-3-5-sonnet-latest"
         };
 
-        services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(sp.GetRequiredService<HttpClient>(), openAiSettings));
-        services.AddSingleton<IAiProvider>(sp => new GeminiAiProvider(sp.GetRequiredService<HttpClient>(), geminiSettings));
-        services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(sp.GetRequiredService<HttpClient>(), ollamaSettings));
+        services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAI"), openAiSettings));
+        services.AddSingleton<IAiProvider>(sp => new GeminiAiProvider(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Gemini"), geminiSettings));
+        services.AddSingleton<IAiProvider>(sp => new OllamaAiProvider(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama"), ollamaSettings));
         services.AddSingleton<IAiProvider>(sp => new ClaudeAiProvider(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Claude"),
             claudeSettings));
+
+        var geminiKey = configuration["AiProviders:Gemini:ApiKey"];
+        var openAiKey = configuration["AiProviders:OpenAI:ApiKey"];
+        var enableMockExplicit = configuration.GetValue("AiProviders:EnableMock", false);
+        var enableMockFallback =
+            string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(geminiKey)
+            && string.IsNullOrWhiteSpace(openAiKey);
+        if (enableMockExplicit || enableMockFallback)
+        {
+            services.AddSingleton<IAiProvider, OCAP.Intelligence.Application.Services.MockAiProvider>();
+        }
 
         // Registro de Proveedores de IA y Servicio de Configuración por Tenant
         services.AddSingleton<IAiProviderRegistry, AiProviderRegistry>();
@@ -243,7 +272,7 @@ public static class ApiServiceExtensions
         // Prompts y razonamiento
         services.AddSingleton<IPromptBuilder, SystemPromptBuilder>();
         services.AddScoped<IAgentReasoningService, AgentReasoningService>();
-        services.AddSingleton<IAiUsageTracker, AiUsageTracker>();
+        services.AddScoped<IAiUsageTracker, AiUsageTracker>();
 
         // Registrar Nodos y Motor de Workflow mediante capa de Aplicación
         OCAP.Workflow.Application.DependencyInjection.AddWorkflowApplication(services);
@@ -286,6 +315,7 @@ public static class ApiServiceExtensions
         // Registrar Google Tools en DI
         services.AddTransient<ITool, CreateCalendarEventTool>();
         services.AddTransient<ITool, SendEmailTool>();
+        services.AddTransient<ITool, ListEmailsTool>();
         services.AddTransient<ITool, AppendSpreadsheetRowTool>();
 
         // Registrar missing services

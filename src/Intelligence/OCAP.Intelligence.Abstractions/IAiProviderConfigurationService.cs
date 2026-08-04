@@ -37,5 +37,5 @@ public interface IAiProviderConfigurationService
     Task<AiProviderConfigurationResponseDto?> UpdateConfigurationAsync(Guid tenantId, Guid id, UpdateAiProviderConfigurationDto dto, CancellationToken cancellationToken = default);
     Task<bool> SetStatusAsync(Guid tenantId, Guid id, bool enable, CancellationToken cancellationToken = default);
     Task<bool> DeleteConfigurationAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default);
-    Task<IAiProvider> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default);
+    Task<IAiProvider?> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default);
 }
