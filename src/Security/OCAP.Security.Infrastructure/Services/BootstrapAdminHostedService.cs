@@ -39,7 +39,7 @@ public sealed class BootstrapAdminHostedService : IHostedService
 
         if (!db.Database.IsRelational())
         {
-            // InMemory test hosts may seed themselves.
+            await db.Database.EnsureCreatedAsync(cancellationToken);
         }
 
         var hasUsers = await db.UserIdentities.IgnoreQueryFilters().AnyAsync(cancellationToken);
@@ -50,7 +50,11 @@ public sealed class BootstrapAdminHostedService : IHostedService
         var tenantName = _configuration["Bootstrap:TenantName"] ?? "OCAP Default";
         var tenantSlug = _configuration["Bootstrap:TenantSlug"] ?? "default";
 
-        var tenantId = Guid.NewGuid();
+        // Tenant fijo compatible con HttpTenantContext DefaultTenantId en Development anónimo.
+        var tenantId = Guid.TryParse(_configuration["Bootstrap:TenantId"], out var configuredTenantId)
+            && configuredTenantId != Guid.Empty
+            ? configuredTenantId
+            : Guid.Parse("00000000-0000-0000-0000-000000000001");
         var userId = Guid.NewGuid();
         var roleId = Guid.NewGuid();
         var (hash, salt) = hasher.HashPassword(password);

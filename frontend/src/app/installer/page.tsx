@@ -32,9 +32,11 @@ export default function InstallerPage() {
             Configura OCAP
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-neutral-500">
-            Primero monta el stack con{" "}
+            Modo Dev (sin Docker): panel :3000 y API :5229 con{" "}
+            <code className="font-mono text-neutral-800">.\scripts\ocap-dev.ps1</code>
+            . Docker Local usa :5000 y{" "}
             <code className="font-mono text-neutral-800">./scripts/ocap-up.sh</code>
-            . Aquí defines admin, Google, IA y canales. En Local: panel :3000, API :5000.
+            . Aquí defines admin, IA y Google; los canales se conectan después en el panel.
           </p>
         </div>
 

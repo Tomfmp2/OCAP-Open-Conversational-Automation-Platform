@@ -10,25 +10,28 @@ import {
   useInstallerStatus,
 } from "../api/useInstallerSetup";
 import {
-  INSTALLER_STEPS,
   defaultInstallerForm,
+  getInstallerSteps,
+  parseGoogleCredentialsJson,
+  resolveApiUrl,
   validateInstallerStep,
   type InstallerFormState,
   type InstallerStepId,
+  type InstallerTarget,
 } from "../model/installerForm";
 
 function StepRail({
+  steps,
   current,
-  completedThrough,
 }: {
+  steps: { id: InstallerStepId; title: string }[];
   current: InstallerStepId;
-  completedThrough: number;
 }) {
-  const currentIndex = INSTALLER_STEPS.findIndex((s) => s.id === current);
+  const currentIndex = steps.findIndex((s) => s.id === current);
   return (
     <ol className="flex flex-wrap gap-2">
-      {INSTALLER_STEPS.map((step, index) => {
-        const done = index < completedThrough || index < currentIndex;
+      {steps.map((step, index) => {
+        const done = index < currentIndex;
         const active = step.id === current;
         return (
           <li key={step.id}>
@@ -54,10 +57,14 @@ export function InstallerWizard() {
     adminUpdated?: boolean;
     restartHint: string;
     envFilePath?: string;
+    envKeysUpdated?: string[];
   } | null>(null);
   const [forceWizard, setForceWizard] = React.useState(false);
+  const [googleJsonPaste, setGoogleJsonPaste] = React.useState("");
+  const [googleJsonError, setGoogleJsonError] = React.useState<string | null>(null);
   const setupMutation = useInstallerSetupMutation();
 
+  const steps = React.useMemo(() => getInstallerSteps(form.target), [form.target]);
   const showDiagnosticOnly = Boolean(status?.completed) && !forceWizard;
   const diagnosticQuery = useInstallerDiagnostic(showDiagnosticOnly || step === "diagnostic");
 
@@ -68,11 +75,30 @@ export function InstallerWizard() {
   }, [status?.completed, forceWizard]);
 
   const patch = <K extends keyof InstallerFormState>(key: K, value: InstallerFormState[K]) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "target") {
+        const t = value as InstallerTarget;
+        if (t === "Dev") {
+          next.apiHostPort = 5229;
+          next.frontendHostPort = 3000;
+        } else if (t === "Local") {
+          next.apiHostPort = 5000;
+          next.frontendHostPort = 3000;
+        }
+      }
+      return next;
+    });
     setError(null);
   };
 
-  const currentIndex = INSTALLER_STEPS.findIndex((s) => s.id === step);
+  const currentIndex = steps.findIndex((s) => s.id === step);
+
+  React.useEffect(() => {
+    if (!steps.some((s) => s.id === step)) {
+      setStep(steps[0]?.id ?? "mode");
+    }
+  }, [steps, step]);
 
   const goNext = () => {
     const validationError = validateInstallerStep(step, form);
@@ -80,29 +106,32 @@ export function InstallerWizard() {
       setError(validationError);
       return;
     }
-    const next = INSTALLER_STEPS[currentIndex + 1];
+    const next = steps[currentIndex + 1];
     if (next) setStep(next.id);
   };
 
   const goBack = () => {
-    const prev = INSTALLER_STEPS[currentIndex - 1];
+    const prev = steps[currentIndex - 1];
     if (prev) setStep(prev.id);
   };
 
   const submit = async () => {
-    const validationError = validateInstallerStep("channels", form) ||
+    const validationError =
       validateInstallerStep("admin", form) ||
-      validateInstallerStep("database", form) ||
-      validateInstallerStep("network", form) ||
+      validateInstallerStep("ai", form) ||
       validateInstallerStep("google", form) ||
-      validateInstallerStep("ai", form);
+      validateInstallerStep("network", form) ||
+      validateInstallerStep("database", form);
     if (validationError) {
       setError(validationError);
       return;
     }
 
     try {
-      const result = await setupMutation.mutateAsync(form);
+      const result = await setupMutation.mutateAsync({
+        form,
+        skipAuth: Boolean(status?.allowsAnonymousSetup ?? !status?.completed),
+      });
       setSetupResult(result.message);
       setSetupMeta({
         requiresRestart: result.requiresRestart,
@@ -110,6 +139,7 @@ export function InstallerWizard() {
         adminUpdated: result.adminUpdated,
         restartHint: result.restartHint,
         envFilePath: result.envFilePath || result.dotEnvPath,
+        envKeysUpdated: result.envKeysUpdated,
       });
       setStep("diagnostic");
     } catch (err) {
@@ -134,7 +164,14 @@ export function InstallerWizard() {
             <CheckCircle2 className="h-4 w-4" />
             Instalación marcada como completa.
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setForceWizard(true)}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setForceWizard(true);
+              setStep("mode");
+            }}
+          >
             Reconfigurar
           </Button>
         </Surface>
@@ -147,36 +184,53 @@ export function InstallerWizard() {
             onValidate={() => void diagnosticQuery.refetch()}
           />
         ) : null}
+        <p className="text-xs text-neutral-500">
+          Para reconfigurar necesitas sesión de admin (el setup anónimo queda bloqueado tras Completed).
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <StepRail current={step} completedThrough={currentIndex} />
+      <StepRail steps={steps} current={step} />
 
-      <Surface  className="space-y-5 p-5">
+      <Surface className="space-y-5 p-5">
         {step === "mode" && (
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-neutral-950">¿Dónde vas a desplegar OCAP?</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-                  {(["Local", "Web"] as const).map((target) => (
+            <h2 className="text-sm font-semibold text-neutral-950">¿Cómo vas a ejecutar OCAP?</h2>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(
+                [
+                  {
+                    id: "Dev" as const,
+                    title: "Dev local",
+                    desc: "Sin Docker · ocap-dev · API :5229 · UseInMemory",
+                  },
+                  {
+                    id: "Local" as const,
+                    title: "Docker Local",
+                    desc: "Compose · panel :3000 · API :5000",
+                  },
+                  {
+                    id: "Web" as const,
+                    title: "Web / servidor",
+                    desc: "URLs públicas + Postgres propio",
+                  },
+                ] as const
+              ).map((opt) => (
                 <button
-                  key={target}
+                  key={opt.id}
                   type="button"
-                  onClick={() => patch("target", target)}
+                  onClick={() => patch("target", opt.id)}
                   className={`rounded-md border p-4 text-left text-sm transition ${
-                    form.target === target
+                    form.target === opt.id
                       ? "border-neutral-950 bg-neutral-950 text-white"
                       : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-500"
                   }`}
                 >
-                  <p className="font-semibold">{target === "Local" ? "Local (Docker)" : "Web / servidor"}</p>
-                  <p className="mt-1 text-xs opacity-70">
-                    {target === "Local"
-                      ? "Stack con ./scripts/ocap-up.sh en :3000 / :5000. El wizard solo configura producto."
-                      : "Pide URL pública de la API y del panel para CORS/OAuth."}
-                  </p>
+                  <p className="font-semibold">{opt.title}</p>
+                  <p className="mt-1 text-xs opacity-70">{opt.desc}</p>
                 </button>
               ))}
             </div>
@@ -189,12 +243,12 @@ export function InstallerWizard() {
             <p>
               El stack se monta con <code className="text-neutral-950">./scripts/ocap-up.sh</code> en
               panel <strong className="text-neutral-950">:3000</strong> y API{" "}
-              <strong className="text-neutral-950">:5000</strong>. Este wizard no cambia esos puertos
-              para no dejar el panel inaccesible.
+              <strong className="text-neutral-950">:5000</strong>.
             </p>
             <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
               <li>Panel: http://localhost:3000</li>
               <li>API: http://localhost:5000</li>
+              <li>Postgres Compose: ocap_db / ocap_user · puerto host 5433</li>
             </ul>
           </div>
         )}
@@ -212,22 +266,8 @@ export function InstallerWizard() {
               value={form.publicPanelUrl}
               onChange={(e) => patch("publicPanelUrl", e.target.value)}
               placeholder="https://app.tudominio.com"
-              hint="Mismo frontend del proyecto; se usa para CORS y redirects OAuth."
+              hint="Se usa para CORS y redirects OAuth."
             />
-          </div>
-        )}
-
-        {step === "database" && form.target === "Local" && (
-          <div className="space-y-3 text-sm text-neutral-700">
-            <p className="font-semibold text-neutral-950">PostgreSQL vía Docker Compose</p>
-            <p>
-              La API ya usa el contenedor <code className="text-neutral-950">postgres</code> con los
-              defaults del compose. Cambiar la contraseña aquí rompería el volumen existente; para
-              reset total usa <code className="text-neutral-950">docker compose down -v && ./scripts/ocap-up.sh</code>.
-            </p>
-            <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-500">
-              <li>DB: ocap_db · user: ocap_user · host port: 5433</li>
-            </ul>
           </div>
         )}
 
@@ -262,6 +302,7 @@ export function InstallerWizard() {
               type="email"
               value={form.adminEmail}
               onChange={(e) => patch("adminEmail", e.target.value)}
+              hint={status?.hasAdminUsers ? "Si ya hay admin (bootstrap), se actualizará email/contraseña." : undefined}
             />
             <Input
               label="Contraseña admin"
@@ -278,46 +319,12 @@ export function InstallerWizard() {
           </div>
         )}
 
-        {step === "google" && (
-          <div className="space-y-4">
-            <label className="flex items-center gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={form.enableGoogleWorkspace}
-                onChange={(e) => patch("enableGoogleWorkspace", e.target.checked)}
-              />
-              Activar Google Workspace (Sheets / Calendar / Gmail)
-            </label>
-            {form.enableGoogleWorkspace && (
-              <div className="grid gap-4">
-                <Input
-                  label="Client ID"
-                  value={form.googleClientId}
-                  onChange={(e) => patch("googleClientId", e.target.value)}
-                />
-                <Input
-                  label="Client Secret"
-                  type="password"
-                  value={form.googleClientSecret}
-                  onChange={(e) => patch("googleClientSecret", e.target.value)}
-                />
-                <Input
-                  label="Redirect URI (opcional)"
-                  value={form.googleRedirectUri}
-                  onChange={(e) => patch("googleRedirectUri", e.target.value)}
-                  hint="Si se deja vacío se deriva de la URL de la API."
-                />
-              </div>
-            )}
-          </div>
-        )}
-
         {step === "ai" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <p className="text-xs font-semibold text-neutral-700">Proveedor</p>
               <div className="flex flex-wrap gap-2">
-                {(["OpenAI", "Gemini", "Claude", "Ollama"] as const).map((p) => (
+                {(["Gemini", "OpenAI", "Claude", "Ollama"] as const).map((p) => (
                   <Button
                     key={p}
                     type="button"
@@ -325,7 +332,7 @@ export function InstallerWizard() {
                     variant={form.aiProvider === p ? "primary" : "secondary"}
                     onClick={() => {
                       patch("aiProvider", p);
-                      if (p === "Gemini") patch("aiModelName", "gemini-1.5-flash");
+                      if (p === "Gemini") patch("aiModelName", "gemini-3.5-flash");
                       if (p === "OpenAI") patch("aiModelName", "gpt-4o");
                       if (p === "Claude") patch("aiModelName", "claude-3-5-sonnet-latest");
                       if (p === "Ollama") patch("aiModelName", "llama3");
@@ -346,7 +353,13 @@ export function InstallerWizard() {
               type="password"
               value={form.aiApiKey}
               onChange={(e) => patch("aiApiKey", e.target.value)}
-              hint={form.aiProvider === "Ollama" ? "Opcional para Ollama." : undefined}
+              hint={
+                form.target === "Dev"
+                  ? "Opcional en Dev: se conserva la del .env si no rellenas."
+                  : form.aiProvider === "Ollama"
+                    ? "Opcional para Ollama."
+                    : undefined
+              }
             />
             <Input
               className="sm:col-span-2"
@@ -358,51 +371,98 @@ export function InstallerWizard() {
           </div>
         )}
 
-        {step === "channels" && (
-          <div className="space-y-5">
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={form.enableWhatsApp}
-                  onChange={(e) => patch("enableWhatsApp", e.target.checked)}
-                />
-                WhatsApp (Evolution API)
-              </label>
-              {form.enableWhatsApp && (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label="URL Evolution"
-                    value={form.evolutionApiUrl}
-                    onChange={(e) => patch("evolutionApiUrl", e.target.value)}
+        {step === "google" && (
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                type="checkbox"
+                checked={form.enableGoogleWorkspace}
+                onChange={(e) => patch("enableGoogleWorkspace", e.target.checked)}
+              />
+              Activar Google Workspace (Gmail / Sheets / Calendar)
+            </label>
+            {!form.enableGoogleWorkspace && (
+              <p className="text-xs text-neutral-500">
+                Sin activar, Google queda en modo in-memory (útil en Dev).
+              </p>
+            )}
+            {form.enableGoogleWorkspace && (
+              <div className="grid gap-4">
+                <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p className="text-xs font-semibold text-neutral-800">
+                    Pegar JSON de Google (recomendado)
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-neutral-500">
+                    Google no permite obtener el Secret solo con el Client ID. Descarga el JSON
+                    del cliente OAuth en Cloud Console y pégalo aquí: se rellenan ID y Secret a la vez.
+                  </p>
+                  <textarea
+                    className="min-h-[88px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-[11px] text-neutral-800 outline-none focus:border-neutral-950"
+                    placeholder='{"web":{"client_id":"...","client_secret":"..."}}'
+                    value={googleJsonPaste}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setGoogleJsonPaste(value);
+                      setGoogleJsonError(null);
+                      const parsed = parseGoogleCredentialsJson(value);
+                      if (!value.trim()) return;
+                      if (!parsed) {
+                        setGoogleJsonError("JSON inválido o sin client_id / client_secret.");
+                        return;
+                      }
+                      patch("googleClientId", parsed.clientId);
+                      patch("googleClientSecret", parsed.clientSecret);
+                      if (parsed.redirectUri) patch("googleRedirectUri", parsed.redirectUri);
+                      setGoogleJsonError(null);
+                    }}
                   />
-                  <Input
-                    label="API key"
-                    type="password"
-                    value={form.evolutionApiKey}
-                    onChange={(e) => patch("evolutionApiKey", e.target.value)}
-                  />
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-neutral-600 hover:text-neutral-950">
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        void file.text().then((text) => {
+                          setGoogleJsonPaste(text);
+                          const parsed = parseGoogleCredentialsJson(text);
+                          if (!parsed) {
+                            setGoogleJsonError("El archivo no contiene client_id / client_secret.");
+                            return;
+                          }
+                          patch("googleClientId", parsed.clientId);
+                          patch("googleClientSecret", parsed.clientSecret);
+                          if (parsed.redirectUri) patch("googleRedirectUri", parsed.redirectUri);
+                          setGoogleJsonError(null);
+                        });
+                      }}
+                    />
+                    <span className="underline underline-offset-2">O subir archivo .json</span>
+                  </label>
+                  {googleJsonError && (
+                    <p className="text-[11px] text-neutral-950">{googleJsonError}</p>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={form.enableTelegram}
-                  onChange={(e) => patch("enableTelegram", e.target.checked)}
-                />
-                Telegram
-              </label>
-              {form.enableTelegram && (
                 <Input
-                  label="Bot token"
-                  type="password"
-                  value={form.telegramBotToken}
-                  onChange={(e) => patch("telegramBotToken", e.target.value)}
+                  label="Client ID"
+                  value={form.googleClientId}
+                  onChange={(e) => patch("googleClientId", e.target.value)}
                 />
-              )}
-            </div>
+                <Input
+                  label="Client Secret"
+                  type="password"
+                  value={form.googleClientSecret}
+                  onChange={(e) => patch("googleClientSecret", e.target.value)}
+                />
+                <Input
+                  label="Redirect URI (opcional)"
+                  value={form.googleRedirectUri}
+                  onChange={(e) => patch("googleRedirectUri", e.target.value)}
+                  hint={`Por defecto: ${resolveApiUrl(form)}/api/integrations/Google/connect`}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -413,31 +473,26 @@ export function InstallerWizard() {
             </p>
             <p>
               <span className="text-neutral-500">Red:</span>{" "}
-              {form.target === "Local"
-                ? "frontend :3000, API :5000 (Compose)"
-                : `${form.publicPanelUrl} → ${form.publicApiUrl}`}
-            </p>
-            <p>
-              <span className="text-neutral-500">Postgres:</span>{" "}
-              {form.target === "Local"
-                ? "defaults Compose (ocap_db / ocap_user)"
-                : `${form.postgresUsername}@${form.postgresHost}:${form.postgresPort}/${form.postgresDbName}`}
+              {form.target === "Dev"
+                ? "panel :3000, API :5229 (sin Docker)"
+                : form.target === "Local"
+                  ? "panel :3000, API :5000 (Compose)"
+                  : `${form.publicPanelUrl} → ${form.publicApiUrl}`}
             </p>
             <p>
               <span className="text-neutral-500">Admin:</span> {form.adminEmail} ({form.tenantSlug})
             </p>
             <p>
-              <span className="text-neutral-500">Google:</span>{" "}
-              {form.enableGoogleWorkspace ? "activado" : "omitido"}
+              <span className="text-neutral-500">IA:</span> {form.aiProvider} / {form.aiModelName}
+              {!form.aiApiKey && form.target === "Dev" ? " (key desde .env si existe)" : ""}
             </p>
             <p>
-              <span className="text-neutral-500">IA:</span> {form.aiProvider} / {form.aiModelName}
+              <span className="text-neutral-500">Google:</span>{" "}
+              {form.enableGoogleWorkspace ? "OAuth real" : "in-memory / omitido"}
             </p>
-            {setupResult && (
-              <p className="rounded-md border border-neutral-950 bg-neutral-100 p-3 text-xs text-neutral-800">
-                {setupResult}
-              </p>
-            )}
+            <p className="text-xs text-neutral-500">
+              Canales (WhatsApp / Telegram) se configuran después en el panel, no en este wizard.
+            </p>
           </div>
         )}
 
@@ -455,10 +510,18 @@ export function InstallerWizard() {
                         : "actualizado (usa el email/contraseña del wizard en /login)"}
                     </li>
                     <li>
-                      Reinicio Compose: {setupMeta.requiresRestart ? "necesario para puertos/Postgres" : "opcional"}
+                      Reinicio: {setupMeta.requiresRestart ? "recomendado" : "reinicia ocap-dev si cambiaste .env"}
                     </li>
-                    {setupMeta.envFilePath && <li>Archivos: {setupMeta.envFilePath}</li>}
-                    {setupMeta.requiresRestart && <li className="font-mono text-[11px]">{setupMeta.restartHint}</li>}
+                    {setupMeta.envKeysUpdated && setupMeta.envKeysUpdated.length > 0 && (
+                      <li>
+                        Claves .env tocadas: {setupMeta.envKeysUpdated.slice(0, 8).join(", ")}
+                        {setupMeta.envKeysUpdated.length > 8
+                          ? ` (+${setupMeta.envKeysUpdated.length - 8})`
+                          : ""}
+                      </li>
+                    )}
+                    {setupMeta.envFilePath && <li>Artefactos: {setupMeta.envFilePath}</li>}
+                    <li className="font-mono text-[11px]">{setupMeta.restartHint}</li>
                   </ul>
                 )}
               </div>

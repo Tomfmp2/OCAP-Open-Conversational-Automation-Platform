@@ -7,9 +7,8 @@ public sealed class InstallerSetupRequestValidator : AbstractValidator<Installer
     public InstallerSetupRequestValidator()
     {
         RuleFor(x => x.Target)
-            .Must(t => string.Equals(t, "Local", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(t, "Web", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Target debe ser Local o Web.");
+            .Must(IsKnownTarget)
+            .WithMessage("Target debe ser Dev, Local o Web.");
 
         RuleFor(x => x.AdminEmail).NotEmpty().EmailAddress();
         RuleFor(x => x.AdminPassword).NotEmpty().MinimumLength(10);
@@ -20,10 +19,13 @@ public sealed class InstallerSetupRequestValidator : AbstractValidator<Installer
         RuleFor(x => x.AiProvider).NotEmpty();
         RuleFor(x => x.AiModelName).NotEmpty();
 
-        When(x => !string.Equals(x.AiProvider, "Ollama", StringComparison.OrdinalIgnoreCase), () =>
+        // Dev: API key opcional (puede usar Mock / clave ya en .env).
+        // Local/Web: obligatoria salvo Ollama.
+        When(x => !IsDev(x.Target) &&
+                  !string.Equals(x.AiProvider, "Ollama", StringComparison.OrdinalIgnoreCase), () =>
         {
             RuleFor(x => x.AiApiKey).NotEmpty()
-                .WithMessage("AiApiKey es obligatorio salvo para Ollama.");
+                .WithMessage("AiApiKey es obligatorio salvo para Ollama o target Dev.");
         });
 
         When(x => string.Equals(x.Target, "Web", StringComparison.OrdinalIgnoreCase), () =>
@@ -56,6 +58,14 @@ public sealed class InstallerSetupRequestValidator : AbstractValidator<Installer
             RuleFor(x => x.TelegramBotToken).NotEmpty();
         });
     }
+
+    private static bool IsKnownTarget(string? t) =>
+        string.Equals(t, "Dev", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(t, "Local", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(t, "Web", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsDev(string? t) =>
+        string.Equals(t, "Dev", StringComparison.OrdinalIgnoreCase);
 
     private static bool BeAbsoluteHttpUrl(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&

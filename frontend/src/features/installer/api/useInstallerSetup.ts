@@ -84,11 +84,17 @@ export function useInstallerDiagnostic(enabled: boolean) {
 export function useInstallerSetupMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (form: InstallerFormState) =>
+    mutationFn: ({
+      form,
+      skipAuth = true,
+    }: {
+      form: InstallerFormState;
+      skipAuth?: boolean;
+    }) =>
       apiClient.post<InstallerSetupResponse>(
         "/api/installer/setup",
         toSetupPayload(form),
-        { skipAuth: true }
+        { skipAuth }
       ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["installerStatus"] });

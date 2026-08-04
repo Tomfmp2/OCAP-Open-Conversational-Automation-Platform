@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace OCAP.Api.Installation;
 
 /// <summary>
-/// Lee/escribe config/installation.json y config/generated.env (volumen montado).
+/// Lee/escribe config/installation.json y fusiona claves en .env / generated.env.
 /// </summary>
 public sealed class InstallationArtifactStore
 {
@@ -30,7 +30,24 @@ public sealed class InstallationArtifactStore
     public string ConfigDirectory => _configDirectory;
     public string InstallationJsonPath => Path.Combine(_configDirectory, "installation.json");
     public string GeneratedEnvPath => Path.Combine(_configDirectory, "generated.env");
-    public string ProjectDotEnvPath => Path.GetFullPath(Path.Combine(_configDirectory, "..", ".env"));
+    public string ProjectDotEnvPath
+    {
+        get
+        {
+            // Prefer .env en la raíz del repo (junto a .env.example / docker-compose).
+            var dir = new DirectoryInfo(_configDirectory);
+            for (var i = 0; i < 6 && dir is not null; i++)
+            {
+                var candidate = Path.Combine(dir.FullName, ".env");
+                var example = Path.Combine(dir.FullName, ".env.example");
+                if (File.Exists(candidate) || File.Exists(example) || File.Exists(Path.Combine(dir.FullName, "docker-compose.yml")))
+                    return candidate;
+                dir = dir.Parent;
+            }
+
+            return Path.GetFullPath(Path.Combine(_configDirectory, "..", ".env"));
+        }
+    }
 
     public bool IsCompleted(IConfiguration configuration)
     {
@@ -59,9 +76,67 @@ public sealed class InstallationArtifactStore
         return false;
     }
 
-    public async Task<(bool DotEnvWritten, string DotEnvPath)> WriteArtifactsAsync(
-        InstallerSetupRequest request,
+    public async Task<string?> ReadExistingDotEnvAsync(CancellationToken cancellationToken)
+    {
+        if (File.Exists(ProjectDotEnvPath))
+            return await File.ReadAllTextAsync(ProjectDotEnvPath, cancellationToken);
+        if (File.Exists(GeneratedEnvPath))
+            return await File.ReadAllTextAsync(GeneratedEnvPath, cancellationToken);
+        return null;
+    }
+
+    public static IReadOnlyDictionary<string, string> ParseEnvFile(string? content)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(content))
+            return map;
+
+        using var reader = new StringReader(content);
+        while (reader.ReadLine() is { } line)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length == 0 || trimmed.StartsWith('#'))
+                continue;
+            var eq = trimmed.IndexOf('=');
+            if (eq <= 0)
+                continue;
+            var key = trimmed[..eq].Trim();
+            var value = trimmed[(eq + 1)..];
+            map[key] = value;
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Fusiona claves nuevas sobre el .env existente: preserva claves no tocadas (p. ej. UseInMemory local).
+    /// </summary>
+    public static (string Content, IReadOnlyList<string> UpdatedKeys) MergeEnvContent(
+        string? existingContent,
+        IReadOnlyDictionary<string, string> incoming)
+    {
+        var existing = new Dictionary<string, string>(ParseEnvFile(existingContent), StringComparer.OrdinalIgnoreCase);
+        var updated = new List<string>();
+        foreach (var (key, value) in incoming)
+        {
+            if (!existing.TryGetValue(key, out var prev) || !string.Equals(prev, value, StringComparison.Ordinal))
+                updated.Add(key);
+            existing[key] = value;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("# OCAP environment (merged by installer)");
+        sb.AppendLine($"# UTC: {DateTime.UtcNow:O}");
+        sb.AppendLine();
+        foreach (var (key, value) in existing.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+            sb.AppendLine($"{key}={value}");
+
+        return (sb.ToString(), updated);
+    }
+
+    public async Task<(bool DotEnvWritten, string DotEnvPath, IReadOnlyList<string> UpdatedKeys)> WriteArtifactsAsync(
         string envContent,
+        IReadOnlyList<string> updatedKeys,
         JsonObject installationDocument,
         CancellationToken cancellationToken)
     {
@@ -82,7 +157,8 @@ public sealed class InstallationArtifactStore
                 Directory.CreateDirectory(projectRoot);
             await File.WriteAllTextAsync(dotEnvPath, envContent, Encoding.UTF8, cancellationToken);
             dotEnvWritten = true;
-            _logger.LogInformation("Archivo .env del proyecto actualizado en {Path}", dotEnvPath);
+            _logger.LogInformation("Archivo .env del proyecto fusionado en {Path} ({Count} claves)",
+                dotEnvPath, updatedKeys.Count);
         }
         catch (Exception ex)
         {
@@ -93,7 +169,7 @@ public sealed class InstallationArtifactStore
         _logger.LogInformation(
             "Artefactos de instalación escritos en {Dir} (installation.json, generated.env)",
             _configDirectory);
-        return (dotEnvWritten, dotEnvPath);
+        return (dotEnvWritten, dotEnvPath, updatedKeys);
     }
 
     public async Task MergeGoogleAccessTokenAsync(string accessToken, CancellationToken cancellationToken)
@@ -122,18 +198,33 @@ public sealed class InstallationArtifactStore
             cancellationToken);
     }
 
-    public static JsonObject BuildInstallationDocument(InstallerSetupRequest request, string target, string apiUrl, string panelUrl, string redirectUri)
+    public static string NormalizeTarget(string? target)
+    {
+        if (string.Equals(target, "Web", StringComparison.OrdinalIgnoreCase))
+            return "Web";
+        if (string.Equals(target, "Local", StringComparison.OrdinalIgnoreCase))
+            return "Local";
+        return "Dev";
+    }
+
+    public static JsonObject BuildInstallationDocument(
+        InstallerSetupRequest request,
+        string target,
+        string apiUrl,
+        string panelUrl,
+        string redirectUri)
     {
         var provider = NormalizeAiProvider(request.AiProvider);
-        var aiProviders = new JsonObject
+        var googleInMemory = !request.EnableGoogleWorkspace;
+        // Nunca escribir ApiKey aquí: este JSON se carga en IConfiguration y pisaría el .env
+        // (antes se guardaba "***" y Gemini rechazaba la key como inválida).
+        var providerConfig = new JsonObject
         {
-            [provider] = new JsonObject
-            {
-                ["ApiKey"] = request.AiApiKey ?? string.Empty,
-                ["ModelName"] = request.AiModelName,
-                ["BaseUrl"] = string.IsNullOrWhiteSpace(request.AiBaseUrl) ? null : request.AiBaseUrl
-            }
+            ["ApiKeyConfigured"] = !string.IsNullOrWhiteSpace(request.AiApiKey),
+            ["ModelName"] = request.AiModelName,
         };
+        if (!string.IsNullOrWhiteSpace(request.AiBaseUrl))
+            providerConfig["BaseUrl"] = request.AiBaseUrl;
 
         var doc = new JsonObject
         {
@@ -151,91 +242,144 @@ public sealed class InstallationArtifactStore
             {
                 ["Enabled"] = true,
                 ["AdminEmail"] = request.AdminEmail.Trim(),
-                ["AdminPassword"] = request.AdminPassword,
                 ["TenantName"] = request.TenantName.Trim(),
                 ["TenantSlug"] = request.TenantSlug.Trim().ToLowerInvariant()
             },
             ["Google"] = new JsonObject
             {
-                ["ClientId"] = request.GoogleClientId ?? string.Empty,
-                ["ClientSecret"] = request.GoogleClientSecret ?? string.Empty,
+                ["ClientId"] = request.EnableGoogleWorkspace ? (request.GoogleClientId ?? string.Empty) : string.Empty,
                 ["RedirectUri"] = redirectUri,
-                ["UseInMemory"] = false,
-                ["AccessToken"] = string.Empty
+                ["UseInMemory"] = googleInMemory,
+                ["Configured"] = request.EnableGoogleWorkspace
             },
-            ["AiProviders"] = aiProviders,
+            ["AiProviders"] = new JsonObject
+            {
+                ["PreferredProvider"] = provider,
+                [provider] = providerConfig
+            },
             ["Cors"] = new JsonObject
             {
                 ["AllowedOrigins"] = new JsonArray(panelUrl)
             },
             ["Telegram"] = new JsonObject
             {
-                ["BotToken"] = request.EnableTelegram ? (request.TelegramBotToken ?? string.Empty) : string.Empty
+                ["BotTokenConfigured"] = request.EnableTelegram && !string.IsNullOrWhiteSpace(request.TelegramBotToken)
+            },
+            ["WhatsApp"] = new JsonObject
+            {
+                ["Enabled"] = request.EnableWhatsApp,
+                ["EvolutionApiUrl"] = request.EnableWhatsApp ? (request.EvolutionApiUrl ?? string.Empty) : string.Empty
             }
         };
+
+        if (target == "Dev")
+        {
+            doc["UseInMemory"] = true;
+        }
 
         return doc;
     }
 
-    public static string BuildEnvFile(InstallerSetupRequest request, string target, string apiUrl, string panelUrl, string redirectUri, string jwt, string vault)
+    public static Dictionary<string, string> BuildEnvUpdates(
+        InstallerSetupRequest request,
+        string target,
+        string apiUrl,
+        string panelUrl,
+        string redirectUri,
+        string jwt,
+        string vault)
     {
         var provider = NormalizeAiProvider(request.AiProvider);
-        var sb = new StringBuilder();
-        sb.AppendLine("# Generated by OCAP Installer");
-        sb.AppendLine($"# UTC: {DateTime.UtcNow:O}");
-        sb.AppendLine();
-        sb.AppendLine($"DEPLOYMENT_TARGET={target}");
-        sb.AppendLine($"FRONTEND_HOST_PORT={request.FrontendHostPort}");
-        sb.AppendLine($"API_HOST_PORT={request.ApiHostPort}");
-        sb.AppendLine($"PUBLIC_API_URL={apiUrl}");
-        sb.AppendLine($"PUBLIC_PANEL_URL={panelUrl}");
-        sb.AppendLine();
-        sb.AppendLine($"POSTGRES_HOST={request.PostgresHost}");
-        sb.AppendLine($"POSTGRES_DB={request.PostgresDbName}");
-        sb.AppendLine($"POSTGRES_USER={request.PostgresUsername}");
-        sb.AppendLine($"POSTGRES_PASSWORD={request.PostgresPassword}");
-        sb.AppendLine($"POSTGRES_HOST_PORT={request.PostgresPort}");
-        sb.AppendLine();
-        sb.AppendLine($"JWT_SECRET_KEY={jwt}");
-        sb.AppendLine($"VAULT_MASTER_KEY={vault}");
-        sb.AppendLine("EVENTBUS_PROVIDER=RabbitMQ");
-        sb.AppendLine("RABBITMQ_USER=ocap");
-        sb.AppendLine("RABBITMQ_PASSWORD=OcapRabbit2026!");
-        sb.AppendLine("STORAGE_PROVIDER=Local");
-        sb.AppendLine("ASPNETCORE_ENVIRONMENT=Production");
-        sb.AppendLine();
-        sb.AppendLine($"BOOTSTRAP_ADMIN_EMAIL={request.AdminEmail.Trim()}");
-        sb.AppendLine($"BOOTSTRAP_ADMIN_PASSWORD={request.AdminPassword}");
-        sb.AppendLine($"BOOTSTRAP_TENANT_NAME={request.TenantName.Trim()}");
-        sb.AppendLine($"BOOTSTRAP_TENANT_SLUG={request.TenantSlug.Trim().ToLowerInvariant()}");
-        sb.AppendLine();
-        sb.AppendLine($"Google__ClientId={request.GoogleClientId}");
-        sb.AppendLine($"Google__ClientSecret={request.GoogleClientSecret}");
-        sb.AppendLine($"Google__RedirectUri={redirectUri}");
-        sb.AppendLine("Google__UseInMemory=false");
-        sb.AppendLine();
-        sb.AppendLine($"AiProviders__{provider}__ApiKey={request.AiApiKey}");
-        sb.AppendLine($"AiProviders__{provider}__ModelName={request.AiModelName}");
+        var googleInMemory = !request.EnableGoogleWorkspace;
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DEPLOYMENT_TARGET"] = target,
+            ["FRONTEND_HOST_PORT"] = request.FrontendHostPort.ToString(),
+            ["API_HOST_PORT"] = request.ApiHostPort.ToString(),
+            ["PUBLIC_API_URL"] = apiUrl,
+            ["PUBLIC_PANEL_URL"] = panelUrl,
+            ["JWT_SECRET_KEY"] = jwt,
+            ["VAULT_MASTER_KEY"] = vault,
+            ["BOOTSTRAP_ADMIN_EMAIL"] = request.AdminEmail.Trim(),
+            ["BOOTSTRAP_ADMIN_PASSWORD"] = request.AdminPassword,
+            ["BOOTSTRAP_TENANT_NAME"] = request.TenantName.Trim(),
+            ["BOOTSTRAP_TENANT_SLUG"] = request.TenantSlug.Trim().ToLowerInvariant(),
+            ["Google__RedirectUri"] = redirectUri,
+            ["Google__UseInMemory"] = googleInMemory ? "true" : "false",
+            ["AiProviders__PreferredProvider"] = provider,
+            [$"AiProviders__{provider}__ModelName"] = request.AiModelName,
+            ["Cors__AllowedOrigins__0"] = panelUrl
+        };
+
+        if (target == "Dev")
+        {
+            map["ASPNETCORE_ENVIRONMENT"] = "Development";
+            map["UseInMemory"] = "true";
+            map["EVENTBUS_PROVIDER"] = "InMemory";
+            map["NEXT_PUBLIC_API_URL"] = apiUrl;
+        }
+        else if (target == "Local")
+        {
+            map["ASPNETCORE_ENVIRONMENT"] = "Production";
+            map["UseInMemory"] = "false";
+            map["EVENTBUS_PROVIDER"] = "RabbitMQ";
+            map["RABBITMQ_USER"] = "ocap";
+            map["RABBITMQ_PASSWORD"] = "OcapRabbit2026!";
+            map["STORAGE_PROVIDER"] = "Local";
+            map["POSTGRES_HOST"] = request.PostgresHost;
+            map["POSTGRES_DB"] = request.PostgresDbName;
+            map["POSTGRES_USER"] = request.PostgresUsername;
+            map["POSTGRES_PASSWORD"] = request.PostgresPassword;
+            map["POSTGRES_HOST_PORT"] = request.PostgresPort.ToString();
+            map["API_INTERNAL_URL"] = "http://ocap-api:5000";
+            map["NEXT_PUBLIC_API_URL"] = string.Empty;
+        }
+        else
+        {
+            map["ASPNETCORE_ENVIRONMENT"] = "Production";
+            map["UseInMemory"] = "false";
+            map["EVENTBUS_PROVIDER"] = "RabbitMQ";
+            map["STORAGE_PROVIDER"] = "Local";
+            map["POSTGRES_HOST"] = request.PostgresHost;
+            map["POSTGRES_DB"] = request.PostgresDbName;
+            map["POSTGRES_USER"] = request.PostgresUsername;
+            map["POSTGRES_PASSWORD"] = request.PostgresPassword;
+            map["POSTGRES_HOST_PORT"] = request.PostgresPort.ToString();
+            map["API_INTERNAL_URL"] = "http://ocap-api:5000";
+            map["NEXT_PUBLIC_API_URL"] = string.Empty;
+        }
+
+        if (request.EnableGoogleWorkspace)
+        {
+            map["Google__ClientId"] = request.GoogleClientId ?? string.Empty;
+            map["Google__ClientSecret"] = request.GoogleClientSecret ?? string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.AiApiKey))
+            map[$"AiProviders__{provider}__ApiKey"] = request.AiApiKey!;
+
         if (!string.IsNullOrWhiteSpace(request.AiBaseUrl))
-            sb.AppendLine($"AiProviders__{provider}__BaseUrl={request.AiBaseUrl}");
-        sb.AppendLine();
-        sb.AppendLine($"Cors__AllowedOrigins__0={panelUrl}");
-        sb.AppendLine("NEXT_PUBLIC_API_URL=");
-        sb.AppendLine("API_INTERNAL_URL=http://ocap-api:5000");
-        sb.AppendLine();
-        sb.AppendLine($"EVOLUTION_API_KEY={request.EvolutionApiKey ?? "EvolutionSecretApiKey"}");
-        sb.AppendLine($"EVOLUTION_API_URL={request.EvolutionApiUrl ?? "http://localhost:8088"}");
+            map[$"AiProviders__{provider}__BaseUrl"] = request.AiBaseUrl!;
+
+        if (request.EnableWhatsApp)
+        {
+            map["EVOLUTION_API_KEY"] = request.EvolutionApiKey ?? string.Empty;
+            map["EVOLUTION_API_URL"] = request.EvolutionApiUrl ?? "http://localhost:8088";
+        }
+
         if (request.EnableTelegram && !string.IsNullOrWhiteSpace(request.TelegramBotToken))
-            sb.AppendLine($"Telegram__BotToken={request.TelegramBotToken}");
-        return sb.ToString();
+            map["Telegram__BotToken"] = request.TelegramBotToken!;
+
+        return map;
     }
 
     public static string NormalizeAiProvider(string? provider) =>
-        (provider ?? "OpenAI").Trim() switch
+        (provider ?? "Gemini").Trim() switch
         {
             "Gemini" => "Gemini",
             "Claude" => "Claude",
             "Ollama" => "Ollama",
-            _ => "OpenAI"
+            "OpenAI" => "OpenAI",
+            _ => "Gemini"
         };
 }

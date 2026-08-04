@@ -14,6 +14,24 @@ namespace OCAP.Api.Tests.Infrastructure;
 
 public class OcapApiFactory : WebApplicationFactory<Program>
 {
+    public string InstallationConfigPath { get; private set; } =
+        Path.Combine(Path.GetTempPath(), $"ocap-install-{Guid.NewGuid():N}");
+
+    public void ResetInstallationArtifacts()
+    {
+        try
+        {
+            if (Directory.Exists(InstallationConfigPath))
+                Directory.Delete(InstallationConfigPath, recursive: true);
+        }
+        catch
+        {
+            // ignore race on Windows file locks
+        }
+
+        Directory.CreateDirectory(InstallationConfigPath);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -31,7 +49,7 @@ public class OcapApiFactory : WebApplicationFactory<Program>
                 ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!",
                 ["Bootstrap:Enabled"] = "false",
                 ["Installation:Completed"] = "false",
-                ["Installation:ConfigPath"] = Path.Combine(Path.GetTempPath(), $"ocap-install-{Guid.NewGuid():N}")
+                ["Installation:ConfigPath"] = InstallationConfigPath
             });
         });
     }
