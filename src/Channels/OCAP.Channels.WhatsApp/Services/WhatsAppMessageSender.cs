@@ -1,23 +1,32 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Abstractions.Models;
+using OCAP.Channels.WhatsApp.Configuration;
 using OCAP.Channels.WhatsApp.DTOs;
+using OCAP.Channels.WhatsApp.Evolution;
 using OCAP.Core.Events;
 
 namespace OCAP.Channels.WhatsApp.Services;
 
 public class WhatsAppMessageSender : IMessageSender
 {
-    private readonly WhatsAppApiClient _apiClient;
+    private readonly EvolutionApiClient _evolutionClient;
+    private readonly WhatsAppApiClient? _cloudClient;
+    private readonly WhatsAppSettings _settings;
     private readonly ILogger<WhatsAppMessageSender> _logger;
     private readonly IEventBus? _eventBus;
 
     public WhatsAppMessageSender(
-        WhatsAppApiClient apiClient,
+        EvolutionApiClient evolutionClient,
         ILogger<WhatsAppMessageSender> logger,
+        WhatsAppApiClient? cloudClient = null,
+        IOptions<WhatsAppSettings>? settings = null,
         IEventBus? eventBus = null)
     {
-        _apiClient = apiClient;
+        _evolutionClient = evolutionClient;
+        _cloudClient = cloudClient;
+        _settings = settings?.Value ?? new WhatsAppSettings { Provider = "Evolution" };
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -32,43 +41,50 @@ public class WhatsAppMessageSender : IMessageSender
 
         try
         {
-            var request = new WhatsAppCloudSendMessageRequest
+            message.Metadata.TryGetValue("ConnectionMode", out var mode);
+            var useEvolution =
+                string.Equals(mode, "evolution", StringComparison.OrdinalIgnoreCase) ||
+                (_settings.IsEvolution && !string.Equals(mode, "cloud", StringComparison.OrdinalIgnoreCase));
+
+            bool success;
+            if (useEvolution || _cloudClient == null)
             {
-                To = message.DestinationUserId,
-                Text = new WhatsAppCloudText { Body = message.Message }
-            };
-
-            // Intentar extraer de metadatos si OCAP enruta los secretos en este contexto
-            message.Metadata.TryGetValue("PhoneNumberId", out string? phoneNumberId);
-            message.Metadata.TryGetValue("ApiToken", out string? overrideToken);
-
-            if (string.IsNullOrWhiteSpace(phoneNumberId))
-            {
-                _logger.LogError("No se pudo obtener el PhoneNumberId desde Metadata al despachar el mensaje de WhatsApp.");
-                return false;
-            }
-
-            var success = await _apiClient.SendMessageAsync(phoneNumberId, request, overrideToken, cancellationToken);
-
-            if (_eventBus != null)
-            {
-                await _eventBus.PublishAsync(new MessageSentEvent("WhatsApp", message.DestinationUserId, message.Message, success, Guid.Empty), cancellationToken);
-            }
-
-            if (success)
-            {
-                _logger.LogInformation("Mensaje de respuesta despachado exitosamente a WhatsApp para To {To}.", message.DestinationUserId);
+                var instance = message.Metadata.TryGetValue("Instance", out var inst) && !string.IsNullOrWhiteSpace(inst)
+                    ? inst!
+                    : (string.IsNullOrWhiteSpace(_settings.Instance) ? "ocap-main" : _settings.Instance);
+                success = await _evolutionClient.SendTextAsync(instance, message.DestinationUserId, message.Message, cancellationToken);
             }
             else
             {
-                _logger.LogWarning("Falló el despacho del mensaje de respuesta a WhatsApp para To {To}.", message.DestinationUserId);
+                var request = new WhatsAppCloudSendMessageRequest
+                {
+                    To = message.DestinationUserId,
+                    Text = new WhatsAppCloudText { Body = message.Message }
+                };
+                message.Metadata.TryGetValue("PhoneNumberId", out string? phoneNumberId);
+                message.Metadata.TryGetValue("ApiToken", out string? overrideToken);
+
+                if (string.IsNullOrWhiteSpace(phoneNumberId))
+                {
+                    _logger.LogError("PhoneNumberId ausente para envío Cloud API.");
+                    return false;
+                }
+
+                success = await _cloudClient.SendMessageAsync(phoneNumberId, request, overrideToken, cancellationToken);
+            }
+
+            if (_eventBus != null)
+            {
+                await _eventBus.PublishAsync(
+                    new MessageSentEvent("WhatsApp", message.DestinationUserId, message.Message, success, Guid.Empty),
+                    cancellationToken);
             }
 
             return success;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error no controlado al despachar mensaje WhatsApp a {Destination}.", message.DestinationUserId);
+            _logger.LogError(ex, "Error al despachar mensaje WhatsApp a {Destination}.", message.DestinationUserId);
             return false;
         }
     }

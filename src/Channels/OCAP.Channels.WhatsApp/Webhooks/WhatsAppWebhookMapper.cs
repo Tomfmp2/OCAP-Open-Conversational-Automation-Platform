@@ -8,19 +8,12 @@ public static class WhatsAppWebhookMapper
     public static IncomingChannelMessage? ToIncomingMessage(WhatsAppCloudWebhookPayload payload)
     {
         var change = payload.Entry?.FirstOrDefault()?.Changes?.FirstOrDefault();
-        if (change == null || change.Value == null) return null;
+        if (change?.Value == null) return null;
+        if (change.Value.Messages == null || !change.Value.Messages.Any()) return null;
 
-        var value = change.Value;
-        
-        // Si no hay mensajes entrantes, podría ser un evento de estado (delivery status)
-        if (value.Messages == null || !value.Messages.Any())
-        {
-            return null; // O manejar actualizaciones de estado aquí si la abstracción lo soporta
-        }
-
-        var message = value.Messages.First();
-        var contact = value.Contacts?.FirstOrDefault();
-        var metadata = value.Metadata;
+        var message = change.Value.Messages.First();
+        var contact = change.Value.Contacts?.FirstOrDefault();
+        var metadata = change.Value.Metadata;
 
         var incoming = new IncomingChannelMessage
         {
@@ -29,14 +22,15 @@ public static class WhatsAppWebhookMapper
             Message = message.Text?.Body ?? string.Empty
         };
 
-        if (long.TryParse(message.Timestamp, out long timestamp))
+        if (long.TryParse(message.Timestamp, out var timestamp))
         {
             incoming.ReceivedAt = DateTimeOffset.FromUnixTimeSeconds(timestamp).UtcDateTime;
         }
 
         incoming.Metadata["MessageId"] = message.Id;
         incoming.Metadata["MessageType"] = message.Type;
-        
+        incoming.Metadata["ConnectionMode"] = "cloud";
+
         if (contact != null)
         {
             incoming.Metadata["SenderName"] = contact.Profile?.Name ?? string.Empty;
@@ -49,6 +43,36 @@ public static class WhatsAppWebhookMapper
             incoming.Metadata["DisplayPhoneNumber"] = metadata.DisplayPhoneNumber;
         }
 
+        return incoming;
+    }
+
+    public static IncomingChannelMessage? ToIncomingMessage(WhatsAppWebhookPayload payload)
+    {
+        if (payload?.Data?.Key == null || payload.Data.Key.FromMe) return null;
+
+        var text = payload.Data.Message?.Conversation
+                   ?? payload.Data.Message?.ExtendedTextMessage?.Text
+                   ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var remoteJid = payload.Data.Key.RemoteJid ?? string.Empty;
+        var externalId = remoteJid.Contains('@') ? remoteJid.Split('@')[0] : remoteJid;
+
+        var incoming = new IncomingChannelMessage
+        {
+            ExternalUserId = externalId,
+            ChannelName = "WhatsApp",
+            Message = text,
+            ReceivedAt = payload.Data.MessageTimestamp > 0
+                ? DateTimeOffset.FromUnixTimeSeconds(payload.Data.MessageTimestamp).UtcDateTime
+                : DateTime.UtcNow
+        };
+
+        incoming.Metadata["MessageId"] = payload.Data.Key.Id;
+        incoming.Metadata["SenderName"] = payload.Data.PushName;
+        incoming.Metadata["Instance"] = payload.Instance;
+        incoming.Metadata["ConnectionMode"] = "evolution";
+        incoming.Metadata["RemoteJid"] = remoteJid;
         return incoming;
     }
 }

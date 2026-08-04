@@ -1,18 +1,30 @@
 namespace OCAP.Channels.WhatsApp.Configuration;
 
+/// <summary>
+/// Configuración del canal WhatsApp. Provider=Evolution usa QR (Baileys);
+/// Provider=Cloud usa Meta Graph API.
+/// </summary>
 public class WhatsAppSettings
 {
-    public const string SectionName = "WhatsAppCloud";
+    public const string SectionName = "WhatsApp";
 
-    // Habilitar o deshabilitar el proveedor de WhatsApp
     public bool Enabled { get; set; } = true;
 
-    // Token de acceso de la aplicación (System User Token)
-    public string ApiToken { get; set; } = string.Empty;
-    
-    // Secreto de la aplicación (App Secret) usado para validar webhooks
-    public string AppSecret { get; set; } = string.Empty;
+    /// <summary>Evolution | Cloud</summary>
+    public string Provider { get; set; } = "Evolution";
 
-    // Token arbitrario usado para verificar la configuración del Webhook
+    // --- Evolution API ---
+    public string BaseUrl { get; set; } = "http://localhost:8080";
+    public string Instance { get; set; } = "ocap-main";
+    public string ApiKey { get; set; } = string.Empty;
+    public string WebhookSecret { get; set; } = string.Empty;
+    public string WebhookUrl { get; set; } = string.Empty;
+
+    // --- Meta Cloud API (opcional) ---
+    public string ApiToken { get; set; } = string.Empty;
+    public string AppSecret { get; set; } = string.Empty;
     public string WebhookVerifyToken { get; set; } = string.Empty;
+
+    public bool IsEvolution =>
+        string.Equals(Provider, "Evolution", StringComparison.OrdinalIgnoreCase);
 }
