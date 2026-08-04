@@ -7,13 +7,16 @@ namespace OCAP.Agents.Application.Services;
 public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelector
 {
     private readonly IEnumerable<ILanguageModelProvider> _staticProviders;
+    private readonly IEnumerable<IAiProvider> _aiProviders;
     private readonly IAiProviderConfigurationService? _configurationService;
 
     public DefaultLanguageModelProviderSelector(
         IEnumerable<ILanguageModelProvider> staticProviders,
+        IEnumerable<IAiProvider> aiProviders,
         IAiProviderConfigurationService? configurationService = null)
     {
         _staticProviders = staticProviders;
+        _aiProviders = aiProviders;
         _configurationService = configurationService;
     }
 
@@ -32,21 +35,50 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
             }
             catch
             {
-                // Fallback silencioso a proveedores estáticos si la consulta dinámica falla
+                // Fallback silencioso a proveedores estáticos / registrados
             }
         }
 
-        // 2. Resolver desde lista estática de proveedores registrados
-        var selected = _staticProviders.FirstOrDefault();
+        // 2. Resolver desde lista estática de ILanguageModelProvider
+        ILanguageModelProvider? selected = null;
         if (!string.IsNullOrEmpty(preferredProvider))
         {
-            selected = _staticProviders.FirstOrDefault(p => string.Equals(p.ProviderName, preferredProvider, StringComparison.OrdinalIgnoreCase))
-                       ?? _staticProviders.FirstOrDefault();
+            selected = _staticProviders.FirstOrDefault(p =>
+                string.Equals(p.ProviderName, preferredProvider, StringComparison.OrdinalIgnoreCase));
+        }
+
+        selected ??= _staticProviders.FirstOrDefault();
+
+        // 3. Adaptar IAiProvider registrados (Mock, OpenAI, etc.)
+        if (selected == null)
+        {
+            IAiProvider? ai = null;
+            if (!string.IsNullOrEmpty(preferredProvider))
+            {
+                ai = _aiProviders.FirstOrDefault(p =>
+                    string.Equals(p.Name, preferredProvider, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Preferir Gemini / OpenAI reales sobre Mock.
+            ai ??= _aiProviders.FirstOrDefault(p =>
+                string.Equals(p.Name, "Gemini", StringComparison.OrdinalIgnoreCase));
+            ai ??= _aiProviders.FirstOrDefault(p =>
+                string.Equals(p.Name, "OpenAI", StringComparison.OrdinalIgnoreCase));
+            ai ??= _aiProviders.FirstOrDefault(p =>
+                !string.Equals(p.Name, "Mock", StringComparison.OrdinalIgnoreCase));
+            ai ??= _aiProviders.FirstOrDefault(p =>
+                string.Equals(p.Name, "Mock", StringComparison.OrdinalIgnoreCase));
+            ai ??= _aiProviders.FirstOrDefault();
+
+            if (ai != null)
+            {
+                return new LanguageModelProviderAdapter(ai);
+            }
         }
 
         if (selected == null)
         {
-            throw new InvalidOperationException($"No LanguageModelProvider is available to process the request.");
+            throw new InvalidOperationException("No LanguageModelProvider is available to process the request.");
         }
 
         return selected;

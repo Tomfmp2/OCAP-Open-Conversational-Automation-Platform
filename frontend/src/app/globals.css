@@ -75,4 +75,44 @@
   .focus-ring:focus-visible {
     box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   }
+
+  .ocap-hero-ambient {
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 28%, rgba(10, 10, 10, 0.05), transparent 70%),
+      linear-gradient(180deg, #fafafa 0%, #f5f5f5 55%, #f0f0f0 100%);
+  }
+
+  .ocap-mark {
+    animation: ocap-mark-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .ocap-hero-enter {
+    animation: ocap-rise 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .ocap-composer {
+    animation: ocap-rise 750ms 80ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes ocap-mark-in {
+    from {
+      opacity: 0;
+      transform: scale(0.88) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes ocap-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
