@@ -36,10 +36,7 @@ export function useSignalR(tenantId?: string) {
 
       setLiveEvents((prev) => [newLog, ...prev.slice(0, 49)]);
 
-      if (eventName.startsWith("Workflow")) {
-        queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-        queryClient.invalidateQueries({ queryKey: ["workflowsData"] });
-      } else if (eventName.startsWith("Agent")) {
+      if (eventName.startsWith("Agent")) {
         queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
         queryClient.invalidateQueries({ queryKey: ["agentsData"] });
       } else if (eventName.startsWith("Message") || eventName.includes("Channel")) {
@@ -74,10 +71,6 @@ export function useSignalR(tenantId?: string) {
     connectionRef.current = connection;
 
     const eventsToListen = [
-      "WorkflowStarted",
-      "WorkflowCompleted",
-      "WorkflowFailed",
-      "NodeExecuted",
       "AgentStarted",
       "AgentCompleted",
       "MessageReceived",
