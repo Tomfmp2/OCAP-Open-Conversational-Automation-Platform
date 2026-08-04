@@ -38,9 +38,11 @@ export const SECONDARY_NAV_FOOTER: NavItem[] = [
 export const COMMAND_ITEMS = [
   { label: "Ir a Resumen", href: "/", category: "Navegación" },
   { label: "Canales", href: "/channels", category: "Navegación" },
+  { label: "WebChat", href: "/channels/webchat", category: "Navegación" },
   { label: "IA y modelos", href: "/intelligence", category: "Navegación" },
   { label: "Agentes", href: "/agents", category: "Navegación" },
   { label: "Workflows", href: "/workflows", category: "Navegación" },
+  { label: "Diseñador de workflows", href: "/workflows/designer", category: "Navegación" },
   { label: "Conocimiento", href: "/knowledge", category: "Navegación" },
   { label: "Ajustes", href: "/settings", category: "Navegación" },
   { label: "Instalador", href: "/installer", category: "Sistema" },
@@ -54,6 +56,7 @@ export function getSubmenuForPath(pathname: string): NavSection {
         { label: "Conexiones", href: "/channels" },
         { label: "Telegram", href: "/channels?provider=Telegram" },
         { label: "WhatsApp", href: "/channels?provider=WhatsApp" },
+        { label: "WebChat", href: "/channels/webchat" },
       ],
     };
   }
@@ -72,7 +75,10 @@ export function getSubmenuForPath(pathname: string): NavSection {
   if (pathname.startsWith("/workflows")) {
     return {
       label: "Workflows",
-      items: [{ label: "Definiciones", href: "/workflows" }],
+      items: [
+        { label: "Definiciones", href: "/workflows" },
+        { label: "Diseñador", href: "/workflows/designer" },
+      ],
     };
   }
   if (pathname.startsWith("/knowledge")) {

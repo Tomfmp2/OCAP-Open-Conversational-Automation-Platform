@@ -140,4 +140,17 @@ public class ChannelConnectionTests
         var stored = await dbContext.ChannelConnections.FirstOrDefaultAsync(c => c.Id == connection.Id);
         stored.Should().BeNull();
     }
+
+    [Fact]
+    public async Task CreateConnection_UnimplementedProvider_ThrowsInvalidOperationException()
+    {
+        using var dbContext = CreateDbContext();
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
+        var registry = new ChannelRegistry();
+        var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
+
+        var act = async () => await manager.CreateConnectionAsync(Guid.NewGuid(), "Slack", "Slack Corp", "SECRET");
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*aún no tiene adaptador runtime*");
+    }
 }

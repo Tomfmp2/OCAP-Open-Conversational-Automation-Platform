@@ -70,33 +70,53 @@ export function useWorkflowsData() {
  const query = useQuery<WorkflowItem[]>({
  queryKey: ["workflowsData"],
  queryFn: async () => {
- const data = await apiClient.get<WorkflowDefinitionBackendDto[]>("/api/workflows");
+        const data = await apiClient.get<WorkflowDefinitionBackendDto[]>("/api/workflows");
 
- const items = await Promise.all(
- data.map(async (item) => {
- const statusInfo = await fetchWorkflowStatus(item.id);
+        const items = await Promise.all(
+          data.map(async (item) => {
+            const statusInfo = await fetchWorkflowStatus(item.id);
+            let nodes: WorkflowNode[] = [];
+            try {
+              const graph = await apiClient.get<{
+                nodes?: Array<{ id: string; name: string; type: string; configurationJson?: string }>;
+              }>(`/api/workflows/${item.id}/designer`);
+              nodes = (graph.nodes || []).map((n) => ({
+                id: n.id,
+                type: (n.type === "start"
+                  ? "trigger"
+                  : n.type === "llm"
+                    ? "agent"
+                    : n.type === "condition"
+                      ? "condition"
+                      : "action") as WorkflowNode["type"],
+                label: n.name,
+                configSummary: n.configurationJson,
+                config: {},
+              }));
+            } catch {
+              nodes = [];
+            }
 
- return {
- id: item.id,
- name: item.name,
- version: `v${item.currentVersion}.0`,
- status: (item.status === "Active" ? "published" : "draft") as
- | "published"
- | "draft"
- | "archived",
- triggerChannel: "N/D",
- assignedAgent: "—",
- totalExecutions: statusInfo?.totalExecutions ?? 0,
- lastRun: statusInfo?.lastExecutedAtUtc
- ? new Date(statusInfo.lastExecutedAtUtc).toLocaleString()
- : new Date(item.createdAtUtc).toLocaleString(),
- // El listado no expone la definición de pasos. No se fabrican nodos.
- nodes: [],
- };
- })
- );
+            return {
+              id: item.id,
+              name: item.name,
+              version: `v${item.currentVersion}.0`,
+              status: (item.status === "Active" ? "published" : "draft") as
+                | "published"
+                | "draft"
+                | "archived",
+              triggerChannel: "N/D",
+              assignedAgent: "—",
+              totalExecutions: statusInfo?.totalExecutions ?? 0,
+              lastRun: statusInfo?.lastExecutedAtUtc
+                ? new Date(statusInfo.lastExecutedAtUtc).toLocaleString()
+                : new Date(item.createdAtUtc).toLocaleString(),
+              nodes,
+            };
+          })
+        );
 
- return items;
+        return items;
  },
  staleTime: 10000,
  retry: 2,
@@ -168,11 +188,18 @@ export function useWorkflowsData() {
  mutationFn: async (payload: { name: string; nodes: WorkflowNode[] }) => {
  return apiClient.post("/api/workflows/designer/validate", {
  name: payload.name,
+ description: "Validación desde canvas",
  nodes: payload.nodes.map((n) => ({
  id: n.id,
  stepId: n.id,
  name: n.label,
- type: n.type,
+ type: n.type === "trigger" ? "start" : n.type === "agent" ? "llm" : n.type === "action" ? "http" : n.type,
+ configurationJson: "{}",
+ })),
+ edges: payload.nodes.slice(0, -1).map((n, i) => ({
+ id: `e-${i}`,
+ fromNodeId: n.id,
+ toNodeId: payload.nodes[i + 1].id,
  })),
  });
  },
@@ -193,7 +220,13 @@ export function useWorkflowsData() {
  id: n.id,
  stepId: n.id,
  name: n.label,
- type: n.type,
+ type: n.type === "trigger" ? "start" : n.type === "agent" ? "llm" : n.type === "action" ? "http" : n.type,
+ configurationJson: "{}",
+ })),
+ edges: payload.nodes.slice(0, -1).map((n, i) => ({
+ id: `e-${i}`,
+ fromNodeId: n.id,
+ toNodeId: payload.nodes[i + 1].id,
  })),
  });
  },

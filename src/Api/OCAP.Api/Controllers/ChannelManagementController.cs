@@ -45,6 +45,7 @@ public class ChannelManagementController : ControllerBase
                 DisplayName = p.DisplayName,
                 Description = p.Description,
                 RequiresOAuth = p.RequiresOAuth,
+                IsImplemented = p.IsImplemented,
                 SupportedFeatures = p.SupportedFeatures
             });
 

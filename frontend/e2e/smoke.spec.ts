@@ -17,9 +17,11 @@ test("login, navegación principal y logout", async ({ page }) => {
 
   for (const route of [
     "/channels",
+    "/channels/webchat",
     "/intelligence",
     "/agents",
     "/workflows",
+    "/workflows/designer",
     "/knowledge",
     "/monitoring",
     "/developer",
@@ -27,7 +29,7 @@ test("login, navegación principal y logout", async ({ page }) => {
     "/settings",
   ]) {
     await page.goto(route);
-    await expect(page).toHaveURL(new RegExp(`${route.replace("/", "\\/")}$`));
+    await expect(page).toHaveURL(new RegExp(`${route.replace(/\//g, "\\/")}$`));
     await expect(page.locator("main")).toBeVisible();
   }
 
@@ -40,4 +42,18 @@ test("instalador público muestra el asistente sin autenticación", async ({ pag
   await expect(page.getByText(/Instalador OCAP/i).first()).toBeVisible();
   await expect(page.getByText(/Dónde vas a desplegar|Instalación marcada como completa/i).first()).toBeVisible();
   await expect(page.locator("main")).toBeVisible();
+});
+
+test("diseñador de workflows muestra toolbox usable", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign In" }).click();
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.goto("/workflows/designer");
+  await expect(page.getByText(/Diseñador de workflows/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start" })).toBeVisible();
+  await page.getByRole("button", { name: "Start" }).click();
+  await expect(page.getByText(/^start$/i).first()).toBeVisible();
 });

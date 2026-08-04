@@ -71,10 +71,11 @@ export default function WorkflowsPage() {
  <div className="mx-auto max-w-7xl space-y-6">
  <PageHeader
  title="Workflows"
- description="Definiciones publicadas y ejecuciones registradas por el backend."
+ description="Definiciones publicadas, ejecuciones y diseñador visual en Next.js."
  icon={<GitFork className="h-5 w-5 text-neutral-700" />}
  actions={<>
  <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}><RefreshCw className="h-3.5 w-3.5" /> Actualizar</Button>
+ <a href="/workflows/designer" className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-800 hover:border-neutral-400">Diseñar</a>
  {activeWf?.id && <Button size="sm" onClick={handleExecute} loading={executeWorkflowMutation.isPending}><Play className="h-3.5 w-3.5" /> Ejecutar</Button>}
  </>}
  />
@@ -163,7 +164,7 @@ export default function WorkflowsPage() {
  <div className="lg:col-span-2">
  {activeWf && (
  <WorkflowCanvas
- nodes={[]}
+ nodes={activeWf.nodes}
  workflowName={activeWf.name}
  workflowId={activeWf.id}
  />

@@ -351,6 +351,26 @@ public class WorkflowsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("{id}/designer")]
+    public async Task<ActionResult<VisualWorkflowGraph>> GetDesignerGraph(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var query = _dbContext.WorkflowDefinitions.AsQueryable();
+
+        if (tenantId != Guid.Empty)
+        {
+            query = query.Where(x => x.TenantId == tenantId);
+        }
+
+        var definition = await query
+            .Include(x => x.Steps)
+            .Include(x => x.Transitions)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (definition == null) return NotFound();
+
+        return Ok(_workflowDesignerMapper.MapFromDomain(definition));
+    }
+
     [HttpPost("designer/save")]
     public async Task<ActionResult<WorkflowDefinitionDto>> SaveWorkflow([FromBody] VisualWorkflowGraph graph, CancellationToken cancellationToken)
     {
@@ -361,8 +381,26 @@ public class WorkflowsController : ControllerBase
         }
 
         var tenantId = Security.TenantSecurity.RequireTenantId(_tenantContext);
-        var definition = _workflowDesignerMapper.MapToDomain(graph, tenantId);
+        var mapped = _workflowDesignerMapper.MapToDomain(graph, tenantId);
 
+        WorkflowDefinition definition;
+        if (Guid.TryParse(graph.Id, out var existingId) && existingId != Guid.Empty)
+        {
+            var query = _dbContext.WorkflowDefinitions.AsQueryable();
+            if (tenantId != Guid.Empty)
+            {
+                query = query.Where(x => x.TenantId == tenantId);
+            }
+
+            var existing = await query.FirstOrDefaultAsync(x => x.Id == existingId, cancellationToken);
+            if (existing != null)
+            {
+                _dbContext.WorkflowDefinitions.Remove(existing);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        definition = mapped;
         _dbContext.WorkflowDefinitions.Add(definition);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
