@@ -63,6 +63,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<SessionRepository>(); // Registered directly as no port currently exists in Core
         services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, AgentRepository>();
+        services.AddScoped<OCAP.Agents.Abstractions.Contracts.IOcapSystemContextProvider, OCAP.Infrastructure.Services.OcapSystemContextProvider>();
         services.AddScoped<IToolExecutionRepository, ToolExecutionRepository>();
         services.AddScoped<IAiExecutionLogRepository, AiExecutionLogRepository>();
         services.AddScoped<IAiConversationMemoryRepository, AiConversationMemoryRepository>();

@@ -16,7 +16,17 @@ public static class AgentServiceExtensions
     public static IServiceCollection AddAgentEngineServices(this IServiceCollection services)
     {
         services.AddSingleton<IToolRegistry, ToolRegistry>();
-        services.AddSingleton<IPermissionValidator, DefaultPermissionValidator>();
+        services.AddSingleton<IPermissionValidator>(sp =>
+        {
+            var validator = new DefaultPermissionValidator();
+            var policy = new AgentPermissionPolicy(EnterpriseAssistantAgent.EnterpriseAssistantAgentId);
+            policy.Allow("Gmail.Send");
+            policy.Allow("Gmail.Read");
+            policy.Allow("Calendar.Create");
+            policy.Allow("Sheets.Append");
+            validator.SetPolicy(policy);
+            return validator;
+        });
         services.AddScoped<IIntentResolver, RuleBasedIntentResolver>();
         services.AddScoped<IActionDispatcher, ActionDispatcher>();
         services.AddScoped<ProcessAgentMessageUseCase>();
@@ -27,6 +37,7 @@ public static class AgentServiceExtensions
         services.AddScoped<AgentService>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<ILanguageModelProviderSelector, DefaultLanguageModelProviderSelector>();
+        services.AddSingleton<IConversationContextRepository, InMemoryConversationContextRepository>();
 
         return services;
     }

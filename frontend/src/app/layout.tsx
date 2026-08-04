@@ -18,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "OCAP",
   description:
-    "Plataforma de automatización conversacional: agentes, canales, workflows y conocimiento.",
+    "Plataforma de automatización conversacional con agente principal, canales e IA.",
 };
 
 export default function RootLayout({

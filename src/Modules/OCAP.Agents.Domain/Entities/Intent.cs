@@ -7,6 +7,7 @@ public class Intent
     public const string Unknown = "Unknown";
     public const string Greeting = "Greeting";
     public const string CreateReminder = "CreateReminder";
+    public const string SendEmail = "SendEmail";
     public const string GetInformation = "GetInformation";
     public const string HumanSupport = "HumanSupport";
 

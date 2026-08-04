@@ -1,11 +1,10 @@
 import {
-  LayoutDashboard,
   MessageSquare,
   Cpu,
   Bot,
-  GitFork,
   Settings,
   BookOpen,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,11 +22,10 @@ export interface NavSection {
 }
 
 export const PRIMARY_NAV: NavItem[] = [
-  { href: "/", label: "Resumen", icon: LayoutDashboard, section: "Core" },
+  { href: "/", label: "Asistente", icon: Sparkles, section: "Core" },
   { href: "/channels", label: "Canales", icon: MessageSquare, section: "Core" },
   { href: "/intelligence", label: "IA y modelos", icon: Cpu, section: "Core" },
   { href: "/agents", label: "Agentes", icon: Bot, section: "Core" },
-  { href: "/workflows", label: "Workflows", icon: GitFork, section: "Core" },
   { href: "/knowledge", label: "Conocimiento", icon: BookOpen, section: "Core" },
 ];
 
@@ -36,19 +34,23 @@ export const SECONDARY_NAV_FOOTER: NavItem[] = [
 ];
 
 export const COMMAND_ITEMS = [
-  { label: "Ir a Resumen", href: "/", category: "Navegación" },
+  { label: "Asistente principal", href: "/", category: "Navegación" },
   { label: "Canales", href: "/channels", category: "Navegación" },
   { label: "WebChat", href: "/channels/webchat", category: "Navegación" },
   { label: "IA y modelos", href: "/intelligence", category: "Navegación" },
   { label: "Agentes", href: "/agents", category: "Navegación" },
-  { label: "Workflows", href: "/workflows", category: "Navegación" },
-  { label: "Diseñador de workflows", href: "/workflows/designer", category: "Navegación" },
   { label: "Conocimiento", href: "/knowledge", category: "Navegación" },
   { label: "Ajustes", href: "/settings", category: "Navegación" },
   { label: "Instalador", href: "/installer", category: "Sistema" },
 ] as const;
 
 export function getSubmenuForPath(pathname: string): NavSection {
+  if (pathname === "/" || pathname === "") {
+    return {
+      label: "Asistente",
+      items: [{ label: "Chat principal", href: "/" }],
+    };
+  }
   if (pathname.startsWith("/channels")) {
     return {
       label: "Canales",
@@ -70,15 +72,6 @@ export function getSubmenuForPath(pathname: string): NavSection {
     return {
       label: "Agentes",
       items: [{ label: "Catálogo", href: "/agents" }],
-    };
-  }
-  if (pathname.startsWith("/workflows")) {
-    return {
-      label: "Workflows",
-      items: [
-        { label: "Definiciones", href: "/workflows" },
-        { label: "Diseñador", href: "/workflows/designer" },
-      ],
     };
   }
   if (pathname.startsWith("/knowledge")) {
@@ -106,7 +99,7 @@ export function getSubmenuForPath(pathname: string): NavSection {
     };
   }
   return {
-    label: "Resumen",
-    items: [{ label: "Vista general", href: "/" }],
+    label: "Asistente",
+    items: [{ label: "Chat principal", href: "/" }],
   };
 }

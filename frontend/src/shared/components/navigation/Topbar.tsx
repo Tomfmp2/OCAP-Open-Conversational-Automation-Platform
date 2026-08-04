@@ -30,10 +30,19 @@ export function Topbar({ compact = false }: TopbarProps) {
   React.useEffect(() => {
     let cancelled = false;
     void apiClient
-      .get<{ status?: string; Status?: string }>("/api/health", { skipAuth: true })
+      .get<unknown>("/api/health", { skipAuth: true })
       .then((data) => {
         if (cancelled) return;
-        setHealthLabel(data?.status || data?.Status || "Desconocido");
+        if (typeof data === "string") {
+          setHealthLabel(data || "Desconocido");
+          return;
+        }
+        if (data && typeof data === "object") {
+          const obj = data as { status?: string; Status?: string };
+          setHealthLabel(obj.status || obj.Status || "Healthy");
+          return;
+        }
+        setHealthLabel("Healthy");
       })
       .catch(() => {
         if (!cancelled) setHealthLabel("No disponible");

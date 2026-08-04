@@ -13,19 +13,14 @@ test("login, navegación principal y logout", async ({ page }) => {
   await page.getByRole("button", { name: "Sign In" }).click();
 
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText(/Welcome back/i)).toBeVisible();
+  await expect(page.getByText(/Agente principal|Soy tu asistente principal/i).first()).toBeVisible();
 
   for (const route of [
     "/channels",
     "/channels/webchat",
     "/intelligence",
     "/agents",
-    "/workflows",
-    "/workflows/designer",
     "/knowledge",
-    "/monitoring",
-    "/developer",
-    "/security",
     "/settings",
   ]) {
     await page.goto(route);
@@ -44,16 +39,16 @@ test("instalador público muestra el asistente sin autenticación", async ({ pag
   await expect(page.locator("main")).toBeVisible();
 });
 
-test("diseñador de workflows muestra toolbox usable", async ({ page }) => {
+test("rutas de workflows redirigen al resumen (fuera de v1)", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign In" }).click();
   await expect(page).toHaveURL(/\/$/);
 
+  await page.goto("/workflows");
+  await expect(page).toHaveURL(/\/$/);
+
   await page.goto("/workflows/designer");
-  await expect(page.getByText(/Diseñador de workflows/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start" })).toBeVisible();
-  await page.getByRole("button", { name: "Start" }).click();
-  await expect(page.getByText(/^start$/i).first()).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
 });
