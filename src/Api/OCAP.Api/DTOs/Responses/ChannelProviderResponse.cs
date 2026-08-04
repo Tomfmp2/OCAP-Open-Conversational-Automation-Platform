@@ -7,5 +7,6 @@ public class ChannelProviderResponse
     public string DisplayName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public bool RequiresOAuth { get; set; }
+    public bool IsImplemented { get; set; }
     public List<string> SupportedFeatures { get; set; } = new();
 }

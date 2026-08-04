@@ -7,15 +7,16 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 ## Componentes implementados
 
 - API y servicios de aplicación en .NET 10.
-- Frontend principal en Next.js 16 (`frontend/`).
+- Frontend principal en Next.js 16 (`frontend/`), incluyendo diseñador de workflows en `/workflows/designer`.
 - Persistencia relacional en PostgreSQL.
 - Búsqueda vectorial mediante la extensión PgVector de PostgreSQL; las pruebas y ejecuciones aisladas pueden usar almacenamiento en memoria.
 - Bus de eventos seleccionable entre RabbitMQ, NATS e InMemory. Docker Compose usa RabbitMQ por defecto y también inicia NATS.
 - Caché distribuida Redis cuando se configura `ConnectionStrings:Redis`.
+- Canales runtime: Telegram, WhatsApp Cloud API y WebChat (`/channels/webchat`).
 - Proveedores HTTP para Google Calendar, Gmail y Sheets mediante un token Bearer configurado.
 - Contenedores auxiliares para observabilidad, proxy y servicios integrados.
 
-Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada módulo.
+Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada módulo. El estado honesto de huecos (Slack/Teams, Qdrant, etc.) está en `docs/roadmap/ROADMAP.md`.
 
 ## Inicio rápido con Docker
 

@@ -8,6 +8,8 @@ public class AvailableChannelProviderInfo
     public string Description { get; set; } = string.Empty;
     public bool RequiresOAuth { get; set; }
     public List<string> SupportedFeatures { get; set; } = new();
+    /// <summary>True solo cuando existe adaptador runtime registrado en la API.</summary>
+    public bool IsImplemented { get; set; }
 }
 
 // Contrato del registro global de proveedores de canales soportados en tiempo de ejecución.

@@ -7,4 +7,5 @@ namespace OCAP.Workflow.Application.Services;
 public interface IWorkflowDesignerMapper
 {
     WorkflowDefinition MapToDomain(VisualWorkflowGraph graph, Guid tenantId);
+    VisualWorkflowGraph MapFromDomain(WorkflowDefinition definition);
 }

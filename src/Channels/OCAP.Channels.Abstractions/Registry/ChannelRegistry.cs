@@ -9,13 +9,13 @@ public class ChannelRegistry : IChannelRegistry
 
     public ChannelRegistry()
     {
-        // Registrar proveedores estándar soportados por la plataforma por defecto.
         RegisterProvider(new AvailableChannelProviderInfo
         {
             Provider = "Telegram",
             DisplayName = "Telegram Bot API",
             Description = "Conexión nativa con Telegram Bot API con validación de secreto de webhook.",
             RequiresOAuth = false,
+            IsImplemented = true,
             SupportedFeatures = new List<string> { "Text", "Webhooks", "BotApi" }
         });
 
@@ -23,35 +23,39 @@ public class ChannelRegistry : IChannelRegistry
         {
             Provider = "WhatsApp",
             DisplayName = "WhatsApp Enterprise Adapter",
-            Description = "Canal de mensajería empresarial con soporte de código QR y webhooks.",
+            Description = "Canal de mensajería empresarial con WhatsApp Cloud API y webhooks.",
             RequiresOAuth = false,
-            SupportedFeatures = new List<string> { "Text", "Media", "Webhooks", "QRCode" }
-        });
-
-        RegisterProvider(new AvailableChannelProviderInfo
-        {
-            Provider = "GoogleWorkspace",
-            DisplayName = "Google Workspace & Gmail",
-            Description = "Integración empresarial obligatoria con Google OAuth para servicios y mensajería.",
-            RequiresOAuth = true,
-            SupportedFeatures = new List<string> { "OAuth2", "Email", "Calendar", "Drive" }
+            IsImplemented = true,
+            SupportedFeatures = new List<string> { "Text", "Media", "Webhooks" }
         });
 
         RegisterProvider(new AvailableChannelProviderInfo
         {
             Provider = "WebChat",
             DisplayName = "OCAP WebChat Widget",
-            Description = "Canal directo embebible para portales y aplicaciones web.",
+            Description = "Canal embebible para portales web con respuesta síncrona del Enterprise Assistant.",
             RequiresOAuth = false,
-            SupportedFeatures = new List<string> { "Text", "RealTime", "WebSockets" }
+            IsImplemented = true,
+            SupportedFeatures = new List<string> { "Text", "RealTime", "Widget" }
+        });
+
+        RegisterProvider(new AvailableChannelProviderInfo
+        {
+            Provider = "GoogleWorkspace",
+            DisplayName = "Google Workspace & Gmail",
+            Description = "Integración OAuth para servicios Google (próximamente como canal de mensajería).",
+            RequiresOAuth = true,
+            IsImplemented = false,
+            SupportedFeatures = new List<string> { "OAuth2", "Email", "Calendar", "Drive" }
         });
 
         RegisterProvider(new AvailableChannelProviderInfo
         {
             Provider = "Slack",
             DisplayName = "Slack Workspaces",
-            Description = "Integración con Slack Bot API para entornos corporativos.",
+            Description = "Integración con Slack Bot API — pendiente de adaptador runtime.",
             RequiresOAuth = true,
+            IsImplemented = false,
             SupportedFeatures = new List<string> { "Text", "Interactive", "Webhooks" }
         });
 
@@ -59,9 +63,20 @@ public class ChannelRegistry : IChannelRegistry
         {
             Provider = "MicrosoftTeams",
             DisplayName = "Microsoft Teams Bot",
-            Description = "Integración con Azure Bot Framework para Microsoft Teams.",
+            Description = "Integración con Azure Bot Framework — pendiente de adaptador runtime.",
             RequiresOAuth = true,
+            IsImplemented = false,
             SupportedFeatures = new List<string> { "Text", "Cards", "Webhooks" }
+        });
+
+        RegisterProvider(new AvailableChannelProviderInfo
+        {
+            Provider = "Discord",
+            DisplayName = "Discord Bot",
+            Description = "Adaptador Discord — pendiente de implementacion.",
+            RequiresOAuth = false,
+            IsImplemented = false,
+            SupportedFeatures = new List<string> { "Text", "Webhooks" }
         });
     }
 

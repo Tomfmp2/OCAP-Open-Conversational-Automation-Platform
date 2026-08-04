@@ -4,9 +4,29 @@ Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap
 
 ---
 
-## 🏆 CAPs Completados (100.0% COMPLETADO)
+## Estado real (actualizado)
 
-- [x] **CAP-01 a CAP-06**: Core Hexagonal, Persistencia EF Core PostgreSQL, Canales Telegram/WhatsApp, Agentes IA e Inteligencia Multi-Provider.
+El roadmap de CAPs 01–20 describe capacidades **entregadas en código base** (API, identidad enterprise, bus de eventos, workflows, RAG PgVector, etc.). Eso **no implica** que cada ítem del catálogo de producto esté listo para producción omnicanal.
+
+### Implementado y operable
+- API, JWT/OIDC, MFA, WebAuthn, SAML, SCIM/LDAP, RBAC, API keys
+- Workflows (motor + designer API + UI Next.js `/workflows/designer` + Blazor auxiliar)
+- IA: OpenAI, Gemini, Ollama, Claude
+- Knowledge/RAG: **PgVector** (+ InMemory para pruebas)
+- Canales runtime: **Telegram**, **WhatsApp**, **WebChat**
+- Event bus: InMemory, RabbitMQ, NATS
+- Frontend Next.js + Docker Compose
+
+### Pendiente / parcial
+- Canales: Slack, Discord, Microsoft Teams, Google Workspace como canal de mensajería
+- Vector stores externos: Qdrant, Chroma, Pinecone (stubs; no backends reales)
+- Marketplace, analytics de costos de tokens, unificación total Blazor→Next.js
+
+---
+
+## CAPs históricos (referencia)
+
+- [x] **CAP-01 a CAP-06**: Core Hexagonal, Persistencia EF Core PostgreSQL, Canales Telegram/WhatsApp (+ WebChat), Agentes IA e Inteligencia Multi-Provider.
 - [x] **CAP-07**: Workflow Node Execution Framework & Runtime State Machine.
 - [x] **CAP-08**: Real-Time Event Bus In-Memory & Distributed System.
 - [x] **CAP-09**: API Keys Platform & Webhook Delivery Engine (HMAC SHA-256).
@@ -24,7 +44,7 @@ Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap
 
 ---
 
-## 📊 Estado de Progreso General
-- **Fase Actual**: Fase 8 — Plataforma Enterprise Completada
-- **Progreso CAPs**: 20 / 20 completados (**100.0%**)
-- **Estado**: Listo para Producción Enterprise.
+## Fase actual
+- **Fase**: Consolidación producto (honestidad de catálogo + WebChat + designer Next.js)
+- **Progreso CAPs núcleo**: 20 / 20 en backend de plataforma
+- **Estado producción**: Apto para despliegue self-hosted del núcleo; no declarar omnicanal completo ni vector stores externos como listos.

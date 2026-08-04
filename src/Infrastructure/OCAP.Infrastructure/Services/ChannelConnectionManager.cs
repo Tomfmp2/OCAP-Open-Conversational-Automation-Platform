@@ -49,6 +49,12 @@ public class ChannelConnectionManager : IChannelConnectionManager
             throw new InvalidOperationException($"El proveedor de canal '{normalizedProvider}' no está registrado en el catálogo de OCAP.");
         }
 
+        if (!providerInfo.IsImplemented)
+        {
+            throw new InvalidOperationException(
+                $"El proveedor '{normalizedProvider}' está en el catálogo pero aún no tiene adaptador runtime (próximamente).");
+        }
+
         var existing = await _dbContext.ChannelConnections
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Provider == normalizedProvider, cancellationToken);
 

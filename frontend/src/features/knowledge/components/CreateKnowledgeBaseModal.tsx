@@ -96,9 +96,8 @@ export function CreateKnowledgeBaseModal({
  onChange={(e) => setVectorDbProvider(e.target.value)}
  className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs"
  >
- <option value="PgVector">PgVector</option>
- <option value="Qdrant">Qdrant</option>
- <option value="InMemory">InMemory</option>
+ <option value="PgVector">PgVector (recomendado)</option>
+ <option value="InMemory">InMemory (solo pruebas)</option>
  </select>
  </div>
  </div>

@@ -76,18 +76,19 @@ Los canales (WhatsApp, Telegram, WebChat, Slack, Discord, Microsoft Teams) son a
 
 Para mantener la precisión técnica, se explicita el estado de cada capacidad dentro de la plataforma:
 
-### Estado Actual Implementado (v1.5.2 / v1.6.0 Baseline)
+### Estado Actual Implementado
 - Motor conversacional central y arquitectura de agentes basada en intenciones y reglas.
-- Motor RAG multiformato con embeddings, chunking y bases vectoriales (`PgVector`, `Qdrant`, `ChromaDB`, `Pinecone`).
-- Workflow Automation Engine con máquina de estados (17 nodos base) y Diseñador Visual en Blazor WASM.
+- Motor RAG multiformato con embeddings, chunking y base vectorial persistente **PgVector** (InMemory para pruebas). Qdrant/Chroma/Pinecone no están implementados.
+- Workflow Automation Engine con máquina de estados y diseñador visual en **Next.js** (`/workflows/designer`) más Dashboard Blazor auxiliar.
 - Autenticación JWT, RBAC, API Keys, `ITenantContext`, `IUserContext` y Validador defensivo de archivos.
-- Adaptador de canal WhatsApp (vía Evolution API) y ejecutor de herramientas Google Workspace.
+- Adaptadores de canal **WhatsApp**, **Telegram** y **WebChat**; herramientas Google Workspace (Calendar/Gmail/Sheets).
 
 ### Visión Futura (Evolución Planificada)
 - **Administración Dinámica de Agentes:** Interfaz de usuario para la creación, configuración y monitoreo de agentes especializados sin necesidad de recompilación.
 - **Ecosistema Empresarial de Agentes:** Coordinación jerárquica y delegación entre múltiples agentes especializados (Multi-Agent Swarm / Orchestration).
-- **Canales Adicionales Operativos:** Telegram, WebChat SignalR en tiempo real, Slack, Discord y Teams.
+- **Canales Adicionales Operativos:** Slack, Discord, Teams y Google Workspace como canal de mensajería.
 - **Panel de Operaciones Centralizado:** Métricas de rendimiento de agentes, costos de tokens LLM y telemetría avanzada por Tenant.
+- **Vector stores externos:** Qdrant, ChromaDB, Pinecone como backends reales opcionales.
 
 ---
 

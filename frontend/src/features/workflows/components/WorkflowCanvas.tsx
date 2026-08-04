@@ -122,7 +122,7 @@ export function WorkflowCanvas({ nodes, workflowName, workflowId }: WorkflowCanv
  {nodes.length === 0 ? (
  <EmptyState
  title="Estructura no disponible"
- description="La API actual no devuelve los nodos reales de esta definición; no se muestran nodos de muestra."
+ description="La definición aún no tiene nodos. Ábrelos en el diseñador para editar."
  icon={<GitFork className="h-5 w-5" />}
  />
  ) : (

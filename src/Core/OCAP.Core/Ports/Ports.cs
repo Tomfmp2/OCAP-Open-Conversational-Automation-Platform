@@ -23,6 +23,7 @@ public interface IConversationRepository
 public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task SaveAsync(User user, CancellationToken cancellationToken = default);
 }
 
 public interface IMessageRepository
