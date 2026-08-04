@@ -63,6 +63,25 @@ public sealed class TenantSaveChangesInterceptor : SaveChangesInterceptor
             return;
         }
 
+        // Development anónimo usa un DefaultTenantId sintético; si la entidad ya trae TenantId
+        // explícito (login/bootstrap), permitir la escritura sin forzar el default.
+        var isSyntheticDevTenant = currentTenantId == Guid.Parse("00000000-0000-0000-0000-000000000001");
+        if (isSyntheticDevTenant)
+        {
+            var allHaveExplicitTenant = entries.All(entry =>
+            {
+                var tenantProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == TenantIdPropertyName);
+                if (tenantProperty is null || tenantProperty.Metadata.ClrType != typeof(Guid)) return true;
+                var value = (Guid)(tenantProperty.CurrentValue ?? Guid.Empty);
+                return value != Guid.Empty;
+            });
+
+            if (allHaveExplicitTenant)
+            {
+                return;
+            }
+        }
+
         foreach (var entry in entries)
         {
             var tenantProperty = entry.Properties.FirstOrDefault(p => p.Metadata.Name == TenantIdPropertyName);
