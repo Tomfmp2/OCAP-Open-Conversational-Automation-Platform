@@ -27,7 +27,7 @@ public class WhatsAppWebhookValidator
             return true;
         }
 
-        _logger.LogWarning("Validación de Webhook fallida. Mode: {Mode}, Token: {Token}", mode, verifyToken);
+        _logger.LogWarning("Validación de Webhook fallida. Mode: {Mode}", mode);
         return false;
     }
 
@@ -35,17 +35,16 @@ public class WhatsAppWebhookValidator
     {
         if (string.IsNullOrWhiteSpace(signatureHeader) || string.IsNullOrWhiteSpace(_settings.AppSecret))
         {
+            // En Evolution no hay firma Meta; se valida con apikey/webhook secret aparte.
             return false;
         }
 
         try
         {
             var expectedSignature = signatureHeader.Replace("sha256=", "");
-            
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_settings.AppSecret));
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
             var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-
             return hashString == expectedSignature;
         }
         catch (Exception ex)
@@ -53,6 +52,30 @@ public class WhatsAppWebhookValidator
             _logger.LogError(ex, "Error al validar la firma del webhook de WhatsApp.");
             return false;
         }
+    }
+
+    public bool ValidateEvolutionSecret(string? headerSecret, string? apikeyHeader)
+    {
+        if (string.IsNullOrWhiteSpace(_settings.WebhookSecret) && string.IsNullOrWhiteSpace(_settings.ApiKey))
+        {
+            // Desarrollo local sin secreto configurado: aceptar.
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_settings.WebhookSecret) &&
+            string.Equals(headerSecret, _settings.WebhookSecret, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_settings.ApiKey) &&
+            string.Equals(apikeyHeader, _settings.ApiKey, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        _logger.LogWarning("Secreto Evolution webhook inválido.");
+        return false;
     }
 
     public bool ValidatePayload(WhatsAppCloudWebhookPayload payload)
@@ -63,11 +86,15 @@ public class WhatsAppWebhookValidator
         }
 
         var change = payload.Entry.FirstOrDefault()?.Changes?.FirstOrDefault();
-        if (change == null || change.Field != "messages")
-        {
-            return false;
-        }
+        return change != null && change.Field == "messages";
+    }
 
-        return true;
+    public bool ValidateEvolutionPayload(WhatsAppWebhookPayload? payload)
+    {
+        if (payload == null) return false;
+        var evt = payload.Event ?? string.Empty;
+        return evt.Contains("messages", StringComparison.OrdinalIgnoreCase)
+               || evt.Contains("MESSAGES", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(evt, "messages.upsert", StringComparison.OrdinalIgnoreCase);
     }
 }

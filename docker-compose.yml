@@ -140,6 +140,8 @@ services:
       AiProviders__Ollama__BaseUrl: ${AiProviders__Ollama__BaseUrl:-http://host.docker.internal:11434}
       AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
       Telegram__BotToken: ${Telegram__BotToken:-}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-EvolutionSecretApiKey}
       Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
       Installation__ConfigPath: /app/config
     ports:
