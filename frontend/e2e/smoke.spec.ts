@@ -32,11 +32,13 @@ test("login, navegación principal y logout", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("instalador público muestra el asistente sin autenticación", async ({ page }) => {
-  await page.goto("/installer");
-  await expect(page.getByText(/Instalador OCAP/i).first()).toBeVisible();
-  await expect(page.getByText(/Dónde vas a desplegar|Instalación marcada como completa/i).first()).toBeVisible();
-  await expect(page.locator("main")).toBeVisible();
+test("la configuración inicial es pública y en una instalación configurada lleva al login", async ({ page }) => {
+  await page.goto("/setup");
+  // Instalación nueva: muestra el primer paso. Ya configurada (caso de esta suite, con admin): redirige a /login.
+  await expect(page).toHaveURL(/\/(setup|login)$/);
+  if (page.url().endsWith("/setup")) {
+    await expect(page.getByLabel("Código de configuración")).toBeVisible();
+  }
 });
 
 test("rutas de workflows redirigen al resumen (fuera de v1)", async ({ page }) => {

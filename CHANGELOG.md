@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Instalación**: el instalador web (modos Dev/Local/Web) se reemplaza por `scripts/ocap-setup.sh`, que genera el `.env` con secretos aleatorios, y por una configuración inicial en `/setup` de tres pasos (cuenta, IA opcional, listo) protegida por un código de un solo uso que la API imprime en sus logs. La API ya no escribe `.env`, `generated.env` ni `installation.json`.
+- Los proveedores de Google Workspace toman el token de la conexión OAuth de la organización (o de `Google:AccessToken`).
+
+### Removed
+- `OCAP.DeploymentManager` y sus pruebas.
+
+### Security
+- Sin credenciales por defecto: no hay admin `admin@ocap.io` ni secretos de respaldo en `docker-compose.yml`; Compose no arranca sin los secretos. El admin por entorno es opcional y exige contraseña fuerte.
+
 ## [2.1.0] - 2026-07-29
 
 ### Added

@@ -20,6 +20,6 @@ npm run dev
 
 ## Pages
 
-Dashboard, Agents, Channels, Intelligence, Knowledge, Workflows, Monitoring, Security, Developer, Installer, Settings, Login.
+Dashboard, Agents, Channels, Intelligence, Knowledge, Workflows, Monitoring, Security, Developer, Settings, Login, Setup (configuración inicial).
 
 Billing/Marketplace analytics pages are not shipped in navigation until backend billing APIs are productized.

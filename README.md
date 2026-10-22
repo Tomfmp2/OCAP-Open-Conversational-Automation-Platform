@@ -26,12 +26,14 @@ Requisitos: Docker Engine y Docker Compose.
 ./scripts/ocap-up.sh
 ```
 
-Abre el instalador de producto en `http://localhost:3000/installer` (admin, Google, IA).  
+El script genera el `.env` con secretos aleatorios (`./scripts/ocap-setup.sh`), construye el stack y, al terminar,
+muestra el **código de configuración**. Abre `http://localhost:3000/setup`, ingrésalo y crea la organización y tu
+cuenta de administrador; la conexión con un proveedor de IA es opcional y se puede hacer después.
+
 Reset total: `docker compose down -v && ./scripts/ocap-up.sh`.
 
-Equivalente manual: `cp .env.example .env && docker compose up --build -d`.
-
-Antes de producción, reemplaza las credenciales de ejemplo de `.env` y configura secretos propios.
+Equivalente manual: `./scripts/ocap-setup.sh && docker compose up --build -d`. Detalle en
+[`docs/deployment/FIRST_RUN_SETUP.md`](docs/deployment/FIRST_RUN_SETUP.md).
 
 Servicios y puertos publicados por `docker-compose.yml`:
 
@@ -53,17 +55,9 @@ La API recibe PostgreSQL, Redis y el bus de eventos mediante variables de entorn
 
 ## Administrador inicial
 
-Al iniciar una base sin usuarios, la API crea un tenant, rol y administrador si `Bootstrap:Enabled` es `true` (valor predeterminado). Configura estos valores mediante variables de entorno:
-
-```text
-Bootstrap__Enabled=true
-Bootstrap__AdminEmail=admin@example.com
-Bootstrap__AdminPassword=una-clave-segura
-Bootstrap__TenantName=Mi organización
-Bootstrap__TenantSlug=mi-organizacion
-```
-
-Si no se proporcionan, el código contiene valores de desarrollo conocidos. No deben utilizarse en producción.
+No hay credenciales por defecto. En una base sin usuarios, la API imprime un código de un solo uso en sus logs y el
+panel pide la configuración inicial en `/setup`. Para despliegues automatizados se puede crear el admin desde el
+entorno definiendo `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD` (mínimo 12 caracteres con letras y números).
 
 ## Gobernanza de API
 
