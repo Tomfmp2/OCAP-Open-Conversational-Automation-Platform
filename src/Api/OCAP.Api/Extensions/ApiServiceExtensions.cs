@@ -129,9 +129,11 @@ public static class ApiServiceExtensions
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IUserAuthenticationQuery, EfUserAuthenticationQuery>();
+        services.AddScoped<InitialAdminProvisioner>();
+        // Orden: el bootstrap opcional por entorno corre antes que el código de configuración inicial.
         services.AddHostedService<BootstrapAdminHostedService>();
-        services.AddSingleton<OCAP.Api.Installation.InstallationArtifactStore>();
-        services.AddScoped<OCAP.Api.Installation.IInstallationSetupService, OCAP.Api.Installation.InstallationSetupService>();
+        services.AddSingleton<OCAP.Api.Setup.SetupCodeService>();
+        services.AddHostedService(sp => sp.GetRequiredService<OCAP.Api.Setup.SetupCodeService>());
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<IConsentService, ConsentService>();
 
@@ -304,6 +306,7 @@ public static class ApiServiceExtensions
         }
         else
         {
+            services.AddScoped<IGoogleAccessTokenProvider, OCAP.Api.Services.OAuthGoogleAccessTokenProvider>();
             services.AddHttpClient<ICalendarProvider, GoogleCalendarHttpProvider>()
                 .AddStandardResilienceHandler();
             services.AddHttpClient<IEmailProvider, GoogleGmailHttpProvider>()

@@ -21,9 +21,6 @@
   <Folder Name="/src/Dashboard/">
     <Project Path="src/Dashboard/OCAP.Dashboard/OCAP.Dashboard.csproj" />
   </Folder>
-  <Folder Name="/src/DeploymentManager/">
-    <Project Path="src/DeploymentManager/OCAP.DeploymentManager/OCAP.DeploymentManager.csproj" />
-  </Folder>
   <Folder Name="/src/Infrastructure/">
     <Project Path="src/Infrastructure/OCAP.Infrastructure/OCAP.Infrastructure.csproj" />
   </Folder>
@@ -92,7 +89,6 @@
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
     <Project Path="tests/OCAP.Channels.Tests/OCAP.Channels.Tests.csproj" />
     <Project Path="tests/OCAP.Dashboard.Tests/OCAP.Dashboard.Tests.csproj" />
-    <Project Path="tests/OCAP.DeploymentManager.Tests/OCAP.DeploymentManager.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
     <Project Path="tests/OCAP.Intelligence.Tests/OCAP.Intelligence.Tests.csproj" />
     <Project Path="tests/OCAP.Security.Tests/OCAP.Security.Tests.csproj" />
