@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ocap_db}
       POSTGRES_USER: ${POSTGRES_USER:-ocap_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-OcapSecurePass2026!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}
     ports:
       - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
@@ -24,7 +24,7 @@ services:
     restart: always
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ocap}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-OcapRabbit2026!}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -104,17 +104,17 @@ services:
     container_name: ocap-api
     restart: always
     environment:
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:-OcapSecurePass2026!}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}"
       ConnectionStrings__Redis: "redis:6379"
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-OcapEnterpriseSuperSecretJwtKey2026!}
-      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:-OcapEnterpriseVaultMasterKey2026Secure!}
-      Security__Vault__MasterKey: ${VAULT_MASTER_KEY:-OcapEnterpriseVaultMasterKey2026Secure!}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
+      Jwt__SecretKey: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
+      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
+      Security__Vault__MasterKey: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       Knowledge__UseInMemory: "false"
       Knowledge__VectorStore: "PgVector"
       EventBus__Provider: ${EVENTBUS_PROVIDER:-RabbitMQ}
-      EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:-OcapRabbit2026!}@rabbitmq:5672/"
+      EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}@rabbitmq:5672/"
       EventBus__NatsUrl: "nats://nats:4222"
       EventBus__ImmediateDispatch: "false"
       EventBus__EnableOutbox: "true"
@@ -122,11 +122,9 @@ services:
       OpenTelemetry__ServiceName: "OCAP.Api"
       Storage__Provider: ${STORAGE_PROVIDER:-Local}
       Storage__RootPath: /app/storage
-      Bootstrap__Enabled: "true"
-      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-admin@ocap.io}
-      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe_Admin_2026!}
-      Bootstrap__TenantName: ${BOOTSTRAP_TENANT_NAME:-OCAP Default}
-      Bootstrap__TenantSlug: ${BOOTSTRAP_TENANT_SLUG:-default}
+      # Opcional: sin estas dos variables no hay admin por defecto y el panel pide la configuración inicial.
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       Google__ClientId: ${Google__ClientId:-}
       Google__ClientSecret: ${Google__ClientSecret:-}
       Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
@@ -141,14 +139,12 @@ services:
       AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
       Telegram__BotToken: ${Telegram__BotToken:-}
       EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-EvolutionSecretApiKey}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
       Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
-      Installation__ConfigPath: /app/config
     ports:
       - "${API_HOST_PORT:-5000}:5000"
     volumes:
       - api_storage:/app/storage
-      - ./config:/app/config
     depends_on:
       postgres:
         condition: service_healthy
@@ -207,7 +203,7 @@ services:
     restart: always
     environment:
       SERVER_URL: ${EVOLUTION_API_URL:-http://localhost:8088}
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:-EvolutionSecretApiKey}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
     ports:
       - "8088:8080"
     healthcheck:
