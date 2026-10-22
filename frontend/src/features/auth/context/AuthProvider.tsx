@@ -5,6 +5,7 @@ import {
  authApi,
  mapLoginToStoredUser,
  type LoginRequest,
+ type LoginResponse,
 } from "@/features/auth/api/authApi";
 import {
  clearAuthSession,
@@ -25,6 +26,8 @@ interface AuthContextValue {
  isAuthenticated: boolean;
  isLoading: boolean;
  login: (credentials: LoginRequest) => Promise<void>;
+ /** Abre la sesión con tokens ya emitidos (p. ej. al terminar la configuración inicial). */
+ adoptSession: (result: LoginResponse) => Promise<void>;
  logout: () => Promise<void>;
  hasRole: (role: string) => boolean;
  hasPermission: (permission: string) => boolean;
@@ -145,10 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  return () => clearInterval(interval);
  }, [user]);
 
- const login = React.useCallback(
- async (credentials: LoginRequest) => {
- const result = await authApi.login(credentials);
-
+ const adoptSession = React.useCallback(
+ async (result: LoginResponse) => {
  const provisionalUser = mapLoginToStoredUser(result);
  setAuthSession(
  {
@@ -176,6 +177,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  syncTenantFromAuth(result.tenantId, profile?.fullName || result.email);
  },
  [loadPermissionsForRole, syncTenantFromAuth]
+ );
+
+ const login = React.useCallback(
+ async (credentials: LoginRequest) => {
+ await adoptSession(await authApi.login(credentials));
+ },
+ [adoptSession]
  );
 
  const logout = React.useCallback(async () => {
@@ -212,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  isAuthenticated: !!user,
  isLoading,
  login,
+ adoptSession,
  logout,
  hasRole,
  hasPermission,

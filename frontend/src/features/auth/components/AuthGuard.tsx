@@ -4,7 +4,7 @@ import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthProvider";
 
-const PUBLIC_ROUTES = ["/login", "/installer"];
+const PUBLIC_ROUTES = ["/login", "/setup"];
 
 interface AuthGuardProps {
   children: React.ReactNode;
