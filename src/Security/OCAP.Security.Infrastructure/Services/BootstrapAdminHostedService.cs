@@ -35,6 +35,14 @@ public sealed class BootstrapAdminHostedService : IHostedService
         var email = _configuration["Bootstrap:AdminEmail"];
         var password = _configuration["Bootstrap:AdminPassword"];
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+        if (!IsStrong(password))
+        {
+            // Una contraseña débil o de ejemplo por entorno sería una puerta trasera: se exige la configuración inicial.
+            _logger.LogError(
+                "Bootstrap:AdminPassword no cumple la política (mínimo {Min} caracteres con letras y números). " +
+                "No se creó el administrador desde el entorno.", MinPasswordLength);
+            return;
+        }
 
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
@@ -55,8 +63,16 @@ public sealed class BootstrapAdminHostedService : IHostedService
                 _configuration["Bootstrap:TenantSlug"] ?? "default"),
             cancellationToken);
 
-        _logger.LogInformation("Administrador inicial creado desde el entorno para {Email}.", email);
+        _logger.LogWarning(
+            "Administrador inicial creado desde el entorno para {Email}. Quita BOOTSTRAP_ADMIN_PASSWORD del entorno una vez creado.",
+            email);
     }
+
+    /// <summary>La misma política que la configuración inicial (SetupRequestValidator).</summary>
+    public const int MinPasswordLength = 12;
+
+    private static bool IsStrong(string password) =>
+        password.Length >= MinPasswordLength && password.Any(char.IsLetter) && password.Any(char.IsDigit);
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
