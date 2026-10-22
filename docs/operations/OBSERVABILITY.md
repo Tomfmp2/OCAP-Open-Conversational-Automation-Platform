@@ -10,7 +10,7 @@
   - `/health/ready` — readiness (postgres, eventbus, storage, telemetry)
   - `/health/startup` — startup
   - `/api/health` — alias ready/live
-  - `/api/health/diagnostic` — detalle instalador
+  - `/api/health/diagnostic` — diagnóstico por dependencia (PostgreSQL, bus de eventos, storage)
   - `/api/health/system` — JSON detallado
 
 ## Compose
