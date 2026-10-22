@@ -40,8 +40,18 @@ export function ProviderFormModal({
   const [baseUrl, setBaseUrl] = React.useState("");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (!open) return;
+  // Rellena el formulario al abrirse (ajuste durante el render, no en un efecto): solo cuando cambia lo que se edita,
+  // así un refetch del listado no borra lo que el usuario está escribiendo.
+  const formKey = open
+    ? `${editing?.id ?? "new"}|${createPrefill?.providerName ?? ""}|${createPrefill?.modelName ?? ""}`
+    : null;
+  const [syncedKey, setSyncedKey] = React.useState<string | null>(null);
+  if (formKey !== syncedKey) {
+    setSyncedKey(formKey);
+    if (formKey !== null) fillForm();
+  }
+
+  function fillForm() {
     setErrorMessage(null);
     if (editing) {
       setProviderName(editing.providerName);
@@ -61,7 +71,7 @@ export function ProviderFormModal({
     );
     setBaseUrl("");
     setApiKey("");
-  }, [open, editing, createPrefill]);
+  }
 
   const presets = [
     ...(suggestedModels[providerName] ?? []),

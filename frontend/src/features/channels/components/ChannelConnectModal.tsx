@@ -29,11 +29,15 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
     reset: resetQr,
   } = useWhatsAppQrConnect();
 
+  // Al cerrarse se limpia el error (ajuste durante el render); el QR se detiene en el efecto porque corta el polling.
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (!open) setErrorMessage(null);
+  }
+
   React.useEffect(() => {
-    if (!open) {
-      resetQr();
-      setErrorMessage(null);
-    }
+    if (!open) resetQr();
   }, [open, resetQr]);
 
   React.useEffect(() => {

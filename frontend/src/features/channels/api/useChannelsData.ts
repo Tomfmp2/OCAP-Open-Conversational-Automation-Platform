@@ -254,12 +254,13 @@ export function useWhatsAppQrConnect() {
     [startPolling]
   );
 
+  const instanceName = qrData?.instanceName;
   const refreshQr = React.useCallback(async () => {
-    if (!qrData?.instanceName) return null;
+    if (!instanceName) return null;
     const res = await apiClient.get<{
       success?: boolean;
       data?: Partial<WhatsAppQrData> & { instanceName: string };
-    }>(`/api/channels/whatsapp/qr/${encodeURIComponent(qrData.instanceName)}`);
+    }>(`/api/channels/whatsapp/qr/${encodeURIComponent(instanceName)}`);
     if (res?.data) {
       setQrData((prev) =>
         prev
@@ -274,7 +275,7 @@ export function useWhatsAppQrConnect() {
       );
     }
     return res?.data ?? null;
-  }, [qrData?.instanceName]);
+  }, [instanceName]);
 
   React.useEffect(() => () => stopPolling(), [stopPolling]);
 
