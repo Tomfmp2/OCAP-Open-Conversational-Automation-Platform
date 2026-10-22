@@ -35,13 +35,15 @@ public class OcapApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        // Program.cs lee esto al registrar servicios, antes que ConfigureAppConfiguration: como host setting
+        // cada fábrica tiene su propia base en memoria (si no, todas compartían "OCAP_InMemory_Db").
+        builder.UseSetting("InMemoryDbName", $"OCAP_Test_{Guid.NewGuid():N}");
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["UseInMemory"] = "true",
-                ["InMemoryDbName"] = $"OCAP_Test_{Guid.NewGuid()}",
                 ["Jwt:SecretKey"] = "OCAP_TESTING_JWT_SECRET_KEY_32CHARS_MINIMUM!",
                 ["Jwt:Issuer"] = "OCAP",
                 ["Jwt:Audience"] = "OCAP.Clients",
