@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -62,7 +63,7 @@ public class AiProviderRuntimeAndConfigurationTests
         var registry = new AiProviderRegistry(Array.Empty<IAiProvider>(), httpClient);
         var logger = NullLogger<AiProviderConfigurationService>.Instance;
 
-        var service = new AiProviderConfigurationService(dbContext, vault, registry, logger);
+        var service = new AiProviderConfigurationService(dbContext, vault, registry, new ConfigurationBuilder().Build(), logger);
         var tenantId = Guid.NewGuid();
 
         var createDto = new CreateAiProviderConfigurationDto(
@@ -98,9 +99,9 @@ public class AiProviderRuntimeAndConfigurationTests
         var statusResult = await service.SetStatusAsync(tenantId, created.Id, false);
         statusResult.Should().BeTrue();
 
-        // Fallback cuando está deshabilitado lanza excepcion
-        var action = async () => await service.GetRuntimeProviderForTenantAsync(tenantId);
-        await action.Should().ThrowAsync<InvalidOperationException>();
+        // Deshabilitado: no hay proveedor del tenant y el selector cae al proveedor estático (.env/appsettings).
+        var disabledProvider = await service.GetRuntimeProviderForTenantAsync(tenantId);
+        disabledProvider.Should().BeNull();
     }
 
     [Fact]
@@ -112,7 +113,7 @@ public class AiProviderRuntimeAndConfigurationTests
         var httpClient = new HttpClient(new FakeHttpMessageHandler());
         var registry = new AiProviderRegistry(Array.Empty<IAiProvider>(), httpClient);
         var logger = NullLogger<AiProviderConfigurationService>.Instance;
-        var service = new AiProviderConfigurationService(dbContext, vault, registry, logger);
+        var service = new AiProviderConfigurationService(dbContext, vault, registry, new ConfigurationBuilder().Build(), logger);
 
         var tenantId = Guid.NewGuid();
         await service.CreateConfigurationAsync(new CreateAiProviderConfigurationDto(
@@ -123,7 +124,7 @@ public class AiProviderRuntimeAndConfigurationTests
             ApiKey: "local-key"
         ));
 
-        var selector = new DefaultLanguageModelProviderSelector(Array.Empty<ILanguageModelProvider>(), service);
+        var selector = new DefaultLanguageModelProviderSelector(Array.Empty<ILanguageModelProvider>(), Array.Empty<IAiProvider>(), service);
 
         // Act
         var resolvedProvider = await selector.GetProviderAsync(tenantId);

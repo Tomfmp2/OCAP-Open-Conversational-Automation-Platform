@@ -41,7 +41,6 @@ export const COMMAND_ITEMS = [
   { label: "Agentes", href: "/agents", category: "Navegación" },
   { label: "Conocimiento", href: "/knowledge", category: "Navegación" },
   { label: "Ajustes", href: "/settings", category: "Navegación" },
-  { label: "Instalador", href: "/installer", category: "Sistema" },
 ] as const;
 
 export function getSubmenuForPath(pathname: string): NavSection {
@@ -86,16 +85,7 @@ export function getSubmenuForPath(pathname: string): NavSection {
   if (pathname.startsWith("/settings")) {
     return {
       label: "Ajustes",
-      items: [
-        { label: "Preferencias", href: "/settings" },
-        { label: "Instalador", href: "/installer" },
-      ],
-    };
-  }
-  if (pathname.startsWith("/installer")) {
-    return {
-      label: "Instalador",
-      items: [{ label: "Configuración", href: "/installer" }],
+      items: [{ label: "Preferencias", href: "/settings" }],
     };
   }
   return {

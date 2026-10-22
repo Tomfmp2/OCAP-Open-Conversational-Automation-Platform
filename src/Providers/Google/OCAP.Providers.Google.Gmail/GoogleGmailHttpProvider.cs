@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using OCAP.Providers.Google.Abstractions;
 using OCAP.Providers.Google.Abstractions.Models;
 
@@ -14,12 +13,12 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
     private const string BaseUrl = "https://gmail.googleapis.com/gmail/v1/users/me";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
+    private readonly IGoogleAccessTokenProvider _tokens;
 
-    public GoogleGmailHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
+    public GoogleGmailHttpProvider(HttpClient httpClient, IGoogleAccessTokenProvider tokens)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
 
     public async Task<EmailMessage> SendEmailAsync(
@@ -39,10 +38,10 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
             string.Empty,
             Convert.ToBase64String(Encoding.UTF8.GetBytes(email.Body ?? string.Empty)));
 
-        using var request = CreateRequest(
+        using var request = await CreateRequestAsync(
             HttpMethod.Post,
             $"{BaseUrl}/messages/send",
-            JsonContent.Create(new { raw = ToBase64Url(Encoding.UTF8.GetBytes(mime)) }, options: JsonOptions));
+            JsonContent.Create(new { raw = ToBase64Url(Encoding.UTF8.GetBytes(mime)) }, options: JsonOptions), cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
@@ -66,9 +65,9 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
             throw new ArgumentOutOfRangeException(nameof(maxResults), "maxResults debe ser mayor que cero.");
         }
 
-        using var listRequest = CreateRequest(
+        using var listRequest = await CreateRequestAsync(
             HttpMethod.Get,
-            $"{BaseUrl}/messages?maxResults={Math.Min(maxResults, 500)}");
+            $"{BaseUrl}/messages?maxResults={Math.Min(maxResults, 500)}", null, cancellationToken);
         using var listResponse = await _httpClient.SendAsync(listRequest, cancellationToken);
         await EnsureSuccessAsync(listResponse, cancellationToken);
         var list = await listResponse.Content.ReadFromJsonAsync<GmailMessageList>(JsonOptions, cancellationToken);
@@ -81,9 +80,9 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
                 continue;
             }
 
-            using var getRequest = CreateRequest(
+            using var getRequest = await CreateRequestAsync(
                 HttpMethod.Get,
-                $"{BaseUrl}/messages/{Uri.EscapeDataString(item.Id)}?format=full");
+                $"{BaseUrl}/messages/{Uri.EscapeDataString(item.Id)}?format=full", null, cancellationToken);
             using var getResponse = await _httpClient.SendAsync(getRequest, cancellationToken);
             await EnsureSuccessAsync(getResponse, cancellationToken);
             var message = await getResponse.Content.ReadFromJsonAsync<GmailMessage>(JsonOptions, cancellationToken);
@@ -96,13 +95,13 @@ public sealed class GoogleGmailHttpProvider : IEmailProvider
         return result;
     }
 
-    private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
+    private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        var accessToken = _options.CurrentValue.AccessToken;
+        var accessToken = await _tokens.GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
-                "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Gmail.");
+                "Google Workspace no está conectado. Conecta la cuenta en Integraciones o configura Google:AccessToken antes de usar Gmail.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };

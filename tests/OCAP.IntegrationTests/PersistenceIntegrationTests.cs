@@ -1,3 +1,5 @@
+using OCAP.Agents.Abstractions.Ports;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Core.Entities;
 using OCAP.Core.ValueObjects;
@@ -26,6 +28,16 @@ namespace OCAP.IntegrationTests;
 
 public class PersistenceIntegrationTests : IDisposable
 {
+    /// <summary>El agente con dependencias neutras: sin herramientas ni contexto de sistema.</summary>
+    private static EnterpriseAssistantAgent CreateAssistant(ILanguageModelProviderSelector selector) =>
+        new(selector,
+            new ToolRegistry(),
+            Mock.Of<IActionDispatcher>(),
+            Mock.Of<IOcapSystemContextProvider>(c =>
+                c.GetTenantSnapshotAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()) == Task.FromResult(string.Empty)),
+            new ConfigurationBuilder().Build(),
+            NullLogger<EnterpriseAssistantAgent>.Instance);
+
     private readonly OCAPDbContext _context;
     private readonly UserRepository _userRepository;
     private readonly ConversationRepository _conversationRepository;
@@ -110,7 +122,7 @@ public class PersistenceIntegrationTests : IDisposable
 
         var mockProvider = new MockLanguageModelProvider("Gemini", "Respuesta final del agente");
         var selector = new SingleProviderSelector(mockProvider);
-        var assistantAgent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var assistantAgent = CreateAssistant(selector);
         
         var conversationRepo = new ConversationRepository(_context);
         var messageRepo = new MessageRepository(_context);

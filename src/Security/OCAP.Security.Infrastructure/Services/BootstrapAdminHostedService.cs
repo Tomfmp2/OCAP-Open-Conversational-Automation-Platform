@@ -4,13 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using OCAP.Infrastructure.Persistence.Context;
-using OCAP.Security.Abstractions;
-using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Security.Infrastructure.Services;
 
 /// <summary>
-/// Crea tenant/admin inicial solo si la base no tiene usuarios (bootstrap controlado por env).
+/// Alta del primer admin desde el entorno, para despliegues automatizados (CI, demos efímeras).
+/// Es opcional: solo actúa si se definen <c>Bootstrap:AdminEmail</c> y <c>Bootstrap:AdminPassword</c>.
+/// Sin ellos no hay credenciales por defecto y el primer acceso se crea con la configuración inicial (/setup).
 /// </summary>
 public sealed class BootstrapAdminHostedService : IHostedService
 {
@@ -30,58 +30,49 @@ public sealed class BootstrapAdminHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var enabled = _configuration.GetValue("Bootstrap:Enabled", true);
-        if (!enabled) return;
+        if (!_configuration.GetValue("Bootstrap:Enabled", true)) return;
+
+        var email = _configuration["Bootstrap:AdminEmail"];
+        var password = _configuration["Bootstrap:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+        if (!IsStrong(password))
+        {
+            // Una contraseña débil o de ejemplo por entorno sería una puerta trasera: se exige la configuración inicial.
+            _logger.LogError(
+                "Bootstrap:AdminPassword no cumple la política (mínimo {Min} caracteres con letras y números). " +
+                "No se creó el administrador desde el entorno.", MinPasswordLength);
+            return;
+        }
 
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-
         if (!db.Database.IsRelational())
         {
             await db.Database.EnsureCreatedAsync(cancellationToken);
         }
 
-        var hasUsers = await db.UserIdentities.IgnoreQueryFilters().AnyAsync(cancellationToken);
-        if (hasUsers) return;
+        var provisioner = scope.ServiceProvider.GetRequiredService<InitialAdminProvisioner>();
+        if (await provisioner.HasUsersAsync(cancellationToken)) return;
 
-        var email = _configuration["Bootstrap:AdminEmail"] ?? "admin@ocap.io";
-        var password = _configuration["Bootstrap:AdminPassword"] ?? "ChangeMe_Admin_2026!";
-        var tenantName = _configuration["Bootstrap:TenantName"] ?? "OCAP Default";
-        var tenantSlug = _configuration["Bootstrap:TenantSlug"] ?? "default";
-
-        // Tenant fijo compatible con HttpTenantContext DefaultTenantId en Development anónimo.
-        var tenantId = Guid.TryParse(_configuration["Bootstrap:TenantId"], out var configuredTenantId)
-            && configuredTenantId != Guid.Empty
-            ? configuredTenantId
-            : Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var userId = Guid.NewGuid();
-        var roleId = Guid.NewGuid();
-        var (hash, salt) = hasher.HashPassword(password);
-
-        var tenant = new Tenant(tenantId, tenantName, tenantSlug);
-        var role = new Role(roleId, tenantId, "Admin", "Administrador del tenant", new[]
-        {
-            "Conversation.Read", "Conversation.Write", "Conversation.Delete",
-            "Agent.Read", "Agent.Write", "Agent.Execute", "Tool.Execute",
-            "Dashboard.Read", "Dashboard.Admin", "Deployment.Manage", "AI.Execute",
-            "Settings.Manage", "OAuth.Manage", "Knowledge.Manage", "Workflow.Manage",
-            "Security.Manage", "Channel.Manage"
-        });
-        var user = new UserIdentity(userId, tenantId, email, hash, salt, "Administrator");
-        user.VerifyEmail();
-        var userRole = new UserRole(Guid.NewGuid(), userId, roleId, tenantId);
-
-        db.Tenants.Add(tenant);
-        db.Roles.Add(role);
-        db.UserIdentities.Add(user);
-        db.UserRoles.Add(userRole);
-        await db.SaveChangesAsync(cancellationToken);
+        await provisioner.CreateAsync(
+            new InitialAdminRequest(
+                email,
+                password,
+                "Administrator",
+                _configuration["Bootstrap:TenantName"] ?? "OCAP",
+                _configuration["Bootstrap:TenantSlug"] ?? "default"),
+            cancellationToken);
 
         _logger.LogWarning(
-            "Bootstrap admin created for {Email}. Change Bootstrap:AdminPassword immediately in production.",
+            "Administrador inicial creado desde el entorno para {Email}. Quita BOOTSTRAP_ADMIN_PASSWORD del entorno una vez creado.",
             email);
     }
+
+    /// <summary>La misma política que la configuración inicial (SetupRequestValidator).</summary>
+    public const int MinPasswordLength = 12;
+
+    private static bool IsStrong(string password) =>
+        password.Length >= MinPasswordLength && password.Any(char.IsLetter) && password.Any(char.IsDigit);
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

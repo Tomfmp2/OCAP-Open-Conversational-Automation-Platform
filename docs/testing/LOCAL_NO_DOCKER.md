@@ -8,10 +8,15 @@
 
 Abre dos ventanas: API `http://localhost:5229` y frontend `http://localhost:3000`.
 
-## Login
+## Primer acceso
 
-- Email: `admin@ocap.io`
-- Password: `ChangeMe_Admin_2026!`
+La base es en memoria, así que cada reinicio de la API empieza vacío:
+
+- Abre `http://localhost:3000/setup` e ingresa el código que imprime la ventana de la API, o
+- define `BOOTSTRAP_ADMIN_EMAIL` y `BOOTSTRAP_ADMIN_PASSWORD` (mínimo 12 caracteres con letras y números) en `.env`
+  para que el admin se cree solo en cada arranque.
+
+Detalle en [`docs/deployment/FIRST_RUN_SETUP.md`](../deployment/FIRST_RUN_SETUP.md).
 
 ## Qué ya funciona sin keys
 

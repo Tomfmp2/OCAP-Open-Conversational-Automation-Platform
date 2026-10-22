@@ -1,6 +1,6 @@
 # Estado actual de OCAP (hito local v1)
 
-Última actualización: 2026-08-04
+Última actualización: 2026-10-22
 
 ## Resumen
 
@@ -8,7 +8,7 @@ OCAP ya se puede desarrollar y probar **en local sin Docker** (`scripts/ocap-dev
 
 - API en `http://localhost:5229`
 - Panel en `http://localhost:3000`
-- Login bootstrap: `admin@ocap.io` / `ChangeMe_Admin_2026!` (cambiar en producción)
+- Primer acceso: configuración inicial en `/setup` con el código que imprime la API (ver `docs/deployment/FIRST_RUN_SETUP.md`)
 
 El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Evolution**, no el diseñador de workflows (retirado de la UI v1).
 
@@ -17,7 +17,7 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 | Área | Estado | Notas |
 | --- | --- | --- |
 | Arranque local (UseInMemory) | Listo | `.env` + `ocap-dev.ps1`; reiniciar API tras cambiar keys |
-| Instalador (Dev / Local / Web) | Listo | Wizard mínimo; secretos van al `.env`, no a `installation.json` |
+| Instalación | Listo | `ocap-setup.sh` genera `.env` y secretos; configuración inicial en `/setup` protegida por código |
 | Agente principal (home) | Listo | Chat tipo asistente con contexto de sistema OCAP |
 | IA y modelos | Listo | CRUD por tenant, probar/usar/editar, preferred provider |
 | Gemini | Listo | Modelo por defecto `gemini-3.5-flash`; auth por `x-goog-api-key` |
@@ -27,12 +27,10 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 
 ## Cómo verificar IA
 
-1. Configura `AiProviders__Gemini__ApiKey` en `.env` (no uses `installation.json` para secretos).
-2. Reinicia la API.
+1. Conecta el proveedor en el paso **IA** de `/setup` o en **IA y modelos** (la clave se guarda cifrada); también sirve `AiProviders__Gemini__ApiKey` en `.env`.
+2. Si usaste `.env`, reinicia la API (la configuración desde el panel no lo necesita).
 3. En **IA y modelos**, pulsa **Probar** en Gemini.
 4. En el home, envía un mensaje al agente principal.
-
-Si ves `API_KEY_INVALID` con key `***`, es un artefacto viejo de instalación: regenera/limpia `ApiKey` en JSON de instalación o asegúrate de que el `.env` gane (la API vuelve a cargar variables de entorno después de `installation.json`).
 
 ## Pendiente / siguiente
 
@@ -43,6 +41,4 @@ Si ves `API_KEY_INVALID` con key `***`, es un artefacto viejo de instalación: r
 
 ## Artefactos locales (no versionados)
 
-- `.env`
-- `src/Api/OCAP.Api/config/installation.json`
-- `src/Api/OCAP.Api/config/generated.env`
+- `.env` (lo genera `./scripts/ocap-setup.sh`)

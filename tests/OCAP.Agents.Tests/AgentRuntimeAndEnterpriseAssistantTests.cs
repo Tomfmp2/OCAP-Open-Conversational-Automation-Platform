@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -13,13 +14,23 @@ namespace OCAP.Agents.Tests;
 
 public class AgentRuntimeAndEnterpriseAssistantTests
 {
+    /// <summary>El agente con dependencias neutras: sin herramientas ni contexto de sistema.</summary>
+    private static EnterpriseAssistantAgent CreateAssistant(ILanguageModelProviderSelector selector) =>
+        new(selector,
+            new ToolRegistry(),
+            Mock.Of<IActionDispatcher>(),
+            Mock.Of<IOcapSystemContextProvider>(c =>
+                c.GetTenantSnapshotAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()) == Task.FromResult(string.Empty)),
+            Mock.Of<IConfiguration>(),
+            NullLogger<EnterpriseAssistantAgent>.Instance);
+
     [Fact]
     public async Task EnterpriseAssistantAgent_Should_Process_Request_Using_LanguageModelProvider()
     {
         // Arrange
         var mockProvider = new MockLanguageModelProvider("OpenAI", "Respuesta de Inteligencia Empresarial OCAP");
         var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var agent = CreateAssistant(selector);
 
         var context = new AgentContext(
             EnterpriseAssistantAgent.EnterpriseAssistantAgentId,
@@ -44,7 +55,7 @@ public class AgentRuntimeAndEnterpriseAssistantTests
         // Arrange
         var mockProvider = new MockLanguageModelProvider("Gemini", "Procesado por Gemini");
         var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var agent = CreateAssistant(selector);
         var runtime = new AgentRuntime(agent, NullLogger<AgentRuntime>.Instance);
 
         var context = new AgentContext(
@@ -79,7 +90,7 @@ public class AgentRuntimeAndEnterpriseAssistantTests
         // Arrange
         var mockProvider = new MockLanguageModelProvider("Ollama", "Procesado localmente con Ollama");
         var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var agent = CreateAssistant(selector);
         var runtime = new AgentRuntime(agent, NullLogger<AgentRuntime>.Instance);
         var resolver = new AgentResolver();
 

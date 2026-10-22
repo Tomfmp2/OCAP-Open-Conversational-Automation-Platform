@@ -6,7 +6,7 @@ import { PrimaryRail } from "@/shared/components/navigation/PrimaryRail";
 import { SecondarySidebar } from "@/shared/components/navigation/SecondarySidebar";
 import { Topbar } from "@/shared/components/navigation/Topbar";
 
-const MINIMAL_LAYOUT_ROUTES = ["/login", "/installer"];
+const MINIMAL_LAYOUT_ROUTES = ["/login", "/setup"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

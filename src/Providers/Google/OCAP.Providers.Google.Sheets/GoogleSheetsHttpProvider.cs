@@ -1,7 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using OCAP.Providers.Google.Abstractions;
 using OCAP.Providers.Google.Abstractions.Models;
 
@@ -12,12 +11,12 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
     private const string BaseUrl = "https://sheets.googleapis.com/v4/spreadsheets";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
+    private readonly IGoogleAccessTokenProvider _tokens;
 
-    public GoogleSheetsHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
+    public GoogleSheetsHttpProvider(HttpClient httpClient, IGoogleAccessTokenProvider tokens)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
 
     public async Task<bool> AppendRowAsync(
@@ -32,10 +31,10 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
         var range = Uri.EscapeDataString(request.SheetName);
         var url = $"{BaseUrl}/{spreadsheetId}/values/{range}:append" +
                   "?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS";
-        using var httpRequest = CreateRequest(
+        using var httpRequest = await CreateRequestAsync(
             HttpMethod.Post,
             url,
-            JsonContent.Create(new { values = new[] { request.Values } }, options: JsonOptions));
+            JsonContent.Create(new { values = new[] { request.Values } }, options: JsonOptions), cancellationToken);
         using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return true;
@@ -50,7 +49,7 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
         ArgumentException.ThrowIfNullOrWhiteSpace(range);
 
         var url = $"{BaseUrl}/{Uri.EscapeDataString(spreadsheetId)}/values/{Uri.EscapeDataString(range)}";
-        using var request = CreateRequest(HttpMethod.Get, url);
+        using var request = await CreateRequestAsync(HttpMethod.Get, url, null, cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
@@ -60,13 +59,13 @@ public sealed class GoogleSheetsHttpProvider : ISpreadsheetProvider
             .ToList() ?? [];
     }
 
-    private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
+    private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        var accessToken = _options.CurrentValue.AccessToken;
+        var accessToken = await _tokens.GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
-                "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Sheets.");
+                "Google Workspace no está conectado. Conecta la cuenta en Integraciones o configura Google:AccessToken antes de usar Sheets.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };

@@ -29,9 +29,9 @@ Sirve como:
 - Monitor en tiempo real.
 - Configurador de instancias y canales.
 
-### Deployment Manager
-El Deployment Manager no es un instalador tradicional, es el orquestador de despliegue. Diseñado como un componente independiente, asiste a usuarios técnicos y no técnicos en el despliegue de su instancia de OCAP. Su responsabilidad abarca:
-- Validar requisitos del sistema.
-- Generar archivos de configuración (Docker, variables de entorno).
-- Ejecutar migraciones iniciales.
-- Validar el funcionamiento end-to-end antes del paso a producción.
+### Instalación
+La instalación se divide en infraestructura y producto. `scripts/ocap-setup.sh` genera el `.env` (puertos,
+base de datos, secretos aleatorios) antes de arrancar, y el panel guía la configuración inicial en `/setup`
+(organización, administrador, IA), protegida por un código de un solo uso que la API imprime en sus logs.
+La API nunca escribe archivos de configuración. Detalle en `docs/deployment/FIRST_RUN_SETUP.md`.
+
