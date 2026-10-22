@@ -16,6 +16,8 @@ export function Input({
   ...props
 }: InputProps) {
   const inputId = id || props.name;
+  // El error y la ayuda se asocian al campo para que los lectores de pantalla los anuncien.
+  const messageId = inputId && (error || hint) ? `${inputId}-message` : undefined;
 
   return (
     <div className="space-y-1.5">
@@ -29,6 +31,8 @@ export function Input({
       )}
       <input
         id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={messageId}
         className={cn(
           "w-full rounded-md border bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400 focus-ring",
           error ? "border-neutral-950" : "border-neutral-300",
@@ -37,9 +41,9 @@ export function Input({
         {...props}
       />
       {error ? (
-        <p className="text-[11px] font-medium text-neutral-950">{error}</p>
+        <p id={messageId} className="text-[11px] font-medium text-neutral-950">{error}</p>
       ) : hint ? (
-        <p className="text-[11px] text-neutral-500">{hint}</p>
+        <p id={messageId} className="text-[11px] text-neutral-500">{hint}</p>
       ) : null}
     </div>
   );

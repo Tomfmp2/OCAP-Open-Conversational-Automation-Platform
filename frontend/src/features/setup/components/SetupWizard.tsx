@@ -21,7 +21,7 @@ type StepId = (typeof STEPS)[number]["id"];
 const STEP_COPY: Record<StepId, { title: string; description: string }> = {
   admin: {
     title: "Crea tu cuenta de administrador",
-    description: "Es la primera cuenta de esta instalación. Después podrás invitar a tu equipo.",
+    description: "Es la primera cuenta de esta instalación y tendrá todos los permisos de administración.",
   },
   ai: {
     title: "Conecta un proveedor de IA",
