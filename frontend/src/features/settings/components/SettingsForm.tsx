@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { Settings, Save, CheckCircle2, AlertCircle, Wrench } from "lucide-react";
+import { Settings, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import { SettingsConfig } from "../api/useSettingsData";
 import { Badge, Button, Input, Surface } from "@/shared/components/ui";
 
@@ -137,22 +136,6 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
         </form>
       </Surface>
 
-      <Surface className="flex items-center justify-between gap-3" padding="md">
-        <div className="flex items-center gap-2">
-          <Wrench className="h-4 w-4 text-neutral-600" />
-          <div>
-            <p className="text-sm font-semibold text-neutral-950">Instalador</p>
-            <p className="text-[11px] text-neutral-500">
-              Reaplicar admin, Google, IA o canales.
-            </p>
-          </div>
-        </div>
-        <Link href="/installer">
-          <Button type="button" variant="secondary" size="sm">
-            Abrir instalador
-          </Button>
-        </Link>
-      </Surface>
     </div>
   );
 }

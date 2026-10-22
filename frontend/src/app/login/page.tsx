@@ -1,14 +1,23 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import { AlertCircle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthProvider";
+import { useSetupStatus } from "@/features/setup/api/setupApi";
 import { ApiError } from "@/shared/api/apiClient";
 import { Button, Input } from "@/shared/components/ui";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const router = useRouter();
+  const setupStatus = useSetupStatus();
+  const setupRequired = setupStatus.data?.required === true;
+
+  // Instalación sin cuentas: no hay con qué iniciar sesión, se va directo a la configuración inicial.
+  React.useEffect(() => {
+    if (setupRequired) router.replace("/setup");
+  }, [setupRequired, router]);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
@@ -24,7 +33,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       if (err instanceof ApiError && err.status === 401) {
         setError(
-          "Email o contraseña incorrectos. Usa la cuenta del instalador o vuelve a /installer y aplica de nuevo."
+          "Email o contraseña incorrectos."
         );
       } else if (err instanceof Error) {
         setError(err.message);
@@ -58,7 +67,7 @@ export default function LoginPage() {
 
         <h1 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h1>
         <p className="mt-2 text-sm text-neutral-500">
-          Accede al panel con el email y contraseña definidos en el instalador.
+          Accede con la cuenta de administrador que creaste en la configuración inicial.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -105,15 +114,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-8 text-sm text-neutral-500">
-          ¿Primera instalación?{" "}
-          <Link
-            href="/installer"
-            className="font-medium text-neutral-950 underline underline-offset-4"
-          >
-            Abrir instalador
-          </Link>
-        </p>
       </div>
     </div>
   );
