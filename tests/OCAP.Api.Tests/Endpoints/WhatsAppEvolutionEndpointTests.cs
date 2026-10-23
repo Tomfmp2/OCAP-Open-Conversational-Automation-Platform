@@ -161,20 +161,32 @@ public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFac
     }
 
     [Fact]
-    public async Task Webhook_WithoutSignature_IsRejectedEvenIfTheEventIsIgnored()
+    public async Task Webhook_UnsignedEventThatIsNotProcessed_IsAcknowledgedWithoutEffects()
     {
         var client = _factory.CreateClient();
-        var json = $$"""{ "event": "messages.upsert", "instance": "{{SeedInstance}}", "data": {} }""";
+        var json = $$"""{ "event": "logout.instance", "instance": "{{SeedInstance}}", "data": { "state": "close" } }""";
+
+        var response = await client.PostAsync("/api/webhooks/whatsapp", new StringContent(json, Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Webhook_UnsignedMessage_IsRejected()
+    {
+        var client = _factory.CreateClient();
+        var json = MessageUpsert(SeedInstance, "MSG-UNSIGNED", "573005550003", "hola");
 
         var response = await client.PostAsync("/api/webhooks/whatsapp", new StringContent(json, Encoding.UTF8, "application/json"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        _factory.Evolution.SentTexts.Should().NotContain(sent => sent.Number == "573005550003");
     }
 
     [Fact]
     public async Task Webhook_FromAnInstanceThatIsNotAnOrganization_IsRejected()
     {
-        var response = await PostWebhookAsync("ocap-main", """{ "event": "messages.upsert", "instance": "ocap-main", "data": {} }""");
+        var response = await PostWebhookAsync("ocap-main", MessageUpsert("ocap-main", "MSG-MAIN", "573005550004", "hola"));
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }

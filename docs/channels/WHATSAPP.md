@@ -30,7 +30,7 @@ Teléfono ─QR─► Evolution (instancia ocap-{tenantId:N}) ──webhook firm
 |---|---|
 | Una instancia por organización, nombre `ocap-{tenantId:N}` | El webhook sabe de qué organización es un evento sin consultar nada; vincular dos veces reutiliza la misma instancia. |
 | Firma por instancia: `X-OCAP-Webhook-Signature = HMAC-SHA256(clave, instancia)`, con la clave derivada de `EVOLUTION_API_KEY` (o `WHATSAPP_WEBHOOK_SECRET` si se define) | Evolution la envía como cabecera fija del webhook de cada instancia. La firma de una organización no sirve para otra. |
-| El webhook **falla cerrado** | Sin API key de Evolution responde 503; sin firma válida, 401, antes de interpretar el evento. Así nadie puede inyectar mensajes falsos llamando al webhook. |
+| El webhook **falla cerrado** | Sin API key de Evolution responde 503. Los eventos que OCAP procesa (QR, conexión, mensajes) sin firma válida reciben 401; los que no procesa se confirman con 200 sin efecto, porque Evolution envía algunos de ciclo de vida sin cabeceras. Nadie puede inyectar mensajes falsos. |
 | Tenant fijado por el servidor (`HttpTenantContext.UseTrustedTenant`) | La petición no tiene sesión; tras verificar la firma, las lecturas y escrituras de EF quedan aisladas en esa organización. |
 | Deduplicación por `key.id` (6 h, memoria) | Evolution reintenta los webhooks que tardan o fallan; un mensaje se responde una sola vez. |
 | Respuesta de respaldo si el agente falla | El contacto nunca queda sin contestación (p. ej. sin proveedor de IA configurado). |

@@ -85,18 +85,22 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Payload de Evolution inválido");
         }
 
-        // Toda llamada debe venir firmada por su instancia, aunque luego el evento no se procese.
+        // Lo que OCAP no procesa se confirma sin tocar nada: Evolution envía algunos eventos de ciclo de vida sin las
+        // cabeceras de la instancia, y un 401 solo provocaría reintentos.
+        if (webhookEvent is null)
+        {
+            return Ok();
+        }
+
+        // Todo evento que se procesa debe venir firmado por su instancia.
         var signature = Request.Headers[EvolutionInstanceIdentity.SignatureHeader].FirstOrDefault();
         if (!EvolutionInstanceIdentity.TryParseTenant(instance, out var tenantId)
             || !EvolutionInstanceIdentity.IsValidSignature(instance!, signature, secret))
         {
-            _logger.LogWarning("Webhook de WhatsApp rechazado: instancia desconocida o firma inválida.");
+            _logger.LogWarning(
+                "Webhook de WhatsApp rechazado (instancia {Instance}, evento {Event}, con firma: {HasSignature}).",
+                instance, webhookEvent.GetType().Name, !string.IsNullOrWhiteSpace(signature));
             return Unauthorized();
-        }
-
-        if (webhookEvent is null)
-        {
-            return Ok();
         }
 
         // Firma verificada: desde aquí todo lo que se lea o escriba queda en la organización de la instancia.
