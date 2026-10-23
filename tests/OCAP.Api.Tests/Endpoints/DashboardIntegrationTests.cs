@@ -38,7 +38,7 @@ public class DashboardIntegrationTests
     {
         // Arrange
         using var db = CreateDbContext();
-        var controller = new DashboardController(db);
+        var controller = new DashboardController(new OCAP.Api.Queries.DashboardQueries(db));
 
         // Act - Overview
         var overviewResult = await controller.GetOverview(CancellationToken.None);
