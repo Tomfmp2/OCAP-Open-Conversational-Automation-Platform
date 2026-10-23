@@ -189,17 +189,6 @@ services:
       retries: 5
       start_period: 30s
 
-  ocap-dashboard:
-    build:
-      context: .
-      dockerfile: docker/dashboard/Dockerfile
-    container_name: ocap-dashboard
-    restart: always
-    ports:
-      - "8081:80"
-    depends_on:
-      - ocap-api
-
   # Puente de WhatsApp (sesiones de WhatsApp Web). Guarda las sesiones en el Postgres de OCAP, en su propio
   # esquema, y usa el Redis compartido: vincular una vez sobrevive a reinicios.
   evolution-api:
@@ -261,7 +250,6 @@ services:
     depends_on:
       - ocap-api
       - ocap-frontend
-      - ocap-dashboard
 
 volumes:
   postgres_data:

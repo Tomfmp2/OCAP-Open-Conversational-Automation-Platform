@@ -1,5 +1,8 @@
 # OCAP — Decisión de Arquitectura del Dashboard
 
+> **Reemplazada.** El panel de administración es la app Next.js de `frontend/`; `OCAP.Dashboard` (Blazor) se
+> eliminó porque duplicaba sus funciones (ver `docs/roadmap/PLAN_MEJORA_V1.md`, Fase 2).
+
 ## Decisión Técnica: Blazor WebAssembly vs Blazor Server
 
 Para el desarrollo del panel de administración de OCAP se evaluaron dos tecnologías principales dentro del ecosistema Microsoft:

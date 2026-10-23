@@ -48,7 +48,6 @@ Servicios y puertos publicados por `docker-compose.yml`:
 | Jaeger | `16686` |
 | Prometheus | `9090` |
 | Nginx | `80` |
-| Dashboard auxiliar | `8081` |
 | Evolution API (solo `127.0.0.1`) | `8088` |
 
 La API recibe PostgreSQL, Redis y el bus de eventos mediante variables de entorno del contenedor. Cambia `EVENTBUS_PROVIDER` a `Nats` para usar NATS; el valor por defecto del Compose es `RabbitMQ`.
