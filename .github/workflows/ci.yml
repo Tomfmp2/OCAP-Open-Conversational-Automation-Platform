@@ -13,7 +13,7 @@ concurrency:
 jobs:
   backend:
     name: Backend Build & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -26,7 +26,8 @@ jobs:
         run: dotnet restore OCAP.slnx
 
       - name: Build
-        run: dotnet build OCAP.slnx -c Release --no-restore
+        # Un aviso nuevo rompe el build: así el código no acumula advertencias.
+        run: dotnet build OCAP.slnx -c Release --no-restore -p:TreatWarningsAsErrors=true
 
       - name: Test with coverage
         run: >
@@ -46,7 +47,7 @@ jobs:
 
   frontend:
     name: Frontend Lint Typecheck Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -79,7 +80,7 @@ jobs:
 
   security-scan:
     name: Security & Dependency Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -96,11 +97,18 @@ jobs:
       - name: dotnet vulnerable packages
         run: |
           dotnet restore OCAP.slnx
-          dotnet list OCAP.slnx package --vulnerable --include-transitive 2>&1 | tee vuln-dotnet.txt || true
+          dotnet list OCAP.slnx package --vulnerable --include-transitive 2>&1 | tee vuln-dotnet.txt
+          if grep -q "has the following vulnerable packages" vuln-dotnet.txt; then
+            echo "::error::Hay paquetes NuGet con vulnerabilidades conocidas (ver vuln-dotnet.txt)."
+            exit 1
+          fi
 
       - name: npm audit (frontend)
         working-directory: frontend
-        run: npm audit --omit=dev 2>&1 | tee ../vuln-npm.txt || true
+        # Solo dependencias de producción: las de desarrollo (lint, tests) no se publican en la imagen.
+        run: |
+          set -o pipefail
+          npm audit --omit=dev --audit-level=high 2>&1 | tee ../vuln-npm.txt
 
       - name: Upload vulnerability reports
         if: always()
@@ -113,7 +121,7 @@ jobs:
 
   sbom:
     name: Generate SBOM
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -132,7 +140,7 @@ jobs:
 
   docker:
     name: Docker Build & Container Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
@@ -165,20 +173,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Fijada por commit (v0.36.0): un tag se puede mover; el tag 0.28.0 que se usaba ya no existe.
       - name: Trivy scan API image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ocap-api:ci
           format: table
-          exit-code: '0'
+          exit-code: '1'
+          ignore-unfixed: true
           severity: CRITICAL,HIGH
 
       - name: Trivy scan Frontend image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ocap-frontend:ci
           format: table
-          exit-code: '0'
+          exit-code: '1'
+          ignore-unfixed: true
           severity: CRITICAL,HIGH
 
       - name: Save images as artifacts
