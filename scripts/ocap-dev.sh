@@ -33,7 +33,6 @@ if [[ -n "${BOOTSTRAP_ADMIN_EMAIL:-}" && -n "${BOOTSTRAP_ADMIN_PASSWORD:-}" ]]; 
 fi
 # WhatsApp con Evolution en Docker (docker compose up -d evolution-api): la API lee estos nombres.
 [[ -n "${EVOLUTION_API_KEY:-}" ]] && export WhatsApp__ApiKey="${WhatsApp__ApiKey:-$EVOLUTION_API_KEY}"
-[[ -n "${WHATSAPP_WEBHOOK_SECRET:-}" ]] && export WhatsApp__WebhookSecret="${WhatsApp__WebhookSecret:-$WHATSAPP_WEBHOOK_SECRET}"
 
 # Cada proceso en su propio grupo: al salir se termina el grupo entero (dotnet, next y sus hijos),
 # no solo el subshell que los lanzó.

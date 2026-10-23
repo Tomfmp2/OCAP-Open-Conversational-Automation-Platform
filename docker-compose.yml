@@ -142,7 +142,8 @@ services:
       WhatsApp__BaseUrl: http://evolution-api:8080
       WhatsApp__ApiKey: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
       WhatsApp__WebhookUrl: http://ocap-api:5000/api/webhooks/whatsapp
-      WhatsApp__WebhookSecret: ${WHATSAPP_WEBHOOK_SECRET:?Falta WHATSAPP_WEBHOOK_SECRET (ejecuta ./scripts/ocap-setup.sh)}
+      # Opcional: sin él, las firmas del webhook se derivan de EVOLUTION_API_KEY.
+      WhatsApp__WebhookSecret: ${WHATSAPP_WEBHOOK_SECRET:-}
       Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
     ports:
       - "${API_HOST_PORT:-5000}:5000"

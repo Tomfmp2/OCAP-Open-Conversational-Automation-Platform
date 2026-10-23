@@ -17,7 +17,7 @@ secretos) se decide antes de arrancar, y lo del producto se guarda en la base de
 ```
 
 `ocap-setup.sh` crea `.env` desde `.env.example` (permisos `600`) y rellena con valores aleatorios los secretos
-vacíos: `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET_KEY`, `VAULT_MASTER_KEY`, `EVOLUTION_API_KEY` y `WHATSAPP_WEBHOOK_SECRET`.
+vacíos: `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET_KEY`, `VAULT_MASTER_KEY` y `EVOLUTION_API_KEY`.
 Es idempotente: nunca cambia un valor que ya tenga contenido. `docker compose` se niega a arrancar si falta
 alguno de esos secretos; no hay valores por defecto publicados en el repositorio.
 

@@ -41,7 +41,7 @@ Sin keys, `AiProviders__EnableMock=true` responde en local.
 ## Telegram / WhatsApp (opcional)
 
 - Telegram: token de @BotFather → conectar en UI Canales
-- WhatsApp (Evolution): levanta solo Evolution con `docker compose up -d evolution-api` y exporta `EVOLUTION_API_KEY` y `WhatsApp__WebhookSecret` (los valores de `EVOLUTION_API_KEY` y `WHATSAPP_WEBHOOK_SECRET` del `.env`). Ver `docs/channels/WHATSAPP.md`
+- WhatsApp (Evolution): levanta solo Evolution con `docker compose up -d evolution-api` y exporta `EVOLUTION_API_KEY` (el valor del `.env`). Ver `docs/channels/WHATSAPP.md`
 
 ## Nota
 

@@ -7,23 +7,27 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using OCAP.Api.Tests.Infrastructure;
+using OCAP.Channels.WhatsApp.Configuration;
 using OCAP.Channels.WhatsApp.Evolution;
 
 namespace OCAP.Api.Tests.Endpoints;
 
 public class WhatsAppEvolutionFactory : OcapApiFactory
 {
-    public const string WebhookSecret = "whatsapp-webhook-secret-de-pruebas";
+    private const string EvolutionApiKey = "evolution-global-key";
+
+    /// <summary>Sin WhatsApp:WebhookSecret configurado: la clave de las firmas se deriva de la API key.</summary>
+    public static string WebhookSecret => new WhatsAppSettings { ApiKey = EvolutionApiKey }.EffectiveWebhookSecret;
+
     public FakeEvolutionApi Evolution { get; } = new();
 
-    protected virtual string Secret => WebhookSecret;
+    protected virtual string ApiKey => EvolutionApiKey;
 
     protected override IDictionary<string, string?> ExtraSettings => new Dictionary<string, string?>
     {
         ["WhatsApp:BaseUrl"] = "http://evolution-api:8080",
-        ["WhatsApp:ApiKey"] = "evolution-global-key",
-        ["WhatsApp:WebhookUrl"] = "http://ocap-api:5000/api/webhooks/whatsapp",
-        ["WhatsApp:WebhookSecret"] = Secret
+        ["WhatsApp:ApiKey"] = ApiKey,
+        ["WhatsApp:WebhookUrl"] = "http://ocap-api:5000/api/webhooks/whatsapp"
     };
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -34,10 +38,10 @@ public class WhatsAppEvolutionFactory : OcapApiFactory
     }
 }
 
-/// <summary>Instalación sin secreto de webhook: el webhook debe rechazar todo.</summary>
+/// <summary>Instalación sin API key de Evolution: no hay clave para verificar firmas y el webhook rechaza todo.</summary>
 public sealed class WhatsAppWithoutSecretFactory : WhatsAppEvolutionFactory
 {
-    protected override string Secret => string.Empty;
+    protected override string ApiKey => string.Empty;
 }
 
 public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFactory>

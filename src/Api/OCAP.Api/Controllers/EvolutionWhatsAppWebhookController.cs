@@ -63,10 +63,11 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Receive(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_settings.WebhookSecret))
+        var secret = _settings.EffectiveWebhookSecret;
+        if (string.IsNullOrWhiteSpace(secret))
         {
-            // Falla cerrado: sin secreto no hay forma de saber quién llama.
-            _logger.LogError("Webhook de WhatsApp rechazado: WhatsApp__WebhookSecret no está configurado.");
+            // Falla cerrado: sin API key de Evolution no hay clave para verificar quién llama.
+            _logger.LogError("Webhook de WhatsApp rechazado: falta la API key de Evolution (EVOLUTION_API_KEY).");
             return Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "WhatsApp no está configurado");
         }
 
@@ -88,7 +89,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
         // Toda llamada debe venir firmada por su instancia, aunque luego el evento no se procese.
         var signature = Request.Headers[EvolutionInstanceIdentity.SignatureHeader].FirstOrDefault();
         if (!EvolutionInstanceIdentity.TryParseTenant(instance, out var tenantId)
-            || !EvolutionInstanceIdentity.IsValidSignature(instance!, signature, _settings.WebhookSecret))
+            || !EvolutionInstanceIdentity.IsValidSignature(instance!, signature, secret))
         {
             _logger.LogWarning("Webhook de WhatsApp rechazado: instancia desconocida o firma inválida.");
             return Unauthorized();

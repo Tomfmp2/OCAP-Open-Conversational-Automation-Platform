@@ -25,7 +25,7 @@ public sealed record WhatsAppLinkStatus(
     string? PhoneNumber = null,
     string? ProfileName = null);
 
-/// <summary>Evolution no está configurado en el servidor (URL, API key, webhook o secreto).</summary>
+/// <summary>Evolution no está configurado en el servidor (URL, API key o URL del webhook).</summary>
 public sealed class WhatsAppNotConfiguredException(string message) : Exception(message);
 
 /// <summary>
@@ -64,7 +64,7 @@ public sealed class WhatsAppLinkService
             _settings.WebhookUrl,
             new Dictionary<string, string>
             {
-                [EvolutionInstanceIdentity.SignatureHeader] = EvolutionInstanceIdentity.SignatureFor(instance, _settings.WebhookSecret)
+                [EvolutionInstanceIdentity.SignatureHeader] = EvolutionInstanceIdentity.SignatureFor(instance, _settings.EffectiveWebhookSecret)
             });
 
         var state = await _evolution.GetConnectionStateAsync(instance, cancellationToken);
@@ -156,8 +156,7 @@ public sealed class WhatsAppLinkService
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(_settings.BaseUrl)
         && !string.IsNullOrWhiteSpace(_settings.ApiKey)
-        && !string.IsNullOrWhiteSpace(_settings.WebhookUrl)
-        && !string.IsNullOrWhiteSpace(_settings.WebhookSecret);
+        && !string.IsNullOrWhiteSpace(_settings.WebhookUrl);
 
     private void EnsureConfigured()
     {
