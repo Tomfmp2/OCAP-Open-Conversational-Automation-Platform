@@ -146,6 +146,7 @@ public static class ApiServiceExtensions
         services.AddSingleton<ICredentialVault, AesDbCredentialVault>();
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();
         services.AddScoped<IChannelConnectionManager, ChannelConnectionManager>();
+        services.AddScoped<OCAP.Api.Services.ChannelConversationService>();
 
         // Registrar Proveedores de Identidad Externos (CAP-15)
         services.Configure<OCAP.Security.Abstractions.DTOs.ExternalAuthenticationSettings>(configuration.GetSection("Authentication"));

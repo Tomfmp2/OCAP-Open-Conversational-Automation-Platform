@@ -49,10 +49,16 @@ public class WhatsAppMessageSender : IMessageSender
             bool success;
             if (useEvolution || _cloudClient == null)
             {
-                var instance = message.Metadata.TryGetValue("Instance", out var inst) && !string.IsNullOrWhiteSpace(inst)
-                    ? inst!
-                    : (string.IsNullOrWhiteSpace(_settings.Instance) ? "ocap-main" : _settings.Instance);
-                success = await _evolutionClient.SendTextAsync(instance, message.DestinationUserId, message.Message, cancellationToken);
+                // Cada organización tiene su instancia: sin ella no hay por dónde responder.
+                if (!message.Metadata.TryGetValue("Instance", out var instance) || string.IsNullOrWhiteSpace(instance))
+                {
+                    _logger.LogError("Mensaje WhatsApp sin instancia de Evolution; no se envía.");
+                    return false;
+                }
+
+                var number = new string(message.DestinationUserId.Where(char.IsDigit).ToArray());
+                await _evolutionClient.SendTextAsync(instance, number, message.Message, cancellationToken);
+                success = true;
             }
             else
             {

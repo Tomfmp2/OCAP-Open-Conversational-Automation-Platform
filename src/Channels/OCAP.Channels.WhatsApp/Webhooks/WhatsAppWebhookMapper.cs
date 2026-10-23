@@ -45,34 +45,4 @@ public static class WhatsAppWebhookMapper
 
         return incoming;
     }
-
-    public static IncomingChannelMessage? ToIncomingMessage(WhatsAppWebhookPayload payload)
-    {
-        if (payload?.Data?.Key == null || payload.Data.Key.FromMe) return null;
-
-        var text = payload.Data.Message?.Conversation
-                   ?? payload.Data.Message?.ExtendedTextMessage?.Text
-                   ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(text)) return null;
-
-        var remoteJid = payload.Data.Key.RemoteJid ?? string.Empty;
-        var externalId = remoteJid.Contains('@') ? remoteJid.Split('@')[0] : remoteJid;
-
-        var incoming = new IncomingChannelMessage
-        {
-            ExternalUserId = externalId,
-            ChannelName = "WhatsApp",
-            Message = text,
-            ReceivedAt = payload.Data.MessageTimestamp > 0
-                ? DateTimeOffset.FromUnixTimeSeconds(payload.Data.MessageTimestamp).UtcDateTime
-                : DateTime.UtcNow
-        };
-
-        incoming.Metadata["MessageId"] = payload.Data.Key.Id;
-        incoming.Metadata["SenderName"] = payload.Data.PushName;
-        incoming.Metadata["Instance"] = payload.Instance;
-        incoming.Metadata["ConnectionMode"] = "evolution";
-        incoming.Metadata["RemoteJid"] = remoteJid;
-        return incoming;
-    }
 }

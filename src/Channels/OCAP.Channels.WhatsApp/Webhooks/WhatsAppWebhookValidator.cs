@@ -54,30 +54,6 @@ public class WhatsAppWebhookValidator
         }
     }
 
-    public bool ValidateEvolutionSecret(string? headerSecret, string? apikeyHeader)
-    {
-        if (string.IsNullOrWhiteSpace(_settings.WebhookSecret) && string.IsNullOrWhiteSpace(_settings.ApiKey))
-        {
-            // Desarrollo local sin secreto configurado: aceptar.
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(_settings.WebhookSecret) &&
-            string.Equals(headerSecret, _settings.WebhookSecret, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(_settings.ApiKey) &&
-            string.Equals(apikeyHeader, _settings.ApiKey, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        _logger.LogWarning("Secreto Evolution webhook inválido.");
-        return false;
-    }
-
     public bool ValidatePayload(WhatsAppCloudWebhookPayload payload)
     {
         if (payload == null || payload.Object != "whatsapp_business_account" || payload.Entry == null || !payload.Entry.Any())
@@ -87,14 +63,5 @@ public class WhatsAppWebhookValidator
 
         var change = payload.Entry.FirstOrDefault()?.Changes?.FirstOrDefault();
         return change != null && change.Field == "messages";
-    }
-
-    public bool ValidateEvolutionPayload(WhatsAppWebhookPayload? payload)
-    {
-        if (payload == null) return false;
-        var evt = payload.Event ?? string.Empty;
-        return evt.Contains("messages", StringComparison.OrdinalIgnoreCase)
-               || evt.Contains("MESSAGES", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(evt, "messages.upsert", StringComparison.OrdinalIgnoreCase);
     }
 }
