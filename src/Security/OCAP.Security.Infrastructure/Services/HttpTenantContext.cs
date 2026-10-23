@@ -11,7 +11,7 @@ namespace OCAP.Security.Infrastructure.Services;
 /// En producción: sin claim de tenant → Guid.Empty (no inventar tenants).
 /// En Development/Testing anónimo: X-Tenant-ID o tenant de prueba controlado.
 /// </summary>
-public class HttpTenantContext : ITenantContext
+public class HttpTenantContext : ITenantContext, ITenantScope
 {
     private static readonly Guid DefaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
@@ -29,6 +29,13 @@ public class HttpTenantContext : ITenantContext
     }
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IWebHostEnvironment _environment;
+    private Guid? _scopedTenant;
+
+    public void Use(Guid tenantId)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("El tenant es obligatorio.", nameof(tenantId));
+        _scopedTenant = tenantId;
+    }
 
     public HttpTenantContext(IHttpContextAccessor httpContextAccessor, IWebHostEnvironment environment)
     {
@@ -40,6 +47,8 @@ public class HttpTenantContext : ITenantContext
     {
         get
         {
+            if (_scopedTenant is { } scoped) return scoped;
+
             var httpContext = _httpContextAccessor.HttpContext;
             // Jobs sin HTTP: tenant por defecto + BypassTenantFilters.
             if (httpContext == null) return DefaultTenantId;
@@ -86,7 +95,7 @@ public class HttpTenantContext : ITenantContext
 
     public string TenantName => TenantId == Guid.Empty ? "Unresolved" : $"Tenant-{TenantId:N}";
 
-    public bool IsResolved => _httpContextAccessor.HttpContext != null && TenantId != Guid.Empty;
+    public bool IsResolved => (_scopedTenant.HasValue || _httpContextAccessor.HttpContext != null) && TenantId != Guid.Empty;
 
-    public bool BypassTenantFilters => _httpContextAccessor.HttpContext == null;
+    public bool BypassTenantFilters => !_scopedTenant.HasValue && _httpContextAccessor.HttpContext == null;
 }

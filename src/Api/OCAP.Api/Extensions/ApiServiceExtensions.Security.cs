@@ -82,7 +82,10 @@ public static partial class ApiServiceExtensions
         services.AddHostedService<DirectorySyncBackgroundService>();
 
         services.AddHttpContextAccessor();
-        services.AddScoped<ITenantContext, HttpTenantContext>();
+        // Una sola instancia por scope: ITenantScope fija el tenant que luego lee ITenantContext (y EF).
+        services.AddScoped<HttpTenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<HttpTenantContext>());
+        services.AddScoped<ITenantScope>(sp => sp.GetRequiredService<HttpTenantContext>());
         services.AddScoped<IUserContext, HttpUserContext>();
 
         services.AddScoped<AuthenticateUserUseCase>();
