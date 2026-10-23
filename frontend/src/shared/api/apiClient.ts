@@ -1,4 +1,5 @@
 import { ApiError, type ApiRequestOptions } from "./types";
+import { redirectToLogin } from "./sessionRedirect";
 import {
   clearAuthSession,
   getAccessToken,
@@ -55,9 +56,7 @@ class ApiClient {
 
   private handleUnauthorized(): void {
     clearAuthSession();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
-    }
+    redirectToLogin();
   }
 
   private buildHeaders(

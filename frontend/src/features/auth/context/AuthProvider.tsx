@@ -18,6 +18,7 @@ import {
 import type { StoredUser } from "@/shared/api/types";
 import { apiClient, defaultRefreshHandler } from "@/shared/api/apiClient";
 import { useTenantStore } from "@/shared/stores/useTenantStore";
+import { redirectToLogin } from "@/shared/api/sessionRedirect";
 
 const REFRESH_INTERVAL_MS = 14 * 60 * 1000;
 
@@ -139,9 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  if (!token) {
  clearAuthSession();
  setUser(null);
- if (typeof window !== "undefined") {
- window.location.href = "/login";
- }
+ redirectToLogin();
  }
  }, REFRESH_INTERVAL_MS);
 
@@ -195,9 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  } finally {
  clearAuthSession();
  setUser(null);
- if (typeof window !== "undefined") {
- window.location.href = "/login";
- }
+ redirectToLogin();
  }
  }, []);
 

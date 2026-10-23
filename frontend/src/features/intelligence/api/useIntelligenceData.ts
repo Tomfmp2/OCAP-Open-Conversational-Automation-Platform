@@ -121,7 +121,7 @@ export function useIntelligenceData() {
 
       // Si aún no hay filas en DB (solo registry/.env), mostrar catálogo para poder registrar.
       if (providers.length === 0 && catalog.length > 0) {
-        providers = catalog.map((p, i) => {
+        providers = catalog.map((p) => {
           const health = healthList.find(
             (h) => h.providerName?.toLowerCase() === p.name?.toLowerCase()
           );
