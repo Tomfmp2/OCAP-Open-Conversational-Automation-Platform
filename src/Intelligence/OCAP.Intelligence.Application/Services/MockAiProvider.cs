@@ -7,8 +7,8 @@ using OCAP.Intelligence.Domain;
 namespace OCAP.Intelligence.Application.Services;
 
 /// <summary>
-/// Proveedor local de desarrollo: responde sin llamar APIs externas.
-/// Activo cuando AiProviders:EnableMock=true o UseInMemory=true.
+/// Proveedor sin APIs externas: responde en modo demo (sin keys de IA, ver <see cref="AiDemoMode"/>) o con
+/// AiProviders:EnableMock=true.
 /// </summary>
 public sealed class MockAiProvider : IAiProvider
 {
@@ -21,9 +21,9 @@ public sealed class MockAiProvider : IAiProvider
 
         var user = string.IsNullOrWhiteSpace(request.UserMessage) ? "(vacío)" : request.UserMessage.Trim();
         var text =
-            $"[Mock AI] Recibí tu mensaje: «{user}». " +
-            "Este es el proveedor de desarrollo de OCAP. " +
-            "Configura AiProviders:OpenAI:ApiKey (o Gemini/Claude/Ollama) en .env / appsettings para respuestas reales.";
+            $"[Modo demo] Recibí tu mensaje: «{user}». " +
+            "OCAP aún no tiene un proveedor de IA configurado. " +
+            "Agrega uno en el panel (IA y modelos) o una API key en .env para respuestas reales.";
 
         return Task.FromResult(new AiResponse
         {

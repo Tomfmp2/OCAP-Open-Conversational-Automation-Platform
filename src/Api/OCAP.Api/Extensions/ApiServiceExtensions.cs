@@ -253,14 +253,13 @@ public static class ApiServiceExtensions
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("Claude"),
             claudeSettings));
 
-        var geminiKey = configuration["AiProviders:Gemini:ApiKey"];
-        var openAiKey = configuration["AiProviders:OpenAI:ApiKey"];
-        var enableMockExplicit = configuration.GetValue("AiProviders:EnableMock", false);
-        var enableMockFallback =
-            string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase)
-            && string.IsNullOrWhiteSpace(geminiKey)
-            && string.IsNullOrWhiteSpace(openAiKey);
-        if (enableMockExplicit || enableMockFallback)
+        // Sin ninguna key de IA en el servidor, modo demo: el asistente responde con Mock en vez de fallar.
+        // AiProviders:DemoMode=false lo desactiva (p. ej. si solo se usa Ollama, que no necesita key).
+        var hasStaticKey = new[] { openAiSettings.ApiKey, geminiSettings.ApiKey, claudeSettings.ApiKey }
+            .Any(key => !string.IsNullOrWhiteSpace(key));
+        var demoMode = !hasStaticKey && configuration.GetValue("AiProviders:DemoMode", true);
+        services.AddSingleton(new AiDemoMode(demoMode));
+        if (demoMode || configuration.GetValue("AiProviders:EnableMock", false))
         {
             services.AddSingleton<IAiProvider, OCAP.Intelligence.Application.Services.MockAiProvider>();
         }

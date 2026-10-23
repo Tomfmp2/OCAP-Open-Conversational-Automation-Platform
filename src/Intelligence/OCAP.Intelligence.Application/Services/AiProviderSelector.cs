@@ -19,11 +19,13 @@ public class AiProviderSelector : IAiProviderSelector
     public AiProviderSelector(
         IEnumerable<IAiProvider> providers,
         IAiResponseCache cache,
-        ILogger<AiProviderSelector> logger)
+        ILogger<AiProviderSelector> logger,
+        AiDemoMode? demoMode = null)
     {
         _providers = providers ?? throw new ArgumentNullException(nameof(providers));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        if (demoMode?.Enabled == true) _activeProviderName = AiDemoMode.MockProviderName;
     }
 
     public void SetActiveProvider(string providerName)
