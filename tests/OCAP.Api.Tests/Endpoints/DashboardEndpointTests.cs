@@ -3,6 +3,9 @@ using System.Net.Http.Json;
 using FluentAssertions;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Api.Tests.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Api.Tests.Endpoints;
 
@@ -15,6 +18,21 @@ public class DashboardEndpointTests : IClassFixture<OcapApiFactory>
     {
         _factory = factory;
         _client = TestAuthHelper.CreateAuthenticatedClient(factory);
+    }
+
+    [Fact]
+    public async Task Overview_CountsOnlyTheOwnOrganization()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+            db.Tenants.Add(new Tenant(Guid.NewGuid(), "Otra organización", $"otra-{Guid.NewGuid():N}"));
+            await db.SaveChangesAsync();
+        }
+
+        var overview = await _client.GetFromJsonAsync<DashboardOverviewDto>("/api/dashboard/overview");
+
+        overview!.Tenants.TotalCount.Should().Be(1);
     }
 
     [Fact]

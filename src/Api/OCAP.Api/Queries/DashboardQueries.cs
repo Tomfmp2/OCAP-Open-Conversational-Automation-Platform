@@ -32,8 +32,11 @@ public sealed class DashboardQueries
         var totalExecutionsToday = await _dbContext.WorkflowExecutions.CountAsync(e => e.StartedAtUtc >= now.Date, cancellationToken);
         var failedExecutionsToday = await _dbContext.WorkflowExecutions.CountAsync(e => e.StartedAtUtc >= now.Date && e.Status == WorkflowStatus.Failed, cancellationToken);
 
-        var totalTenants = await _dbContext.Tenants.CountAsync(cancellationToken);
-        var activeTenants = await _dbContext.Tenants.CountAsync(t => t.IsActive, cancellationToken);
+        // Tenants es un catálogo global (sin filtro por tenant): se cuenta solo la organización de la sesión, para no
+        // revelar a cada usuario cuántas organizaciones hay en la plataforma.
+        var ownTenant = _dbContext.Tenants.Where(t => t.Id == _dbContext.CurrentTenantId);
+        var totalTenants = await ownTenant.CountAsync(cancellationToken);
+        var activeTenants = await ownTenant.CountAsync(t => t.IsActive, cancellationToken);
 
         var totalUsers = await _dbContext.UserIdentities.CountAsync(cancellationToken);
         var activeUsers = await _dbContext.UserIdentities.CountAsync(u => u.IsActive, cancellationToken);
