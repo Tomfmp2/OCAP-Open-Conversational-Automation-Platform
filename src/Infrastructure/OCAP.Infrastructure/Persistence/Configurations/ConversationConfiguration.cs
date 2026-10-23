@@ -26,8 +26,12 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
         builder.Property(c => c.LastActivityAt)
             .IsRequired();
 
+        builder.Property(c => c.Channel).HasMaxLength(50);
+        builder.Property(c => c.ExternalContactId).HasMaxLength(200);
+
         builder.HasIndex(c => c.TenantId);
         builder.HasIndex(c => new { c.TenantId, c.UserId });
+        builder.HasIndex(c => new { c.TenantId, c.LastActivityAt });
             
         builder.HasOne<User>()
             .WithMany()
@@ -35,5 +39,6 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
             .OnDelete(DeleteBehavior.Cascade);
             
         builder.Ignore(c => c.DomainEvents);
+        builder.Ignore(c => c.IsHandledByHuman);
     }
 }

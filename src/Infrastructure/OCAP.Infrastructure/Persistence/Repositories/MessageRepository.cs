@@ -27,4 +27,16 @@ public class MessageRepository : IMessageRepository
             .OrderBy(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Message>> GetRecentAsync(Guid conversationId, int take, CancellationToken cancellationToken = default)
+    {
+        var recent = await _context.Messages
+            .AsNoTracking()
+            .Where(m => m.ConversationId == conversationId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+        recent.Reverse();
+        return recent;
+    }
 }

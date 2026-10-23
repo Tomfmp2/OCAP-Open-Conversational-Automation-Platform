@@ -30,6 +30,8 @@ public interface IMessageRepository
 {
     Task SaveAsync(Message message, CancellationToken cancellationToken = default);
     Task<IEnumerable<Message>> GetByConversationIdAsync(Guid conversationId, CancellationToken cancellationToken = default);
+    /// <summary>Los <paramref name="take"/> mensajes más recientes, en orden cronológico.</summary>
+    Task<IReadOnlyList<Message>> GetRecentAsync(Guid conversationId, int take, CancellationToken cancellationToken = default);
 }
 
 public interface IToolExecutionRepository
