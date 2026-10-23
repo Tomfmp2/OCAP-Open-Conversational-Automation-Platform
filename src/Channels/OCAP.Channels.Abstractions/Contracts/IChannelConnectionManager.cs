@@ -42,6 +42,9 @@ public interface IChannelConnectionManager
     // Solo para jobs que luego fijan el tenant de cada conexión antes de tocar sus datos.
     Task<IReadOnlyList<ChannelConnection>> GetEnabledConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default);
 
+    // Operación de sistema, sin tenant: todas las conexiones de un proveedor, habilitadas o no (p. ej. unicidad).
+    Task<IReadOnlyList<ChannelConnection>> GetAllConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default);
+
     // Operación de sistema, sin tenant: una conexión por id, para webhooks que se autentican después con su secreto.
     Task<ChannelConnection?> FindConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default);
 

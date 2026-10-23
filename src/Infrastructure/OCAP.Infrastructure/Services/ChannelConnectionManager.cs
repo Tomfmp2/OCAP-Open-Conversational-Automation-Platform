@@ -171,6 +171,15 @@ public class ChannelConnectionManager : IChannelConnectionManager
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ChannelConnection>> GetAllConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => c.Provider == provider)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ChannelConnection?> FindConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.ChannelConnections
