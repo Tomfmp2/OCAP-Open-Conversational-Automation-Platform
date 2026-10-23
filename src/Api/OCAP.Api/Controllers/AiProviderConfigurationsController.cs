@@ -101,6 +101,15 @@ public class AiProviderConfigurationsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var provider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
+        if (provider is null)
+        {
+            // Sin proveedor habilitado para el tenant no hay nada que probar (antes era un 500 por NullReferenceException).
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Sin proveedor de IA configurado",
+                detail: "Registra y habilita un proveedor en «IA y modelos» antes de probar la conexión.");
+        }
+
         var health = await provider.HealthAsync(cancellationToken);
         return Ok(health);
     }
