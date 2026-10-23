@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { X, QrCode, Key, ShieldCheck, AlertCircle, Loader2, MessageSquare, RefreshCw, CheckCircle2 } from "lucide-react";
-import { useConnectChannelMutation, useWhatsAppQrConnect } from "../api/useChannelsData";
+import { X, QrCode, Key, ShieldCheck, AlertCircle, Loader2, MessageSquare } from "lucide-react";
+import { useConnectChannelMutation } from "../api/useChannelsData";
+import { WhatsAppLinkPanel } from "./WhatsAppLinkPanel";
 
 type ProviderOption = "Telegram" | "WhatsApp" | "WebChat";
 
@@ -19,37 +20,12 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const connectMutation = useConnectChannelMutation();
-  const {
-    connectQr,
-    refreshQr,
-    qrData,
-    connectionState,
-    isConnecting,
-    isPolling,
-    reset: resetQr,
-  } = useWhatsAppQrConnect();
-
-  // Al cerrarse se limpia el error (ajuste durante el render); el QR se detiene en el efecto porque corta el polling.
+  // Al cerrarse se limpia el error (ajuste durante el render).
   const [wasOpen, setWasOpen] = React.useState(open);
   if (wasOpen !== open) {
     setWasOpen(open);
     if (!open) setErrorMessage(null);
   }
-
-  React.useEffect(() => {
-    if (!open) resetQr();
-  }, [open, resetQr]);
-
-  React.useEffect(() => {
-    if (connectionState?.isOpen) {
-      const t = setTimeout(() => {
-        resetQr();
-        setDisplayName("");
-        onClose();
-      }, 1200);
-      return () => clearTimeout(t);
-    }
-  }, [connectionState?.isOpen, onClose, resetQr]);
 
   if (!open) return null;
 
@@ -58,11 +34,6 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
     setErrorMessage(null);
 
     try {
-      if (selectedProvider === "WhatsApp") {
-        await connectQr(displayName.trim());
-        return;
-      }
-
       await connectMutation.mutateAsync({
         provider: selectedProvider,
         displayName: displayName.trim(),
@@ -79,14 +50,8 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
     }
   };
 
-  const qrSrc = qrData?.qrBase64
-    ? qrData.qrBase64.startsWith("data:")
-      ? qrData.qrBase64
-      : `data:image/png;base64,${qrData.qrBase64.replace(/^data:image\/\w+;base64,/, "")}`
-    : null;
-
-  const pending = connectMutation.isPending || isConnecting;
-  const linked = Boolean(connectionState?.isOpen);
+  const pending = connectMutation.isPending;
+  const isWhatsApp = selectedProvider === "WhatsApp";
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -124,7 +89,6 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                   type="button"
                   onClick={() => {
                     setSelectedProvider(id);
-                    resetQr();
                     setErrorMessage(null);
                   }}
                   className={`p-3 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition-all ${
@@ -140,7 +104,9 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
             </div>
           </div>
 
-          {!qrData && (
+          {isWhatsApp && <WhatsAppLinkPanel active={open} onLinked={onClose} />}
+
+          {!isWhatsApp && (
             <div className="space-y-2">
               <label className="text-xs font-semibold text-neutral-700 block">Nombre visible</label>
               <input
@@ -148,13 +114,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 required
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={
-                  selectedProvider === "Telegram"
-                    ? "Bot de soporte"
-                    : selectedProvider === "WhatsApp"
-                      ? "WhatsApp Ventas"
-                      : "WebChat Portal"
-                }
+                placeholder={selectedProvider === "Telegram" ? "Bot de soporte" : "WebChat Portal"}
                 className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-950 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-950"
               />
             </div>
@@ -174,56 +134,6 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
             </div>
           )}
 
-          {selectedProvider === "WhatsApp" && !qrData && (
-            <p className="text-[11px] text-neutral-600 leading-relaxed">
-              Se genera un QR con Evolution API (Baileys). Escanealo en WhatsApp → Dispositivos vinculados.
-              No necesitas Meta Cloud API ni pagar por número de negocio.
-            </p>
-          )}
-
-          {selectedProvider === "WhatsApp" && qrData && (
-            <div className="space-y-3">
-              {linked ? (
-                <div className="flex items-center gap-2 text-sm text-emerald-700 font-medium">
-                  <CheckCircle2 className="w-5 h-5" />
-                  WhatsApp vinculado ({qrData.instanceName})
-                </div>
-              ) : (
-                <>
-                  <p className="text-xs text-neutral-700 text-center">
-                    Escanea el QR con tu móvil · instancia <span className="font-mono">{qrData.instanceName}</span>
-                  </p>
-                  {qrSrc ? (
-                    <div className="flex justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={qrSrc}
-                        alt="QR WhatsApp Evolution"
-                        className="w-56 h-56 border border-neutral-200 rounded-lg bg-white p-2"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-xs text-center text-neutral-500">Esperando QR…</p>
-                  )}
-                  <div className="flex items-center justify-center gap-2 text-[11px] text-neutral-500">
-                    {isPolling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Estado: {connectionState?.state ?? "conectando…"}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void refreshQr().catch((err: unknown) => {
-                      setErrorMessage(err instanceof Error ? err.message : "No se pudo refrescar el QR");
-                    })}
-                    className="w-full flex items-center justify-center gap-1.5 text-xs text-neutral-700 hover:bg-neutral-100 rounded-lg py-2"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Refrescar QR
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
           {selectedProvider === "WebChat" && (
             <div className="space-y-2">
               <label className="text-xs font-semibold text-neutral-700 block">Título del widget</label>
@@ -239,7 +149,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
             </div>
           )}
 
-          {!qrData && (
+          {!isWhatsApp && (
             <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
               <button
                 type="button"
@@ -255,31 +165,11 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 className="px-4 py-2 rounded-lg bg-neutral-950 hover:bg-neutral-900 text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
               >
                 {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>
-                  {pending
-                    ? "Conectando..."
-                    : selectedProvider === "WhatsApp"
-                      ? "Generar QR"
-                      : "Guardar y conectar"}
-                </span>
+                <span>{pending ? "Conectando..." : "Guardar y conectar"}</span>
               </button>
             </div>
           )}
 
-          {qrData && !linked && (
-            <div className="flex justify-end pt-2 border-t border-neutral-200">
-              <button
-                type="button"
-                onClick={() => {
-                  resetQr();
-                  onClose();
-                }}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-100"
-              >
-                Cerrar
-              </button>
-            </div>
-          )}
         </form>
       </div>
     </div>
