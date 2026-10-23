@@ -68,7 +68,8 @@ public sealed class ConversationInboxQueries
 
     public async Task<IReadOnlyList<InboxMessageDto>?> MessagesAsync(Guid conversationId, CancellationToken cancellationToken)
     {
-        if (!await _db.Conversations.AnyAsync(c => c.Id == conversationId, cancellationToken)) return null;
+        // Solo conversaciones de canales: el chat interno del panel no pertenece a la bandeja.
+        if (!await _db.Conversations.AnyAsync(c => c.Id == conversationId && c.Channel != null, cancellationToken)) return null;
 
         var messages = await _db.Messages.AsNoTracking()
             .Where(m => m.ConversationId == conversationId)

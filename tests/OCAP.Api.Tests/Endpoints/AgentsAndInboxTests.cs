@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OCAP.Api.Tests.Infrastructure;
+using OCAP.Core.Entities;
+using OCAP.Infrastructure.Persistence.Context;
 
 namespace OCAP.Api.Tests.Endpoints;
 
@@ -82,6 +85,35 @@ public class AgentsAndInboxTests : TelegramBotTestsBase
     }
 
     [Fact]
+    public async Task Inbox_OnlyOffersContactSafeTools()
+    {
+        var admin = await AdminClientAsync();
+
+        var tools = await admin.GetFromJsonAsync<List<ToolItem>>("/api/agents/tools");
+
+        tools!.Select(t => t.Name).Should().NotContain(new[] { "SendEmailTool", "ListEmailsTool" });
+    }
+
+    [Fact]
+    public async Task Inbox_DoesNotExposeInternalConversations()
+    {
+        var admin = await AdminClientAsync();
+        var internalConversation = Guid.NewGuid();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+            var user = new User(Guid.NewGuid(), "Otro usuario del panel", SeedTenantId);
+            db.Users.Add(user);
+            db.Conversations.Add(new Conversation(internalConversation, user.Id, SeedTenantId));
+            await db.SaveChangesAsync();
+        }
+
+        (await admin.GetFromJsonAsync<List<InboxItem>>("/api/inbox"))!.Should().NotContain(c => c.Id == internalConversation);
+        (await admin.GetAsync($"/api/inbox/{internalConversation}/messages")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await admin.PostAsync($"/api/inbox/{internalConversation}/takeover", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Inbox_UnknownConversation_IsNotFound()
     {
         var admin = await AdminClientAsync();
@@ -93,6 +125,7 @@ public class AgentsAndInboxTests : TelegramBotTestsBase
         (await admin.PostAsJsonAsync($"/api/inbox/{id}/reply", new { text = " " })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    private sealed record ToolItem(string Name);
     private sealed record AgentDto(Guid Id, string Name, string SystemPrompt);
     private sealed record AgentTest(string Reply, string AgentName, bool TransferToHuman);
     private sealed record InboxItem(Guid Id, string Channel, string ContactName, string? ExternalContactId, bool HandledByHuman, bool CanReply, string? LastSender);

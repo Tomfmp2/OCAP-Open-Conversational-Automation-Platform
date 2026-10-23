@@ -128,10 +128,12 @@ public class AgentsController : ControllerBase
         return Ok(statuses);
     }
 
-    /// <summary>Herramientas que se le pueden habilitar a un agente.</summary>
+    /// <summary>Herramientas que se le pueden habilitar a un agente de canal (solo las seguras frente a contactos externos).</summary>
     [HttpGet("tools")]
     public ActionResult<IEnumerable<AgentToolDto>> GetTools([FromServices] IToolRegistry tools) =>
-        Ok(tools.GetAllTools().Select(t => new AgentToolDto(t.Definition.Name, t.Definition.Description)));
+        Ok(tools.GetAllTools()
+            .Where(t => ChannelAgentRunner.ContactSafeTools.Contains(t.Definition.Name))
+            .Select(t => new AgentToolDto(t.Definition.Name, t.Definition.Description)));
 
     /// <summary>
     /// Prueba un agente desde el panel (id vacío = agente de atención por defecto) con el mismo motor que usan los

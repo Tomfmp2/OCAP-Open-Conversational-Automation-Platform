@@ -67,7 +67,7 @@ public sealed class InboxController : ControllerBase
         if (text.Length > ReceiveMessageUseCase.MaxMessageLength)
             return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"El mensaje supera {ReceiveMessageUseCase.MaxMessageLength} caracteres.");
 
-        var conversation = await _conversations.GetByIdAsync(id, cancellationToken);
+        var conversation = await FindChannelConversationAsync(id, cancellationToken);
         if (conversation is null) return NotFound();
         if (!ChannelReplySender.CanReply(conversation))
             return Problem(statusCode: StatusCodes.Status409Conflict, title: "Esta conversación no tiene un canal al que se pueda responder.");
@@ -84,10 +84,17 @@ public sealed class InboxController : ControllerBase
 
     private async Task<IActionResult> ChangeAsync(Guid id, Action<Conversation> change, CancellationToken cancellationToken)
     {
-        var conversation = await _conversations.GetByIdAsync(id, cancellationToken);
+        var conversation = await FindChannelConversationAsync(id, cancellationToken);
         if (conversation is null) return NotFound();
         change(conversation);
         await _conversations.SaveAsync(conversation, cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>La bandeja solo opera sobre conversaciones de canales, nunca sobre el chat interno del panel.</summary>
+    private async Task<Conversation?> FindChannelConversationAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var conversation = await _conversations.GetByIdAsync(id, cancellationToken);
+        return conversation is { Channel: not null } ? conversation : null;
     }
 }
