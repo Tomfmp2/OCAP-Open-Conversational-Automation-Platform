@@ -19,6 +19,8 @@ export interface ChannelConnectionDto {
   lastSync: string;
   latencyMs: number;
   health?: ChannelProviderHealthDto;
+  /** Agente que responde en este canal; null = agente de atención por defecto. */
+  agentId: string | null;
 }
 
 export type ChannelConnection = ChannelConnectionDto;
@@ -64,6 +66,7 @@ export function useChannelsData() {
             accountIdentifier?: string;
             messagesHandled24h?: number;
             lastSyncAtUtc?: string;
+            configurationMetadata?: Record<string, string>;
           }>
         ).forEach((item) => {
           const health = pickHealth(item.provider, tgHealth, waHealth, wcHealth);
@@ -79,6 +82,7 @@ export function useChannelsData() {
               : "N/D",
             latencyMs: health?.latencyMs ?? 0,
             health,
+            agentId: item.configurationMetadata?.AgentId ?? null,
           });
         });
       }
@@ -150,5 +154,15 @@ export function useConnectChannelMutation() {
       queryClient.invalidateQueries({ queryKey: ["channelsData"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
     },
+  });
+}
+
+/** Asigna el agente que responde en un canal (null = agente de atención por defecto). */
+export function useAssignChannelAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, agentId }: { connectionId: string; agentId: string | null }) =>
+      apiClient.put(`/api/channels/connections/${connectionId}/agent`, { agentId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
   });
 }

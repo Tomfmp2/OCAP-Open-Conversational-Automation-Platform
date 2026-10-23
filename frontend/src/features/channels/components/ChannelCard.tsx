@@ -4,6 +4,7 @@ import { ChannelConnection } from "../api/useChannelsData";
 import { Surface } from "@/shared/components/ui/Surface";
 import { Badge } from "@/shared/components/ui/Badge";
 import { Button } from "@/shared/components/ui/Button";
+import { ChannelAgentSelect } from "./ChannelAgentSelect";
 
 interface ChannelCardProps {
   channel: ChannelConnection;
@@ -38,6 +39,10 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           </Badge>
         )}
       </div>
+
+      {channel.provider.toLowerCase() !== "webchat" && (
+        <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
+      )}
 
       <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
         <span className="font-mono text-[11px] text-neutral-500">
