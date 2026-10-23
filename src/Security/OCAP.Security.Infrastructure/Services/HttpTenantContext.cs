@@ -14,6 +14,19 @@ namespace OCAP.Security.Infrastructure.Services;
 public class HttpTenantContext : ITenantContext
 {
     private static readonly Guid DefaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    /// <summary>Clave de HttpContext.Items: solo la escribe código del servidor, nunca llega del cliente.</summary>
+    private const string TrustedTenantItemKey = "ocap.trusted-tenant-id";
+
+    /// <summary>
+    /// Fija el tenant de una petición sin sesión que el servidor ya autenticó por otra vía (p. ej. un webhook con
+    /// firma verificada). A partir de aquí las consultas y escrituras de esa petición quedan aisladas en ese tenant.
+    /// </summary>
+    public static void UseTrustedTenant(HttpContext httpContext, Guid tenantId)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("El tenant es obligatorio.", nameof(tenantId));
+        httpContext.Items[TrustedTenantItemKey] = tenantId;
+    }
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IWebHostEnvironment _environment;
 
@@ -30,6 +43,11 @@ public class HttpTenantContext : ITenantContext
             var httpContext = _httpContextAccessor.HttpContext;
             // Jobs sin HTTP: tenant por defecto + BypassTenantFilters.
             if (httpContext == null) return DefaultTenantId;
+
+            if (httpContext.Items.TryGetValue(TrustedTenantItemKey, out var trusted) && trusted is Guid trustedTenant)
+            {
+                return trustedTenant;
+            }
 
             var isAuthenticated = httpContext.User?.Identity?.IsAuthenticated == true;
 
