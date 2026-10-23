@@ -1,94 +1,83 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/apiClient";
 
-export interface AgentBackendDto {
- id: string;
- name: string;
- description: string;
- status: string;
- enabledTools: string[];
- createdAt: string;
+export interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  systemPrompt: string;
+  enabledTools: string[];
+  createdAt: string;
 }
 
-export interface AgentDto {
- id: string;
- name: string;
- role: "registered";
- description: string;
- status: "idle" | "thinking" | "executing" | "error";
- activeModel: string;
- toolsCount: number;
- executionsCount: number;
- successRate: number;
+export interface AgentTool {
+  name: string;
+  description: string;
 }
 
-export type AgentInfo = AgentDto;
-
-export interface ReasoningStep {
- id?: string;
- stepIndex: number;
- phase: string;
- agentName?: string;
- toolUsed?: string;
- action?: string;
- thought: string;
- timestamp: string;
- durationMs: number;
+export interface AgentDraft {
+  name: string;
+  description: string;
+  systemPrompt: string;
+  allowedTools: string[];
 }
 
-export interface AgentsData {
- agents: AgentDto[];
- recentTraces: ReasoningStep[];
+export interface AgentTestTurn {
+  fromContact: boolean;
+  text: string;
 }
 
-export function useAgentsData() {
- return useQuery<AgentsData>({
- queryKey: ["agentsData"],
- queryFn: async () => {
- const data = await apiClient.get<AgentBackendDto[]>("/api/agents");
-
- const mappedAgents: AgentDto[] = data.map((agent) => ({
- id: agent.id,
- name: agent.name,
- role: "registered",
- description: agent.description,
- status:
- agent.status.toLowerCase() === "error"
- ? "error"
- : agent.status.toLowerCase() === "executing"
- ? "executing"
- : "idle",
- activeModel: "N/D",
- toolsCount: agent.enabledTools?.length || 0,
- executionsCount: 0,
- successRate: 0,
- }));
-
- return {
- agents: mappedAgents,
- recentTraces: [],
- };
- },
- staleTime: 10000,
- retry: 2,
- });
+export interface AgentTestResult {
+  reply: string;
+  providerUsed: string;
+  agentName: string;
+  transferToHuman: boolean;
 }
 
-export function useCreateAgentMutation() {
- const queryClient = useQueryClient();
+/** Id con el que la API prueba el agente de atención por defecto (el que responde en canales sin agente). */
+export const DEFAULT_AGENT_ID = "00000000-0000-0000-0000-000000000000";
 
- return useMutation({
- mutationFn: async (payload: {
- name: string;
- description: string;
- systemPrompt: string;
- allowedTools?: string[];
- }) => {
- return apiClient.post("/api/agents", payload);
- },
- onSuccess: () => {
- queryClient.invalidateQueries({ queryKey: ["agentsData"] });
- queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
- },
- });
+const AGENTS_KEY = ["agentsData"];
+
+export function useAgents() {
+  return useQuery<Agent[]>({
+    queryKey: AGENTS_KEY,
+    queryFn: () => apiClient.get<Agent[]>("/api/agents"),
+    staleTime: 10_000,
+  });
+}
+
+export function useAgentTools() {
+  return useQuery<AgentTool[]>({
+    queryKey: ["agentTools"],
+    queryFn: () => apiClient.get<AgentTool[]>("/api/agents/tools"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Crea el agente, o lo actualiza si se pasa su id. */
+export function useSaveAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, draft }: { id?: string; draft: AgentDraft }) =>
+      id ? apiClient.put(`/api/agents/${id}`, draft) : apiClient.post("/api/agents", draft),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: AGENTS_KEY }),
+  });
+}
+
+export function useDeleteAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/api/agents/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: AGENTS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["channelsData"] });
+    },
+  });
+}
+
+/** Prueba un agente con el mismo motor que los canales; no guarda nada ni ejecuta herramientas reales. */
+export function testAgent(agentId: string, message: string, history: AgentTestTurn[]) {
+  return apiClient.post<AgentTestResult>(`/api/agents/${agentId}/test`, { message, history }, { timeout: 120_000 });
 }
