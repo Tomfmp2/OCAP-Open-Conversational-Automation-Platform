@@ -7,6 +7,10 @@ public interface IWorkflowExecutionRepository
 {
     Task<WorkflowExecution?> GetByIdAsync(Guid id, Guid tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WorkflowExecution>> GetByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
+    /// <summary>Ejecuciones de un workflow de la organización, de la más reciente a la más antigua.</summary>
+    Task<IReadOnlyList<WorkflowExecution>> GetByDefinitionAsync(Guid definitionId, Guid tenantId, CancellationToken cancellationToken = default);
+    /// <summary>Las <paramref name="take"/> ejecuciones más recientes de la organización.</summary>
+    Task<IReadOnlyList<WorkflowExecution>> GetRecentAsync(Guid tenantId, int take, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WorkflowExecution>> GetDueDelayedExecutionsAsync(DateTime utcNow, CancellationToken cancellationToken = default);
     Task AddAsync(WorkflowExecution execution, CancellationToken cancellationToken = default);
     Task UpdateAsync(WorkflowExecution execution, CancellationToken cancellationToken = default);
