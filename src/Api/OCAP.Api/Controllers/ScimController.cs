@@ -48,7 +48,7 @@ public class ScimController : ControllerBase
             var user = await _scimService.CreateUserAsync(_tenantContext.TenantId, dto, cancellationToken);
             return Created($"/scim/v2/Users/{user.id}", user);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new ScimErrorDto("400", "invalidValue", ex.Message, new List<string> { "urn:ietf:params:scim:api:messages:2.0:Error" }));
         }
@@ -105,7 +105,7 @@ public class ScimController : ControllerBase
             var group = await _scimService.CreateGroupAsync(_tenantContext.TenantId, dto, cancellationToken);
             return Created($"/scim/v2/Groups/{group.id}", group);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new ScimErrorDto("400", "invalidValue", ex.Message, new List<string> { "urn:ietf:params:scim:api:messages:2.0:Error" }));
         }

@@ -34,14 +34,17 @@ public class IntegrationsController : ControllerBase
     private readonly ITenantContext _tenantContext;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<IntegrationsController> _logger;
 
     public IntegrationsController(
         OCAPDbContext dbContext,
         IUserContext userContext,
         ITenantContext tenantContext,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<IntegrationsController> logger)
     {
+        _logger = logger;
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
@@ -154,7 +157,8 @@ public class IntegrationsController : ControllerBase
         }
         catch (HttpRequestException ex)
         {
-            return BadRequest($"No se pudo intercambiar el código OAuth de Google: {ex.Message}");
+            _logger.LogWarning(ex, "Google rechazó el intercambio del código OAuth.");
+            return BadRequest("No se pudo intercambiar el código OAuth de Google. Vuelve a conectar la cuenta.");
         }
 
         if (string.IsNullOrWhiteSpace(tokenResponse.AccessToken))

@@ -60,7 +60,7 @@ public class TenantsController : ControllerBase
             var tenant = await _createTenantUseCase.ExecuteAsync(request.Name, request.Slug, Guid.NewGuid(), ip, cancellationToken);
             return Ok(new TenantDto(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAtUtc));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

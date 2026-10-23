@@ -46,7 +46,7 @@ public class WebAuthnController : ControllerBase
             var device = await _webAuthnService.CompleteRegistrationAsync(_tenantContext.TenantId, userId, request, cancellationToken);
             return Ok(device);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

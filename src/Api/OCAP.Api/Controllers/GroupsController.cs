@@ -49,7 +49,7 @@ public class GroupsController : ControllerBase
             var group = await _groupService.CreateGroupAsync(_tenantContext.TenantId, request, cancellationToken);
             return CreatedAtAction(nameof(GetGroupById), new { id = group.Id }, group);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

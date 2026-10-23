@@ -71,7 +71,7 @@ public class UsersController : ControllerBase
             var user = await _userService.InviteUserAsync(_tenantContext.TenantId, request, cancellationToken);
             return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

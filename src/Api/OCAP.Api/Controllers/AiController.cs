@@ -15,13 +15,16 @@ public class AiController : ControllerBase
     private readonly IAiProviderSelector _selector;
     private readonly IAiProviderRegistry _registry;
     private readonly OCAPDbContext _dbContext;
+    private readonly ILogger<AiController> _logger;
 
     public AiController(
         IAiProvider aiProvider, 
         IAiProviderSelector selector,
         IAiProviderRegistry registry,
-        OCAPDbContext dbContext)
+        OCAPDbContext dbContext,
+        ILogger<AiController> logger)
     {
+        _logger = logger;
         _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
@@ -126,9 +129,11 @@ public class AiController : ControllerBase
         {
             aiResponse = await provider.GenerateResponseAsync(request, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            return StatusCode(502, new { message = $"Error al generar respuesta del proveedor '{dto.Provider}': {ex.Message}" });
+            // El detalle del proveedor puede incluir la petición o datos de la cuenta: va al log, no al cliente.
+            _logger.LogError(ex, "El proveedor de IA {Provider} falló al generar la respuesta.", dto.Provider);
+            return StatusCode(502, new { message = $"El proveedor '{dto.Provider}' no pudo generar la respuesta. Revisa su configuración en IA y modelos." });
         }
 
         sw.Stop();

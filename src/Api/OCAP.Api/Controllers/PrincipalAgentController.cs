@@ -142,7 +142,7 @@ public class PrincipalAgentController : ControllerBase
                 ? "Gemini rechazó la solicitud por cuota/límite (429). Espera unos segundos o revisa tu plan en Google AI Studio."
                 : ex.Message.Contains("API Key", StringComparison.OrdinalIgnoreCase)
                     ? "Falta o es inválida la API key de Gemini. Revisa AiProviders__Gemini__ApiKey en .env."
-                    : ex.Message;
+                    : "El asistente no pudo responder. Prueba el proveedor en IA y modelos y revisa los logs de la API.";
 
             return StatusCode(503, new ApiResponse<object>
             {

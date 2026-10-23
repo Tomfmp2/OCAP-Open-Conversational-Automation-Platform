@@ -47,7 +47,7 @@ public class MfaController : ControllerBase
             var result = await _mfaService.EnableMfaAsync(_tenantContext.TenantId, userId, request.Code, cancellationToken);
             return Ok(result);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -92,7 +92,7 @@ public class MfaController : ControllerBase
             var codes = await _mfaService.RegenerateRecoveryCodesAsync(_tenantContext.TenantId, userId, cancellationToken);
             return Ok(codes);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

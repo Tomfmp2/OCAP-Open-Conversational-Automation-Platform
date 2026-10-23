@@ -166,7 +166,7 @@ public class ChannelManagementController : ControllerBase
                 Data = response
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new ApiResponse<object>
             {

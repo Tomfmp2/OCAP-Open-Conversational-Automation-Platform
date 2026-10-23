@@ -41,7 +41,7 @@ public class SamlController : ControllerBase
             var config = await _samlService.ImportIdpMetadataXmlAsync(_tenantContext.TenantId, request.MetadataXml, cancellationToken);
             return Ok(config);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -70,7 +70,7 @@ public class SamlController : ControllerBase
             var config = await _samlService.SaveSamlProviderConfigAsync(_tenantContext.TenantId, request, cancellationToken);
             return Ok(config);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -87,7 +87,7 @@ public class SamlController : ControllerBase
             var redirect = await _samlService.InitiateSpLoginAsync(tenantId, returnUrl, cancellationToken);
             return Ok(redirect);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -104,7 +104,7 @@ public class SamlController : ControllerBase
             var authResult = await _samlService.ProcessAcsResponseAsync(tenantId, request, cancellationToken);
             return Ok(authResult);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

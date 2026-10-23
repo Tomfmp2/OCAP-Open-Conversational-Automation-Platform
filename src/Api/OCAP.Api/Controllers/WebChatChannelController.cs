@@ -93,7 +93,7 @@ public class WebChatChannelController : ControllerBase
                 Data = connection
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _logger.LogError(ex, "Error al registrar WebChat.");
             return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message, Data = null });
