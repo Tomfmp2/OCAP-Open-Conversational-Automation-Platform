@@ -27,7 +27,7 @@ test("login, navegación principal y logout", async ({ page }) => {
   await login(page);
   await expect(page.getByRole("heading", { name: /En qué puedo ayudarte/i })).toBeVisible();
 
-  for (const route of ["/channels", "/channels/webchat", "/intelligence", "/agents", "/knowledge", "/settings"]) {
+  for (const route of ["/inbox", "/channels", "/channels/webchat", "/intelligence", "/agents", "/knowledge", "/settings"]) {
     await page.goto(route);
     await expect(page).toHaveURL(new RegExp(`${route.replace(/\//g, "\\/")}$`));
     await expect(page.locator("main")).toBeVisible();

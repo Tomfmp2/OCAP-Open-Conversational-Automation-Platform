@@ -5,6 +5,7 @@ import {
   Settings,
   BookOpen,
   Sparkles,
+  Inbox,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ export interface NavSection {
 
 export const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Asistente", icon: Sparkles, section: "Core" },
+  { href: "/inbox", label: "Conversaciones", icon: Inbox, section: "Core" },
   { href: "/channels", label: "Canales", icon: MessageSquare, section: "Core" },
   { href: "/intelligence", label: "IA y modelos", icon: Cpu, section: "Core" },
   { href: "/agents", label: "Agentes", icon: Bot, section: "Core" },
@@ -35,6 +37,7 @@ export const SECONDARY_NAV_FOOTER: NavItem[] = [
 
 export const COMMAND_ITEMS = [
   { label: "Asistente principal", href: "/", category: "Navegación" },
+  { label: "Conversaciones", href: "/inbox", category: "Navegación" },
   { label: "Canales", href: "/channels", category: "Navegación" },
   { label: "WebChat", href: "/channels/webchat", category: "Navegación" },
   { label: "IA y modelos", href: "/intelligence", category: "Navegación" },
@@ -48,6 +51,12 @@ export function getSubmenuForPath(pathname: string): NavSection {
     return {
       label: "Asistente",
       items: [{ label: "Chat principal", href: "/" }],
+    };
+  }
+  if (pathname.startsWith("/inbox")) {
+    return {
+      label: "Conversaciones",
+      items: [{ label: "Bandeja", href: "/inbox" }],
     };
   }
   if (pathname.startsWith("/channels")) {
