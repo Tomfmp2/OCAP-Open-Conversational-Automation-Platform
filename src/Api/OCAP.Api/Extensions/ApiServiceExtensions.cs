@@ -87,6 +87,7 @@ public static partial class ApiServiceExtensions
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();
         services.AddScoped<IChannelConnectionManager, ChannelConnectionManager>();
         services.AddScoped<OCAP.Api.Services.ChannelConversationService>();
+        services.AddScoped<IConversationResponder>(sp => sp.GetRequiredService<OCAP.Api.Services.ChannelConversationService>());
         services.AddScoped<OCAP.Api.Queries.DashboardQueries>();
 
         AddAiServices(services, configuration);

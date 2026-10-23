@@ -1,6 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
 using OCAP.Agents.Abstractions.Models;
 using OCAP.Agents.Application.Services;
 using OCAP.Application.UseCases;
+using OCAP.Channels.Abstractions.Contracts;
+using OCAP.Channels.Abstractions.Models;
 using OCAP.Core.Entities;
 using OCAP.Core.Events;
 using OCAP.Core.Ports;
@@ -26,7 +30,7 @@ public sealed record ChannelReply(string Text, string ProviderUsed);
 /// evento para el panel en vivo y obtiene la respuesta del asistente principal. Quien llama envía la respuesta por su
 /// canal. Si el asistente falla se responde un mensaje de respaldo: el contacto nunca se queda sin contestación.
 /// </summary>
-public sealed class ChannelConversationService
+public sealed class ChannelConversationService : IConversationResponder
 {
     private readonly IUserRepository _users;
     private readonly ReceiveMessageUseCase _receiveMessage;
@@ -46,6 +50,31 @@ public sealed class ChannelConversationService
         _assistant = assistant;
         _logger = logger;
         _eventBus = eventBus;
+    }
+
+    /// <summary>Contacto estable por canal, organización e id externo: el mismo número en otra organización es otro contacto.</summary>
+    public static Guid ContactUserId(string channel, Guid tenantId, string externalUserId)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{channel.ToLowerInvariant()}:{tenantId:N}:{externalUserId}"));
+        return new Guid(hash.AsSpan(0, 16));
+    }
+
+    public async Task<string> RespondAsync(
+        Guid tenantId,
+        IncomingChannelMessage message,
+        string displayName,
+        CancellationToken cancellationToken)
+    {
+        var reply = await HandleAsync(
+            new InboundChannelMessage(
+                tenantId,
+                message.ChannelName,
+                ContactUserId(message.ChannelName, tenantId, message.ExternalUserId),
+                message.ExternalUserId,
+                string.IsNullOrWhiteSpace(displayName) ? message.ExternalUserId : displayName,
+                message.Message),
+            cancellationToken);
+        return reply.Text;
     }
 
     public async Task<ChannelReply> HandleAsync(InboundChannelMessage message, CancellationToken cancellationToken)

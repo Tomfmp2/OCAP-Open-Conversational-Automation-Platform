@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -137,7 +136,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
             new InboundChannelMessage(
                 tenantId,
                 "WhatsApp",
-                UserIdFor(tenantId, message.From),
+                ChannelConversationService.ContactUserId("WhatsApp", tenantId, message.From),
                 message.From,
                 string.IsNullOrWhiteSpace(message.SenderName) ? $"+{message.From}" : message.SenderName,
                 message.Text),
@@ -162,11 +161,4 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
 
     private Task NotifyPanelAsync(Guid tenantId, WhatsAppLinkStatus status, CancellationToken cancellationToken) =>
         _hub.Clients.Group(EventsHub.GetTenantGroupName(tenantId)).SendAsync(LinkUpdatedEvent, status, cancellationToken);
-
-    /// <summary>Contacto estable por organización y número: el mismo número en otra organización es otro contacto.</summary>
-    public static Guid UserIdFor(Guid tenantId, string phoneNumber)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"whatsapp:{tenantId:N}:{phoneNumber}"));
-        return new Guid(hash.AsSpan(0, 16));
-    }
 }

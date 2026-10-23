@@ -159,6 +159,26 @@ public class ChannelConnectionManager : IChannelConnectionManager
             .ToListAsync(cancellationToken);
     }
 
+    public Task<string?> GetCredentialsAsync(ChannelConnection connection, CancellationToken cancellationToken = default) =>
+        _credentialVault.RetrieveSecretAsync(connection.TenantId, connection.CredentialsReference, cancellationToken);
+
+    public async Task<IReadOnlyList<ChannelConnection>> GetEnabledConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => c.Provider == provider && c.Enabled)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ChannelConnection?> FindConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
+    }
+
     public async Task<ChannelHealthResult> ValidateConnectionAsync(Guid tenantId, Guid connectionId, CancellationToken cancellationToken = default)
     {
         var connection = await _dbContext.ChannelConnections
