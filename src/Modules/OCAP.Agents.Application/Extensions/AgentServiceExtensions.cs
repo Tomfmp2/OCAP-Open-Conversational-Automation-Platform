@@ -16,7 +16,7 @@ public static class AgentServiceExtensions
     public static IServiceCollection AddAgentEngineServices(this IServiceCollection services)
     {
         services.AddSingleton<IToolRegistry, ToolRegistry>();
-        services.AddSingleton<IPermissionValidator>(sp =>
+        services.AddSingleton(_ =>
         {
             var validator = new DefaultPermissionValidator();
             var policy = new AgentPermissionPolicy(EnterpriseAssistantAgent.EnterpriseAssistantAgentId);
@@ -27,6 +27,8 @@ public static class AgentServiceExtensions
             validator.SetPolicy(policy);
             return validator;
         });
+        // Scoped: consulta las herramientas habilitadas del agente en la organización de la petición.
+        services.AddScoped<IPermissionValidator, AgentToolPermissionValidator>();
         services.AddScoped<IIntentResolver, RuleBasedIntentResolver>();
         services.AddScoped<IActionDispatcher, ActionDispatcher>();
         services.AddScoped<ProcessAgentMessageUseCase>();
@@ -35,6 +37,7 @@ public static class AgentServiceExtensions
         services.AddScoped<IAgentResolver, AgentResolver>();
         services.AddScoped<IEnterpriseAssistantAgent, EnterpriseAssistantAgent>();
         services.AddScoped<AgentService>();
+        services.AddScoped<ChannelAgentRunner>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<ILanguageModelProviderSelector, DefaultLanguageModelProviderSelector>();
         services.AddSingleton<IConversationContextRepository, InMemoryConversationContextRepository>();

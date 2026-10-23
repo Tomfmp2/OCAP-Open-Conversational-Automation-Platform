@@ -188,6 +188,8 @@ public sealed class WhatsAppLinkService
         };
         if (!string.IsNullOrWhiteSpace(phone)) metadata["PhoneNumber"] = phone;
         if (!string.IsNullOrWhiteSpace(profile)) metadata["ProfileName"] = profile;
+        // El agente asignado desde el panel sobrevive a los cambios de estado de la vinculación.
+        if (connection?.ConfigurationMetadata.TryGetValue("AgentId", out var agentId) == true) metadata["AgentId"] = agentId;
         var displayName = string.IsNullOrWhiteSpace(phone) ? "WhatsApp" : $"WhatsApp +{phone}";
 
         if (connection is null)

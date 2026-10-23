@@ -139,7 +139,8 @@ public class WhatsAppWebhookController : ControllerBase
         HttpTenantContext.UseTrustedTenant(HttpContext, tenantId);
         var token = await _connections.GetCredentialsAsync(connection[0], cancellationToken);
         var reply = await _responder.RespondAsync(
-            tenantId, message, message.Metadata.GetValueOrDefault("SenderName") ?? string.Empty, cancellationToken);
+            tenantId, connection[0].Id, message, message.Metadata.GetValueOrDefault("SenderName") ?? string.Empty, cancellationToken);
+        if (reply is null) return; // una persona del equipo atiende la conversación
 
         var sent = await _cloudClient.SendMessageAsync(
             phoneNumberId,

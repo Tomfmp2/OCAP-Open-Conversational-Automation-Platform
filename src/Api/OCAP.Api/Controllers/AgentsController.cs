@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Agents.Application.Services;
 using OCAP.Agents.Domain.Entities;
+using OCAP.Security.Abstractions;
+using OCAP.Tools.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
@@ -20,15 +22,7 @@ public class AgentsController : ControllerBase
     public async Task<ActionResult<IEnumerable<AgentDto>>> GetAgents(CancellationToken cancellationToken)
     {
         var agents = await _agentService.GetAllAgentsAsync(cancellationToken);
-        var dtos = agents.Select(a => new AgentDto
-        {
-            Id = a.Id,
-            Name = a.Name.Value,
-            Description = a.Description,
-            Status = a.Status.ToString(),
-            EnabledTools = a.Configuration.AllowedToolNames.ToList(),
-            CreatedAt = a.CreatedAt
-        }).ToList();
+        var dtos = agents.Select(a => ToDto(a)).ToList();
 
         return Ok(dtos);
     }
@@ -39,15 +33,7 @@ public class AgentsController : ControllerBase
         try
         {
             var agent = await _agentService.GetAgentAsync(id, cancellationToken);
-            return Ok(new AgentDto
-            {
-                Id = agent.Id,
-                Name = agent.Name.Value,
-                Description = agent.Description,
-                Status = agent.Status.ToString(),
-                EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
-                CreatedAt = agent.CreatedAt
-            });
+            return Ok(ToDto(agent));
         }
         catch (KeyNotFoundException)
         {
@@ -65,15 +51,7 @@ public class AgentsController : ControllerBase
             request.AllowedTools ?? new List<string>(), 
             cancellationToken);
 
-        var dto = new AgentDto
-        {
-            Id = agent.Id,
-            Name = agent.Name.Value,
-            Description = agent.Description,
-            Status = agent.Status.ToString(),
-            EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
-            CreatedAt = agent.CreatedAt
-        };
+        var dto = ToDto(agent);
 
         return CreatedAtAction(nameof(GetAgentById), new { id = agent.Id }, dto);
     }
@@ -149,7 +127,64 @@ public class AgentsController : ControllerBase
 
         return Ok(statuses);
     }
+
+    /// <summary>Herramientas que se le pueden habilitar a un agente.</summary>
+    [HttpGet("tools")]
+    public ActionResult<IEnumerable<AgentToolDto>> GetTools([FromServices] IToolRegistry tools) =>
+        Ok(tools.GetAllTools().Select(t => new AgentToolDto(t.Definition.Name, t.Definition.Description)));
+
+    /// <summary>
+    /// Prueba un agente desde el panel (id vacío = agente de atención por defecto) con el mismo motor que usan los
+    /// canales: prompt, historial y base de conocimiento. No guarda nada ni ejecuta herramientas reales.
+    /// </summary>
+    [HttpPost("{id:guid}/test")]
+    public async Task<ActionResult<AgentTestResponse>> TestAgent(
+        Guid id,
+        [FromBody] AgentTestRequest request,
+        [FromServices] ChannelAgentRunner runner,
+        [FromServices] ITenantContext tenantContext,
+        [FromServices] IUserContext userContext,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Message)) return BadRequest(new { message = "El mensaje es obligatorio." });
+        if (id != Guid.Empty)
+        {
+            try { await _agentService.GetAgentAsync(id, cancellationToken); }
+            catch (KeyNotFoundException) { return NotFound(); }
+        }
+
+        var reply = await runner.ReplyAsync(
+            new ChannelAgentRequest(
+                tenantContext.TenantId,
+                id == Guid.Empty ? null : id,
+                userContext.UserId,
+                Guid.Empty,
+                "Prueba del panel",
+                "Cliente de prueba",
+                (request.History ?? new()).TakeLast(12).Select(t => new ChannelTurn(t.FromContact, t.Text)).ToList(),
+                request.Message.Trim(),
+                ExecuteTools: false),
+            cancellationToken);
+
+        return Ok(new AgentTestResponse(reply.Text, reply.ProviderUsed, reply.AgentName, reply.TransferToHuman));
+    }
+
+    private static AgentDto ToDto(Agent agent) => new()
+    {
+        Id = agent.Id,
+        Name = agent.Name.Value,
+        Description = agent.Description,
+        Status = agent.Status.ToString(),
+        SystemPrompt = agent.Configuration.SystemPrompt,
+        EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
+        CreatedAt = agent.CreatedAt
+    };
 }
+
+public record AgentTestTurn(bool FromContact, string Text);
+public record AgentTestRequest(string Message, List<AgentTestTurn>? History);
+public record AgentTestResponse(string Reply, string ProviderUsed, string AgentName, bool TransferToHuman);
+public record AgentToolDto(string Name, string Description);
 
 public record CreateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools);
 public record UpdateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools);

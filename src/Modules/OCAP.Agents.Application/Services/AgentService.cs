@@ -28,6 +28,7 @@ public class AgentService
 
     public async Task<Agent> CreateAgentAsync(string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default)
     {
+        await EnsureUniqueNameAsync(name, exceptId: null, cancellationToken);
         var configuration = new AgentConfiguration(systemPrompt, null, allowedTools);
         var agent = new Agent(Guid.NewGuid(), new AgentName(name), description, configuration);
         
@@ -38,10 +39,10 @@ public class AgentService
     public async Task UpdateAgentAsync(Guid id, string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default)
     {
         var agent = await GetAgentAsync(id, cancellationToken);
+        await EnsureUniqueNameAsync(name, exceptId: id, cancellationToken);
         var configuration = new AgentConfiguration(systemPrompt, null, allowedTools);
         
-        // Note: Currently Agent entity has no Update method for Name and Description.
-        // We'll update configuration for now, or we can add UpdateProfile to Agent.
+        agent.UpdateProfile(new AgentName(name), description);
         agent.UpdateConfiguration(configuration);
         
         await _agentRepository.UpdateAsync(agent, cancellationToken);
@@ -51,5 +52,15 @@ public class AgentService
     {
         var agent = await GetAgentAsync(id, cancellationToken);
         await _agentRepository.DeleteAsync(agent, cancellationToken);
+    }
+
+    /// <summary>El nombre es único por organización (índice de la base); se avisa antes con un error legible.</summary>
+    private async Task EnsureUniqueNameAsync(string name, Guid? exceptId, CancellationToken cancellationToken)
+    {
+        var agents = await _agentRepository.GetAllAsync(cancellationToken);
+        if (agents.Any(a => a.Id != exceptId && string.Equals(a.Name.Value, name?.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"Ya existe un agente llamado \"{name?.Trim()}\".");
+        }
     }
 }

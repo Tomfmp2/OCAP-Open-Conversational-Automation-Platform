@@ -27,7 +27,7 @@ public sealed class TelegramConversationProcessor
     }
 
     /// <returns>true si se respondió; false si el update no se procesa o el envío falló.</returns>
-    public async Task<bool> ProcessAsync(Guid tenantId, string botToken, TelegramUpdate update, CancellationToken cancellationToken)
+    public async Task<bool> ProcessAsync(Guid tenantId, Guid connectionId, string botToken, TelegramUpdate update, CancellationToken cancellationToken)
     {
         var message = update.Message;
         if (message is null
@@ -43,7 +43,8 @@ public sealed class TelegramConversationProcessor
             .Where(part => !string.IsNullOrWhiteSpace(part)));
         if (string.IsNullOrWhiteSpace(displayName)) displayName = message.From?.Username ?? incoming.ExternalUserId;
 
-        var reply = await _responder.RespondAsync(tenantId, incoming, displayName, cancellationToken);
+        var reply = await _responder.RespondAsync(tenantId, connectionId, incoming, displayName, cancellationToken);
+        if (reply is null) return false; // una persona del equipo atiende la conversación
 
         // Texto plano: las respuestas del modelo suelen traer Markdown que Telegram rechaza si no está balanceado.
         var sent = await _apiClient.SendMessageAsync(

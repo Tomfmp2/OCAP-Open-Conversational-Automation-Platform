@@ -159,6 +159,21 @@ public class ChannelConnectionManager : IChannelConnectionManager
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> SetMetadataValueAsync(Guid tenantId, Guid connectionId, string key, string? value, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.ChannelConnections
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == connectionId, cancellationToken);
+        if (connection == null) return false;
+
+        var metadata = new Dictionary<string, string>(connection.ConfigurationMetadata);
+        if (value is null) metadata.Remove(key);
+        else metadata[key] = value;
+
+        connection.UpdateConfiguration(connection.DisplayName, connection.CredentialsReference, metadata);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public Task<string?> GetCredentialsAsync(ChannelConnection connection, CancellationToken cancellationToken = default) =>
         _credentialVault.RetrieveSecretAsync(connection.TenantId, connection.CredentialsReference, cancellationToken);
 

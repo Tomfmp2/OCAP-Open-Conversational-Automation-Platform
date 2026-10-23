@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using OCAP.Api.Hubs;
 using OCAP.Api.Services;
+using OCAP.Channels.Abstractions.Models;
 using OCAP.Channels.WhatsApp.Configuration;
 using OCAP.Channels.WhatsApp.Evolution;
 using OCAP.Channels.WhatsApp.Services;
@@ -130,26 +131,25 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
         if (_processedMessages.TryGetValue(deduplicationKey, out _)) return;
         _processedMessages.Set(deduplicationKey, true, DeduplicationWindow);
 
-        if (await _link.FindConnectionAsync(tenantId, cancellationToken) is null)
+        var connection = await _link.FindConnectionAsync(tenantId, cancellationToken);
+        if (connection is null)
         {
             _logger.LogInformation("Mensaje de WhatsApp ignorado: la organización {TenantId} no tiene WhatsApp vinculado.", tenantId);
             return;
         }
 
-        var reply = await _conversations.HandleAsync(
-            new InboundChannelMessage(
-                tenantId,
-                "WhatsApp",
-                ChannelConversationService.ContactUserId("WhatsApp", tenantId, message.From),
-                message.From,
-                string.IsNullOrWhiteSpace(message.SenderName) ? $"+{message.From}" : message.SenderName,
-                message.Text),
+        var reply = await _conversations.RespondAsync(
+            tenantId,
+            connection.Id,
+            new IncomingChannelMessage { ExternalUserId = message.From, ChannelName = "WhatsApp", Message = message.Text },
+            string.IsNullOrWhiteSpace(message.SenderName) ? $"+{message.From}" : message.SenderName,
             cancellationToken);
+        if (reply is null) return; // una persona del equipo atiende la conversación
 
         var sent = false;
         try
         {
-            await _evolution.SendTextAsync(message.Instance, message.From, reply.Text, cancellationToken);
+            await _evolution.SendTextAsync(message.Instance, message.From, reply, cancellationToken);
             sent = true;
         }
         catch (Exception ex) when (ex is EvolutionApiException or HttpRequestException)
@@ -159,7 +159,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
 
         if (_eventBus is not null)
         {
-            await _eventBus.PublishAsync(new MessageSentEvent("WhatsApp", message.From, reply.Text, sent, tenantId), cancellationToken);
+            await _eventBus.PublishAsync(new MessageSentEvent("WhatsApp", message.From, reply, sent, tenantId), cancellationToken);
         }
     }
 

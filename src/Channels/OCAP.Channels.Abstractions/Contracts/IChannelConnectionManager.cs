@@ -35,6 +35,9 @@ public interface IChannelConnectionManager
     // Obtiene todas las conexiones de canales registradas para un Tenant específico.
     Task<IEnumerable<ChannelConnection>> GetTenantConnectionsAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
+    // Fija (o con null quita) un metadato de la conexión sin tocar sus credenciales. false si no existe en el Tenant.
+    Task<bool> SetMetadataValueAsync(Guid tenantId, Guid connectionId, string key, string? value, CancellationToken cancellationToken = default);
+
     // Credenciales descifradas de la conexión (p. ej. el token de un bot); null si el secreto ya no existe.
     Task<string?> GetCredentialsAsync(ChannelConnection connection, CancellationToken cancellationToken = default);
 

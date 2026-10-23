@@ -188,7 +188,7 @@ public class TelegramChannelController : ControllerBase
         if (!processedUpdates.TryGetValue(key, out _))
         {
             processedUpdates.Set(key, true, TimeSpan.FromHours(6));
-            await processor.ProcessAsync(connection.TenantId, token, update, cancellationToken);
+            await processor.ProcessAsync(connection.TenantId, connectionId, token, update, cancellationToken);
         }
 
         return Ok();

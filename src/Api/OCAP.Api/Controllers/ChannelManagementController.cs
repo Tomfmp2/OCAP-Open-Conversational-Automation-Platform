@@ -177,6 +177,37 @@ public class ChannelManagementController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Asigna el agente que responde en este canal; <c>agentId</c> null vuelve al agente de atención por defecto.
+    /// </summary>
+    [HttpPut("connections/{id:guid}/agent")]
+    public async Task<IActionResult> AssignAgent(
+        Guid id,
+        [FromBody] AssignChannelAgentRequest request,
+        [FromServices] OCAP.Agents.Application.Services.AgentService agents,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        if (request.AgentId is { } agentId)
+        {
+            try
+            {
+                // Filtrado por la organización: un agente de otra organización no existe para esta.
+                await agents.GetAgentAsync(agentId, cancellationToken);
+            }
+            catch (KeyNotFoundException)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El agente no existe en esta organización.");
+            }
+        }
+
+        var updated = await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelConversationService.AgentIdMetadataKey, request.AgentId?.ToString(), cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
     // POST /api/channels/{id}/enable - Habilita una conexión de canal.
     [HttpPost("{id:guid}/enable")]
     public async Task<IActionResult> EnableChannel(Guid id, CancellationToken cancellationToken)
@@ -359,3 +390,5 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = $"Estad?sticas del canal {provider} obtenidas.", Data = response });
     }
 }
+
+public sealed record AssignChannelAgentRequest(Guid? AgentId);

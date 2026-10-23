@@ -25,6 +25,8 @@
     <ProjectReference Include="..\..\src\Modules\OCAP.Agents.Abstractions\OCAP.Agents.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Modules\OCAP.Agents.Application\OCAP.Agents.Application.csproj" />
     <ProjectReference Include="..\..\src\Tools\OCAP.Tools.Abstractions\OCAP.Tools.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Knowledge\OCAP.Knowledge.Abstractions\OCAP.Knowledge.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Security\OCAP.Security.Abstractions\OCAP.Security.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

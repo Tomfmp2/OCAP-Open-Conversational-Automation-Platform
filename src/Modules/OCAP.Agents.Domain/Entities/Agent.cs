@@ -60,6 +60,13 @@ public class Agent
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void UpdateProfile(AgentName name, string description)
+    {
+        Name = name ?? throw new ArgumentNullException(nameof(name));
+        Description = description ?? string.Empty;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void UpdateConfiguration(AgentConfiguration newConfiguration)
     {
         Configuration = newConfiguration ?? throw new ArgumentNullException(nameof(newConfiguration));

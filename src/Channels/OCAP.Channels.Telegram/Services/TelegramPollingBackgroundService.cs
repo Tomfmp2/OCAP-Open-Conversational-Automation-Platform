@@ -94,7 +94,7 @@ public class TelegramPollingBackgroundService : BackgroundService
             var processor = scope.ServiceProvider.GetRequiredService<TelegramConversationProcessor>();
             try
             {
-                await processor.ProcessAsync(tenantId, token, update, cancellationToken);
+                await processor.ProcessAsync(tenantId, connectionId, token, update, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
