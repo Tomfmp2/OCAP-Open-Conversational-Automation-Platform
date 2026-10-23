@@ -94,13 +94,13 @@ public class WhatsAppWebhookValidatorTests
         var payload = new WhatsAppCloudWebhookPayload
         {
             Object = "whatsapp_business_account",
-            Entry = new List<WhatsAppCloudEntry>
+            Entry = new List<WhatsAppWebhookEntry>
             {
-                new WhatsAppCloudEntry
+                new WhatsAppWebhookEntry
                 {
-                    Changes = new List<WhatsAppCloudChange>
+                    Changes = new List<WhatsAppWebhookChange>
                     {
-                        new WhatsAppCloudChange
+                        new WhatsAppWebhookChange
                         {
                             Field = "messages"
                         }
@@ -123,7 +123,7 @@ public class WhatsAppWebhookValidatorTests
         var payload = new WhatsAppCloudWebhookPayload
         {
             Object = "page", // Incorrect
-            Entry = new List<WhatsAppCloudEntry>()
+            Entry = new List<WhatsAppWebhookEntry>()
         };
 
         // Act

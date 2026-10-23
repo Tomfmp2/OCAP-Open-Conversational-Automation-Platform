@@ -88,6 +88,7 @@
     <Project Path="tests/OCAP.Agents.Tests/OCAP.Agents.Tests.csproj" />
     <Project Path="tests/OCAP.Api.Tests/OCAP.Api.Tests.csproj" />
     <Project Path="tests/OCAP.Channels.Tests/OCAP.Channels.Tests.csproj" />
+    <Project Path="tests/OCAP.Channels.WhatsApp.Tests/OCAP.Channels.WhatsApp.Tests.csproj" />
     <Project Path="tests/OCAP.Dashboard.Tests/OCAP.Dashboard.Tests.csproj" />
     <Project Path="tests/OCAP.IntegrationTests/OCAP.IntegrationTests.csproj" />
     <Project Path="tests/OCAP.Intelligence.Tests/OCAP.Intelligence.Tests.csproj" />
