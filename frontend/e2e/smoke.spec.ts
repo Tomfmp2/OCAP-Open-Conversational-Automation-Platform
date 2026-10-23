@@ -1,28 +1,33 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const email = process.env.OCAP_ADMIN_EMAIL || "admin@ocap.io";
-const password =
-  process.env.OCAP_ADMIN_PASSWORD || "ChangeMe_Admin_2026!";
+/**
+ * Smoke del camino crítico contra un stack levantado con Docker Compose.
+ * La instalación debe tener un admin: configuración inicial hecha en /setup o admin por entorno
+ * (BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD). Sus credenciales llegan por OCAP_ADMIN_EMAIL / OCAP_ADMIN_PASSWORD.
+ */
+const email = process.env.OCAP_ADMIN_EMAIL ?? "";
+const password = process.env.OCAP_ADMIN_PASSWORD ?? "";
+
+test.beforeAll(() => {
+  if (!email || !password) {
+    throw new Error("Define OCAP_ADMIN_EMAIL y OCAP_ADMIN_PASSWORD con la cuenta de administrador de la instalación.");
+  }
+});
+
+async function login(page: Page) {
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Iniciar sesión" })).toBeVisible();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Contraseña").fill(password);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await expect(page).toHaveURL(/\/$/);
+}
 
 test("login, navegación principal y logout", async ({ page }) => {
-  await page.goto("/login");
+  await login(page);
+  await expect(page.getByRole("heading", { name: /En qué puedo ayudarte/i })).toBeVisible();
 
-  await expect(page.getByRole("heading", { name: "Sign In" })).toBeVisible();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign In" }).click();
-
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText(/Agente principal|Soy tu asistente principal/i).first()).toBeVisible();
-
-  for (const route of [
-    "/channels",
-    "/channels/webchat",
-    "/intelligence",
-    "/agents",
-    "/knowledge",
-    "/settings",
-  ]) {
+  for (const route of ["/channels", "/channels/webchat", "/intelligence", "/agents", "/knowledge", "/settings"]) {
     await page.goto(route);
     await expect(page).toHaveURL(new RegExp(`${route.replace(/\//g, "\\/")}$`));
     await expect(page.locator("main")).toBeVisible();
@@ -32,21 +37,23 @@ test("login, navegación principal y logout", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test("la configuración inicial es pública y en una instalación configurada lleva al login", async ({ page }) => {
-  await page.goto("/setup");
-  // Instalación nueva: muestra el primer paso. Ya configurada (caso de esta suite, con admin): redirige a /login.
-  await expect(page).toHaveURL(/\/(setup|login)$/);
-  if (page.url().endsWith("/setup")) {
-    await expect(page.getByLabel("Código de configuración")).toBeVisible();
-  }
-});
-
-test("rutas de workflows redirigen al resumen (fuera de v1)", async ({ page }) => {
+test("credenciales incorrectas muestran el error sin entrar", async ({ page }) => {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign In" }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await page.getByLabel("Contraseña").fill(`${password}-incorrecta`);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  // Next.js añade su propio role="alert" (anunciador de rutas): se busca el mensaje concreto.
+  await expect(page.getByRole("alert").filter({ hasText: "Email o contraseña incorrectos" })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("en una instalación configurada, /setup lleva al login", async ({ page }) => {
+  await page.goto("/setup");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("rutas de workflows redirigen al asistente (fuera de v1)", async ({ page }) => {
+  await login(page);
 
   await page.goto("/workflows");
   await expect(page).toHaveURL(/\/$/);
