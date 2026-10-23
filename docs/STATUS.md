@@ -1,10 +1,10 @@
 # Estado actual de OCAP (hito local v1)
 
-Última actualización: 2026-10-22
+Última actualización: 2026-10-23
 
 ## Resumen
 
-OCAP ya se puede desarrollar y probar **en local sin Docker** (`scripts/ocap-dev.ps1`), con:
+OCAP se instala con Docker (`./scripts/ocap-up.sh`) o se desarrolla **en local sin Docker** (`scripts/ocap-dev.sh` en Linux/macOS, `scripts/ocap-dev.ps1` en Windows), con:
 
 - API en `http://localhost:5229`
 - Panel en `http://localhost:3000`
@@ -16,13 +16,14 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 
 | Área | Estado | Notas |
 | --- | --- | --- |
-| Arranque local (UseInMemory) | Listo | `.env` + `ocap-dev.ps1`; reiniciar API tras cambiar keys |
+| Arranque local (UseInMemory) | Listo | `.env` + `ocap-dev.sh` / `ocap-dev.ps1`; reiniciar API tras cambiar keys |
 | Instalación | Listo | `ocap-setup.sh` genera `.env` y secretos; configuración inicial en `/setup` protegida por código |
-| Agente principal (home) | Listo | Chat tipo asistente con contexto de sistema OCAP |
+| Agente principal (home) | Listo | Chat tipo asistente; sin keys de IA responde en modo demo (Mock) |
 | IA y modelos | Listo | CRUD por tenant, probar/usar/editar, preferred provider |
 | Gemini | Listo | Modelo por defecto `gemini-3.5-flash`; auth por `x-goog-api-key` |
-| WhatsApp Evolution | Listo (código) | Cliente + webhooks; requiere Evolution en marcha y vars `EVOLUTION_*` / `WhatsApp__*` |
+| WhatsApp Evolution | Listo | QR desde el panel, webhook firmado por organización, respuesta del asistente; validado contra Evolution v2.3.7 real salvo el escaneo con teléfono ([checklist](testing/WHATSAPP_E2E.md)) |
 | WebChat | Listo | Canal usable en panel |
+| Telegram | Parcial | Recibe y guarda mensajes; falta conectar la respuesta del asistente |
 | Workflows UI | Fuera de v1 | Rutas placeholder; motor backend sigue en el repo |
 
 ## Cómo verificar IA
@@ -34,7 +35,8 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 
 ## Pendiente / siguiente
 
-- Conectar Evolution real de punta a punta (QR, instancia estable, mensajes entrantes/salientes).
+- Prueba manual de WhatsApp con un teléfono real (`docs/testing/WHATSAPP_E2E.md`).
+- Telegram: responder con el asistente (hoy solo guarda el mensaje), reutilizando `ChannelConversationService`.
 - Persistir fuera de UseInMemory cuando se quiera DB Postgres local/Docker.
 - Reintroducir workflows en UI solo cuando el producto lo priorice.
 - Rotar secrets de desarrollo si se compartieron en entornos no locales.

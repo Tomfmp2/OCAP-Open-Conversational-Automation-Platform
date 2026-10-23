@@ -111,6 +111,16 @@ y el asistente responde los mensajes, sin configurar nada a mano.
 
 ## Fase 2 — Arquitectura y código limpio (~4 días)
 
+> **Estado: hecha, con dos ajustes de alcance.**
+> - Hechos: 1 (los `catch (Exception)` que devolvían `ex.Message` quedan limitados a excepciones de negocio; el resto
+>   llega al middleware `ProblemDetails`), 3, 4 (Blazor eliminado), 5 y la división de `PrincipalAgentChat`.
+> - 2, parcial: `WorkflowsController` usa los repositorios existentes y `DashboardController` usa `DashboardQueries`.
+>   Los controladores que hacen una sola consulta de lectura (sesiones, permisos, ejecuciones…) se dejan así: un
+>   servicio por consulta sería ceremonia sin beneficio. Los filtros globales de EF ya los acotan por tenant.
+> - 6, pospuesto: generar tipos desde OpenAPI agrega una dependencia y, con muchos endpoints que devuelven objetos
+>   anónimos, el esquema saldría débil. Conviene hacerlo cuando los controladores devuelvan DTOs tipados.
+> - `intelligence/page.tsx` (284 líneas) ya está compuesta de componentes; no se dividió.
+
 1. **Errores uniformes**: un middleware traduce excepciones a `ProblemDetails`; se eliminan los 30 `ex.Message` y
    las respuestas `ApiResponse` ad hoc de los controladores tocados.
 2. **Controladores delgados**: mover el acceso a datos de los 16 controladores con `OCAPDbContext` a casos de uso en
@@ -125,6 +135,10 @@ y el asistente responde los mensajes, sin configurar nada a mano.
    componentes de más de 250 líneas.
 
 ## Fase 3 — Producto, documentación y release (~1–2 días)
+
+> **Estado: 1 y 2 hechos** (`ocap-dev.sh`, README con capturas, insignia de CI y alcance de la v1); CHANGELOG y
+> `STATUS.md` actualizados. Pendiente de decisión: el número de versión (el CHANGELOG ya registra 2.0.0 y 2.1.0, así
+> que `v1.0.0` iría hacia atrás en SemVer) y publicar la release, que requiere CI en verde.
 
 1. `scripts/ocap-dev.sh` para Linux y macOS, equivalente a `ocap-dev.ps1`.
 2. README con capturas o GIF del flujo (configuración inicial → vincular WhatsApp → conversación), insignia de CI y

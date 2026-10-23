@@ -1,13 +1,34 @@
 # OCAP (Open Conversational Automation Platform)
 
+[![CI](https://github.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform/actions/workflows/ci.yml)
+
 OCAP es una plataforma self-hosted de automatización conversacional. Este repositorio contiene una API ASP.NET Core, una interfaz principal en Next.js y adaptadores para canales, proveedores de IA, almacenamiento e integraciones.
 
 El proyecto está en desarrollo activo. La presencia de una abstracción o un proyecto de proveedor no implica que toda la integración esté completa para producción.
 
+| Asistente principal | Vincular WhatsApp por QR |
+| --- | --- |
+| ![Chat con el asistente principal en modo demo](docs/assets/readme/03-chat-modo-demo.png) | ![Modal de vinculación de WhatsApp con el código QR](docs/assets/readme/04-whatsapp-qr.png) |
+
+## Alcance de la v1
+
+| Área | Estado |
+| --- | --- |
+| Instalación con Docker (`ocap-up.sh`) y configuración inicial en `/setup` | Listo |
+| Asistente principal (chat), con modo demo si no hay keys de IA | Listo |
+| IA y modelos por organización: Gemini, OpenAI, Claude, Ollama | Listo |
+| WhatsApp por QR (Evolution API v2), con respuesta del asistente | Listo ([guía](docs/channels/WHATSAPP.md)) |
+| WebChat | Listo |
+| Telegram | Recibe y guarda mensajes; la respuesta del asistente aún no está conectada |
+| WhatsApp Cloud API (Meta) | Disponible, sin prueba de punta a punta |
+| Google Calendar, Gmail y Sheets | Disponible con token OAuth |
+| Motor de workflows | Solo API; fuera de la interfaz de la v1 |
+| Slack, Teams, Discord; Qdrant, Chroma, Pinecone | No implementado |
+
 ## Componentes implementados
 
 - API y servicios de aplicación en .NET 10.
-- Frontend principal en Next.js 16 (`frontend/`), incluyendo diseñador de workflows en `/workflows/designer`.
+- Frontend principal en Next.js 16 (`frontend/`).
 - Persistencia relacional en PostgreSQL.
 - Búsqueda vectorial mediante la extensión PgVector de PostgreSQL; las pruebas y ejecuciones aisladas pueden usar almacenamiento en memoria.
 - Bus de eventos seleccionable entre RabbitMQ, NATS e InMemory. Docker Compose usa RabbitMQ por defecto y también inicia NATS.
@@ -28,7 +49,8 @@ Requisitos: Docker Engine y Docker Compose.
 
 El script genera el `.env` con secretos aleatorios (`./scripts/ocap-setup.sh`), construye el stack y, al terminar,
 muestra el **código de configuración**. Abre `http://localhost:3000/setup`, ingrésalo y crea la organización y tu
-cuenta de administrador; la conexión con un proveedor de IA es opcional y se puede hacer después.
+cuenta de administrador; la conexión con un proveedor de IA es opcional y se puede hacer después (mientras tanto el
+asistente responde en modo demo).
 
 Reset total: `docker compose down -v && ./scripts/ocap-up.sh`.
 
@@ -79,6 +101,15 @@ La API expone:
 Docker usa `/health/ready` para comprobar la disponibilidad de la API.
 
 ## Desarrollo local
+
+Sin Docker, API en memoria (`:5229`) y panel (`:3000`) en una sola terminal:
+
+```bash
+./scripts/ocap-dev.sh          # Linux y macOS
+.\scripts\ocap-dev.ps1         # Windows (PowerShell)
+```
+
+Por separado:
 
 Backend:
 
