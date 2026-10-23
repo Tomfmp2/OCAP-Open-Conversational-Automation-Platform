@@ -19,7 +19,7 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 | IA y modelos por organización: Gemini, OpenAI, Claude, Ollama | Listo |
 | WhatsApp por QR (Evolution API v2), con respuesta del asistente | Listo ([guía](docs/channels/WHATSAPP.md)) |
 | WebChat | Listo |
-| Telegram | Recibe y guarda mensajes; la respuesta del asistente aún no está conectada |
+| Telegram (bot conectado desde el panel, polling o webhook) | Listo |
 | WhatsApp Cloud API (Meta) | Disponible, sin prueba de punta a punta |
 | Google Calendar, Gmail y Sheets | Disponible con token OAuth |
 | Motor de workflows | Solo API; fuera de la interfaz de la v1 |

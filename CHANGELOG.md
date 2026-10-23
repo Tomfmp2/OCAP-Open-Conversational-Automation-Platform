@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WhatsApp por QR (Evolution API v2.3.7)**: *Canales → Conectar canal → WhatsApp* muestra el QR, el estado llega en vivo por SignalR y el asistente principal responde los chats individuales. Una instancia por organización, sesiones persistentes en Postgres y endpoints `POST/GET/DELETE /api/channels/whatsapp/link`.
 - **Modo demo de IA**: sin keys de IA en el servidor el asistente responde con el proveedor Mock en vez de fallar (`AiProviders__DemoMode=false` lo desactiva).
 - `scripts/ocap-dev.sh` para desarrollar sin Docker en Linux y macOS.
+- **Telegram responde con el asistente**: el polling consulta cada bot registrado desde el panel con su propio token (antes solo el token global, así que los bots del panel nunca se atendían) y el modo webhook usa una URL por conexión con un secreto derivado del token del bot (antes el secreto se generaba y se perdía).
 - CI estricto: `TreatWarningsAsErrors`, auditorías de dependencias y Trivy bloqueantes, y un job E2E con Playwright sobre el stack de Docker.
 
 ### Changed

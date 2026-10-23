@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Telegram.DTOs;
 using OCAP.Channels.Telegram.Services;
 using OCAP.Channels.Telegram.Webhooks;
 using OCAP.Security.Abstractions;
+using OCAP.Security.Infrastructure.Services;
 
 namespace OCAP.Api.Controllers;
 
@@ -149,6 +153,45 @@ public class TelegramChannelController : ControllerBase
         }
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Update recibido procesado correctamente.", Data = null });
+    }
+
+    /// <summary>
+    /// Webhook de un bot registrado desde el panel en modo webhook. Telegram envía el secreto derivado del token del
+    /// bot; con él se verifica el bot y se fija su organización antes de procesar el mensaje. Siempre responde 200 a
+    /// updates válidos: Telegram reintenta cualquier otra respuesta.
+    /// </summary>
+    [HttpPost("webhook/{connectionId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> HandleBotWebhook(
+        Guid connectionId,
+        [FromBody] TelegramUpdate update,
+        [FromServices] IChannelConnectionManager connections,
+        [FromServices] TelegramConversationProcessor processor,
+        [FromServices] IMemoryCache processedUpdates,
+        CancellationToken cancellationToken)
+    {
+        var connection = await connections.FindConnectionAsync(connectionId, cancellationToken);
+        var token = connection is { Provider: "Telegram", Enabled: true }
+            ? await connections.GetCredentialsAsync(connection, cancellationToken)
+            : null;
+        var secret = Request.Headers["X-Telegram-Bot-Api-Secret-Token"].FirstOrDefault();
+        if (connection is null || token is null || !TelegramWebhookSecret.IsValid(token, connectionId, secret))
+        {
+            _logger.LogWarning("Webhook de Telegram rechazado para la conexión {ConnectionId}.", connectionId);
+            return Unauthorized();
+        }
+
+        HttpTenantContext.UseTrustedTenant(HttpContext, connection.TenantId);
+
+        // Telegram reintenta si la respuesta tarda: cada update se responde una sola vez.
+        var key = $"telegram-update:{connectionId:N}:{update.UpdateId}";
+        if (!processedUpdates.TryGetValue(key, out _))
+        {
+            processedUpdates.Set(key, true, TimeSpan.FromHours(6));
+            await processor.ProcessAsync(connection.TenantId, token, update, cancellationToken);
+        }
+
+        return Ok();
     }
 
     // GET /api/channels/telegram/bots/{id}/health - Health check y latencia de conexión del bot.

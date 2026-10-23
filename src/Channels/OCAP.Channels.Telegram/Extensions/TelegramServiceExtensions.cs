@@ -18,6 +18,7 @@ public static class TelegramServiceExtensions
         services.AddSingleton<TelegramWebhookValidator>();
         services.AddScoped<TelegramMessageReceiver>();
         services.AddScoped<TelegramMessageSender>();
+        services.AddScoped<TelegramConversationProcessor>();
         services.AddScoped<IChannelProvider, TelegramChannelProvider>();
         services.AddScoped<TelegramChannelProvider>();
         services.AddScoped<ITelegramBotRuntimeManager, TelegramBotRuntimeManager>();

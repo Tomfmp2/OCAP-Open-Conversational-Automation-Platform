@@ -23,7 +23,7 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 | Gemini | Listo | Modelo por defecto `gemini-3.5-flash`; auth por `x-goog-api-key` |
 | WhatsApp Evolution | Listo | QR desde el panel, webhook firmado por organización, respuesta del asistente; validado contra Evolution v2.3.7 real salvo el escaneo con teléfono ([checklist](testing/WHATSAPP_E2E.md)) |
 | WebChat | Listo | Canal usable en panel |
-| Telegram | Parcial | Recibe y guarda mensajes; falta conectar la respuesta del asistente |
+| Telegram | Listo | Bot desde el panel; polling con el token de cada bot o webhook por conexión con secreto derivado del token; responde chats privados |
 | Workflows UI | Fuera de v1 | Rutas placeholder; motor backend sigue en el repo |
 
 ## Cómo verificar IA
@@ -36,7 +36,6 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 ## Pendiente / siguiente
 
 - Prueba manual de WhatsApp con un teléfono real (`docs/testing/WHATSAPP_E2E.md`).
-- Telegram: responder con el asistente (hoy solo guarda el mensaje), reutilizando `ChannelConversationService`.
 - Persistir fuera de UseInMemory cuando se quiera DB Postgres local/Docker.
 - Reintroducir workflows en UI solo cuando el producto lo priorice.
 - Rotar secrets de desarrollo si se compartieron en entornos no locales.
