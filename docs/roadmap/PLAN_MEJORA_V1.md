@@ -69,6 +69,11 @@ verde; ninguna fase empieza sin que la anterior lo esté.
 
 ## Fase 1 — WhatsApp automatizado: escanear el QR y listo (~4–5 días)
 
+> **Estado: hecha.** Implementada según este plan, con dos ajustes: Evolution guarda las sesiones en un esquema
+> propio (`evolution_api`) del Postgres de OCAP en vez de otra base, y el panel usa SignalR con una consulta de respaldo
+> solo si el hub no conecta. Validado contra Evolution v2.3.7 real (QR, webhook firmado, desvincular); falta la
+> checklist con un teléfono real (`docs/testing/WHATSAPP_E2E.md`). Diseño en `docs/channels/WHATSAPP.md`.
+
 Objetivo: en **Canales → WhatsApp → Vincular** aparece el QR; al escanearlo con el teléfono, el canal queda vinculado
 y el asistente responde los mensajes, sin configurar nada a mano.
 

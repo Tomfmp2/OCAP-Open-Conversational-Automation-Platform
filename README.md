@@ -12,7 +12,7 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 - Búsqueda vectorial mediante la extensión PgVector de PostgreSQL; las pruebas y ejecuciones aisladas pueden usar almacenamiento en memoria.
 - Bus de eventos seleccionable entre RabbitMQ, NATS e InMemory. Docker Compose usa RabbitMQ por defecto y también inicia NATS.
 - Caché distribuida Redis cuando se configura `ConnectionStrings:Redis`.
-- Canales runtime: Telegram, WhatsApp Cloud API y WebChat (`/channels/webchat`).
+- Canales runtime: Telegram, WhatsApp (vinculación por QR con Evolution API, o WhatsApp Cloud API) y WebChat (`/channels/webchat`).
 - Proveedores HTTP para Google Calendar, Gmail y Sheets mediante un token Bearer configurado.
 - Contenedores auxiliares para observabilidad, proxy y servicios integrados.
 
@@ -49,7 +49,7 @@ Servicios y puertos publicados por `docker-compose.yml`:
 | Prometheus | `9090` |
 | Nginx | `80` |
 | Dashboard auxiliar | `8081` |
-| Evolution API | `8088` |
+| Evolution API (solo `127.0.0.1`) | `8088` |
 
 La API recibe PostgreSQL, Redis y el bus de eventos mediante variables de entorno del contenedor. Cambia `EVENTBUS_PROVIDER` a `Nats` para usar NATS; el valor por defecto del Compose es `RabbitMQ`.
 
