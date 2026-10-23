@@ -127,6 +127,21 @@ npm install
 npm run dev
 ```
 
+### CI local
+
+`./scripts/ci-local.sh` corre las mismas comprobaciones que `.github/workflows/ci.yml` sin depender de GitHub
+Actions: build del backend sin avisos y sus pruebas; lint, tipos, pruebas y build del frontend; y dependencias
+vulnerables. `--docker` agrega las imágenes escaneadas con Trivy, `--e2e` el smoke de Playwright sobre un stack
+aislado (no toca tu `.env` ni un OCAP ya levantado) y `--all` corre todo (unos 6 minutos).
+
+Para que corra solo antes de cada `git push`, activa el hook una vez por clon:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Para saltarlo puntualmente: `OCAP_SKIP_CI=1 git push`.
+
 La configuración base está en `src/Api/OCAP.Api/appsettings.json`; los valores sensibles deben suministrarse mediante secretos o variables de entorno.
 
 ## Base de conocimiento
