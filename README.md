@@ -20,7 +20,7 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 | WhatsApp por QR (Evolution API v2), con respuesta del asistente | Listo ([guía](docs/channels/WHATSAPP.md)) |
 | WebChat | Listo |
 | Telegram (bot conectado desde el panel, polling o webhook) | Listo |
-| WhatsApp Cloud API (Meta) | Disponible, sin prueba de punta a punta |
+| WhatsApp Cloud API (Meta) | Listo con `WhatsApp__AppSecret` (firma de Meta); responde con el asistente |
 | Google Calendar, Gmail y Sheets | Disponible con token OAuth |
 | Motor de workflows | Solo API; fuera de la interfaz de la v1 |
 | Slack, Teams, Discord; Qdrant, Chroma, Pinecone | No implementado |

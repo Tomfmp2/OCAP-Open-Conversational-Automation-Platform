@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.WhatsApp.DTOs;
 using OCAP.Channels.WhatsApp.Services;
 using OCAP.Channels.WhatsApp.Webhooks;
+using OCAP.Security.Infrastructure.Services;
 
 namespace OCAP.Api.Controllers;
 
@@ -13,16 +16,25 @@ namespace OCAP.Api.Controllers;
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly WhatsAppWebhookValidator _validator;
-    private readonly WhatsAppMessageReceiver _receiver;
+    private readonly IChannelConnectionManager _connections;
+    private readonly IConversationResponder _responder;
+    private readonly WhatsAppApiClient _cloudClient;
+    private readonly IMemoryCache _processedMessages;
     private readonly ILogger<WhatsAppWebhookController> _logger;
 
     public WhatsAppWebhookController(
         WhatsAppWebhookValidator validator,
-        WhatsAppMessageReceiver receiver,
+        IChannelConnectionManager connections,
+        IConversationResponder responder,
+        WhatsAppApiClient cloudClient,
+        IMemoryCache processedMessages,
         ILogger<WhatsAppWebhookController> logger)
     {
         _validator = validator;
-        _receiver = receiver;
+        _connections = connections;
+        _responder = responder;
+        _cloudClient = cloudClient;
+        _processedMessages = processedMessages;
         _logger = logger;
     }
 
@@ -89,14 +101,9 @@ public class WhatsAppWebhookController : ControllerBase
         // 3. Mapear payload de WhatsApp Cloud API al modelo interno agnóstico de OCAP.
         var incomingMessage = WhatsAppWebhookMapper.ToIncomingMessage(payload);
         
-        if (incomingMessage != null)
+        if (incomingMessage != null && !string.IsNullOrWhiteSpace(incomingMessage.Message))
         {
-            // 4. Entregar al receptor del canal WhatsApp.
-            var processed = await _receiver.ReceiveMessageAsync(incomingMessage, cancellationToken);
-            if (!processed)
-            {
-                _logger.LogWarning("Falló el procesamiento interno del mensaje de WhatsApp.");
-            }
+            await ReplyAsync(incomingMessage, cancellationToken);
         }
 
         return Ok(new ApiResponse<object>
@@ -105,5 +112,43 @@ public class WhatsAppWebhookController : ControllerBase
             Message = "Webhook de WhatsApp procesado exitosamente.",
             Data = null
         });
+    }
+
+    /// <summary>
+    /// La firma de Meta ya se verificó; la organización sale de la conexión Cloud con ese PhoneNumberId (único por
+    /// registro). Meta reintenta los webhooks: cada mensaje se responde una sola vez.
+    /// </summary>
+    private async Task ReplyAsync(OCAP.Channels.Abstractions.Models.IncomingChannelMessage message, CancellationToken cancellationToken)
+    {
+        var phoneNumberId = message.Metadata.GetValueOrDefault("PhoneNumberId");
+        var connection = (await _connections.GetEnabledConnectionsByProviderAsync("WhatsApp", cancellationToken))
+            .Where(c => c.ConfigurationMetadata.GetValueOrDefault("ConnectionMode") == "cloud"
+                        && c.ConfigurationMetadata.GetValueOrDefault("PhoneNumberId") == phoneNumberId)
+            .ToList();
+        if (string.IsNullOrWhiteSpace(phoneNumberId) || connection.Count != 1)
+        {
+            _logger.LogInformation("Mensaje de WhatsApp Cloud ignorado: el número {PhoneNumberId} no está conectado.", phoneNumberId);
+            return;
+        }
+
+        var key = $"whatsapp-cloud-message:{message.Metadata.GetValueOrDefault("MessageId")}";
+        if (_processedMessages.TryGetValue(key, out _)) return;
+        _processedMessages.Set(key, true, TimeSpan.FromHours(6));
+
+        var tenantId = connection[0].TenantId;
+        HttpTenantContext.UseTrustedTenant(HttpContext, tenantId);
+        var token = await _connections.GetCredentialsAsync(connection[0], cancellationToken);
+        var reply = await _responder.RespondAsync(
+            tenantId, message, message.Metadata.GetValueOrDefault("SenderName") ?? string.Empty, cancellationToken);
+
+        var sent = await _cloudClient.SendMessageAsync(
+            phoneNumberId,
+            new WhatsAppCloudSendMessageRequest { To = message.ExternalUserId, Text = new WhatsAppCloudText { Body = reply } },
+            token,
+            cancellationToken);
+        if (!sent)
+        {
+            _logger.LogWarning("No se pudo enviar la respuesta de WhatsApp Cloud de la organización {TenantId}.", tenantId);
+        }
     }
 }

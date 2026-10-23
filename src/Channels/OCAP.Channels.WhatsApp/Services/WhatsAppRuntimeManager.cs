@@ -69,6 +69,13 @@ public class WhatsAppRuntimeManager : IWhatsAppRuntimeManager
             throw new InvalidOperationException("Token o PhoneNumberId inválido en WhatsApp Cloud API.");
         }
 
+        // El webhook de Meta identifica la organización por el PhoneNumberId: no puede pertenecer a dos.
+        var existing = await _connectionManager.GetEnabledConnectionsByProviderAsync("WhatsApp", cancellationToken);
+        if (existing.Any(c => c.ConfigurationMetadata.GetValueOrDefault("PhoneNumberId") == phoneNumberId))
+        {
+            throw new InvalidOperationException("Ese número de WhatsApp Cloud ya está conectado en OCAP.");
+        }
+
         var metadata = new Dictionary<string, string>
         {
             ["PhoneNumberId"] = phoneNumberId,
