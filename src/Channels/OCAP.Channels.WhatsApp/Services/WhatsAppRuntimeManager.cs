@@ -107,10 +107,11 @@ public class WhatsAppRuntimeManager : IWhatsAppRuntimeManager
     {
         var connections = await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken);
         var connection = connections.FirstOrDefault(c => c.Id == connectionId);
-        if (connection?.ConfigurationMetadata.TryGetValue("Instance", out var instance) == true &&
-            !string.IsNullOrWhiteSpace(instance))
+        // La metadata la puede escribir el cliente: la instancia se deriva del tenant para no tocar la de otro.
+        if (connection?.ConfigurationMetadata.TryGetValue("ConnectionMode", out var mode) == true &&
+            string.Equals(mode, "evolution", StringComparison.OrdinalIgnoreCase))
         {
-            await _evolutionClient.DeleteInstanceAsync(instance, cancellationToken);
+            await _evolutionClient.DeleteInstanceAsync(EvolutionInstanceIdentity.InstanceNameFor(tenantId), cancellationToken);
         }
 
         return await _connectionManager.RemoveConnectionAsync(tenantId, connectionId, cancellationToken);

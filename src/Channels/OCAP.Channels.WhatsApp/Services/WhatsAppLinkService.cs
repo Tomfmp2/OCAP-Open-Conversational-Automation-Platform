@@ -96,7 +96,7 @@ public sealed class WhatsAppLinkService
         var connection = await FindConnectionAsync(tenantId, cancellationToken);
         if (connection is null || !IsConfigured) return new WhatsAppLinkStatus(WhatsAppLinkStates.Unlinked);
 
-        var instance = InstanceOf(connection);
+        var instance = EvolutionInstanceIdentity.InstanceNameFor(tenantId);
         var state = await _evolution.GetConnectionStateAsync(instance, cancellationToken);
         if (state == EvolutionStates.Open) return LinkedFrom(connection);
         if (state == EvolutionStates.Missing) return new WhatsAppLinkStatus(WhatsAppLinkStates.Unlinked);
@@ -139,7 +139,7 @@ public sealed class WhatsAppLinkService
         };
         var phone = state == WhatsAppLinkStates.Linked ? update.PhoneNumber : null;
         var profile = state == WhatsAppLinkStates.Linked ? update.ProfileName : null;
-        await SaveAsync(tenantId, connection, InstanceOf(connection), state, phone, profile, cancellationToken);
+        await SaveAsync(tenantId, connection, EvolutionInstanceIdentity.InstanceNameFor(tenantId), state, phone, profile, cancellationToken);
         return new WhatsAppLinkStatus(state, PhoneNumber: phone, ProfileName: profile);
     }
 
@@ -166,11 +166,6 @@ public sealed class WhatsAppLinkService
                 "WhatsApp no está configurado en el servidor. Ejecuta ./scripts/ocap-setup.sh y vuelve a levantar OCAP.");
     }
 
-    private static string InstanceOf(ChannelConnection connection) =>
-        connection.ConfigurationMetadata.TryGetValue("Instance", out var instance) && !string.IsNullOrWhiteSpace(instance)
-            ? instance
-            : EvolutionInstanceIdentity.InstanceNameFor(connection.TenantId);
-
     private static WhatsAppLinkStatus LinkedFrom(ChannelConnection connection) => new(
         WhatsAppLinkStates.Linked,
         PhoneNumber: connection.ConfigurationMetadata.GetValueOrDefault("PhoneNumber"),
@@ -185,6 +180,7 @@ public sealed class WhatsAppLinkService
         string? profile,
         CancellationToken cancellationToken)
     {
+        // "Instance" es solo informativo: la instancia siempre se deriva del tenant, nunca de la metadata.
         var metadata = new Dictionary<string, string>
         {
             ["ConnectionMode"] = "evolution",

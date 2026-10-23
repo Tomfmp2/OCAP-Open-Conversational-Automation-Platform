@@ -122,6 +122,17 @@ public class ChannelManagementController : ControllerBase
             });
         }
 
+        if (string.Equals(request.Provider.Trim(), "WhatsApp", StringComparison.OrdinalIgnoreCase))
+        {
+            // WhatsApp tiene sus propios flujos (QR o Cloud API) que fijan la metadata reservada del canal.
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "WhatsApp se conecta con POST /api/channels/whatsapp/link (QR) o /api/channels/whatsapp/connect (Cloud API).",
+                Data = null
+            });
+        }
+
         try
         {
             var connection = await _connectionManager.CreateConnectionAsync(

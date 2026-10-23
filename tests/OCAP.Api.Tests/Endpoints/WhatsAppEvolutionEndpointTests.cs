@@ -102,6 +102,23 @@ public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFac
     }
 
     [Fact]
+    public async Task GenericConnect_CannotCreateAWhatsAppConnectionPointingToAnotherInstance()
+    {
+        var admin = await AdminClientAsync();
+        var victim = EvolutionInstanceIdentity.InstanceNameFor(Guid.NewGuid());
+
+        var response = await admin.PostAsJsonAsync("/api/channels/connect", new
+        {
+            provider = "WhatsApp",
+            displayName = "WhatsApp",
+            credentials = "x",
+            metadata = new Dictionary<string, string> { ["ConnectionMode"] = "evolution", ["Instance"] = victim }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Webhook_WithAnInvalidSignature_IsRejected()
     {
         var response = await PostWebhookAsync(
