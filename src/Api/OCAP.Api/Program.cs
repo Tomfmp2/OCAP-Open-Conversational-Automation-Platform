@@ -116,12 +116,12 @@ app.UseCors("OcapCorsPolicy");
 
 app.UseRouting();
 
-// Después del routing para que se apliquen las políticas por endpoint ([EnableRateLimiting]); el límite global
-// por IP solo existe si RateLimiting:EnableRateLimiting es true.
-app.UseRateLimiter();
-
 // Autenticación y autorización deben ejecutarse después del routing y antes de MapControllers.
 app.UseAuthentication();
+
+// Después del routing (políticas por endpoint, [EnableRateLimiting]) y de la autenticación (el límite global se
+// cuenta por usuario); solo existe si RateLimiting:EnableRateLimiting es true.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 // Serilog Request Logging middleware for structured HTTP logging

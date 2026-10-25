@@ -188,21 +188,29 @@ public static partial class ApiServiceExtensions
                     });
             });
 
+            // Por usuario con sesión (varios operadores detrás de una misma IP no se estorban) y por IP sin sesión.
+            // Sin cola: una petición retenida hasta que se abre la ventana parecía un panel colgado.
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
                 var settings = Settings(context);
-                return !settings.EnableRateLimiting
-                    ? RateLimitPartition.GetNoLimiter("global-off")
-                    : RateLimitPartition.GetFixedWindowLimiter(ClientKey(context), _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = settings.PermitLimit,
-                        Window = TimeSpan.FromSeconds(settings.WindowSeconds),
-                        QueueLimit = settings.QueueLimit,
-                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
-                    });
+                if (!settings.EnableRateLimiting || IsInfrastructurePath(context.Request.Path))
+                    return RateLimitPartition.GetNoLimiter("global-off");
+
+                var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var key = userId is not null ? $"user:{userId}" : $"ip:{ClientKey(context)}";
+                return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = settings.PermitLimit,
+                    Window = TimeSpan.FromSeconds(settings.WindowSeconds),
+                    QueueLimit = 0
+                });
             });
         });
     }
+
+    // Health checks de Docker, métricas y la conexión en vivo (SignalR) no son tráfico de usuario.
+    private static bool IsInfrastructurePath(PathString path) =>
+        path.StartsWithSegments("/health") || path.StartsWithSegments("/metrics") || path.StartsWithSegments("/hubs");
 
     // IP del cliente; detrás del panel o de Nginx llega por X-Forwarded-For (ver UseOcapForwardedHeaders).
     private static string ClientKey(HttpContext context) =>

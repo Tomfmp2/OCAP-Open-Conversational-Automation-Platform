@@ -9,7 +9,6 @@ namespace OCAP.Api.Controllers;
 // Controlador REST para autenticación y gestión de proveedores de identidad externos (CAP-15).
 [ApiController]
 [Route("api/auth/external")]
-[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class ExternalAuthController : ControllerBase
 {
     private readonly IExternalAuthenticationService _externalAuthService;
@@ -32,6 +31,7 @@ public class ExternalAuthController : ControllerBase
         return Ok(providers);
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpGet("challenge/{provider}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ExternalAuthChallengeDto), StatusCodes.Status200OK)]
@@ -50,6 +50,7 @@ public class ExternalAuthController : ControllerBase
         }
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpGet("callback/{provider}")]
     [HttpPost("callback/{provider}")]
     [AllowAnonymous]

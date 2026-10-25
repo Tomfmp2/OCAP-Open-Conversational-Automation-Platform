@@ -11,7 +11,6 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/auth/mfa")]
 [Authorize]
-[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class MfaController : ControllerBase
 {
     private readonly IMfaService _mfaService;
@@ -69,6 +68,7 @@ public class MfaController : ControllerBase
         return Ok(new { message = "MFA desactivado exitosamente." });
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("verify")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]

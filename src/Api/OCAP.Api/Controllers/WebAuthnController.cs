@@ -11,7 +11,6 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/auth/webauthn")]
 [Authorize]
-[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class WebAuthnController : ControllerBase
 {
     private readonly IWebAuthnService _webAuthnService;
@@ -54,6 +53,7 @@ public class WebAuthnController : ControllerBase
         }
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("assertion/options")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(WebAuthnAssertionOptionsDto), StatusCodes.Status200OK)]
@@ -63,6 +63,7 @@ public class WebAuthnController : ControllerBase
         return Ok(options);
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("assertion/complete")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]

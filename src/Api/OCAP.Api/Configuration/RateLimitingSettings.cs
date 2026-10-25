@@ -13,8 +13,8 @@ public class RateLimitingSettings
     // Habilita o deshabilita el límite global por IP (útil para deshabilitar en testing).
     public bool EnableRateLimiting { get; set; } = true;
 
-    // Número máximo de peticiones permitidas por IP dentro de la ventana de tiempo.
-    public int PermitLimit { get; set; } = 300;
+    // Peticiones por usuario (o por IP sin sesión) dentro de la ventana de tiempo.
+    public int PermitLimit { get; set; } = 600;
 
     // Intentos de autenticación por IP y minuto; 0 desactiva la política (solo para pruebas).
     public int AuthPermitLimit { get; set; } = 10;
@@ -22,6 +22,6 @@ public class RateLimitingSettings
     // Tamaño de la ventana deslizante en segundos.
     public int WindowSeconds { get; set; } = 60;
 
-    // Número de peticiones en cola que se procesan cuando se excede el límite.
-    public int QueueLimit { get; set; } = 10;
+    // Sin uso: el límite global responde 429 al momento en vez de encolar. Se mantiene para no romper appsettings.
+    public int QueueLimit { get; set; }
 }

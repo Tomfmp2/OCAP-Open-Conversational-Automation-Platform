@@ -17,7 +17,6 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/setup")]
 [AllowAnonymous]
-[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public sealed class SetupController : ControllerBase
 {
     private readonly SetupCodeService _setupCode;
@@ -51,6 +50,7 @@ public sealed class SetupController : ControllerBase
         return Ok(new SetupStatusResponse(required));
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
