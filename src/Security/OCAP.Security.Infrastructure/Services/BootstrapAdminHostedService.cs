@@ -58,9 +58,9 @@ public sealed class BootstrapAdminHostedService : IHostedService
             new InitialAdminRequest(
                 email,
                 password,
-                "Administrator",
-                _configuration["Bootstrap:TenantName"] ?? "OCAP",
-                _configuration["Bootstrap:TenantSlug"] ?? "default"),
+                string.IsNullOrWhiteSpace(_configuration["Bootstrap:AdminName"]) ? "Administrator" : _configuration["Bootstrap:AdminName"]!.Trim(),
+                string.IsNullOrWhiteSpace(_configuration["Bootstrap:TenantName"]) ? "OCAP" : _configuration["Bootstrap:TenantName"]!.Trim(),
+                string.IsNullOrWhiteSpace(_configuration["Bootstrap:TenantSlug"]) ? "default" : _configuration["Bootstrap:TenantSlug"]!.Trim()),
             cancellationToken);
 
         _logger.LogWarning(

@@ -25,7 +25,9 @@ public sealed class BootstrapOcapApiFactory : OcapApiFactory
         ["Bootstrap:Enabled"] = "true",
         ["Bootstrap:AdminEmail"] = "ci-admin@ocap.io",
         ["Bootstrap:AdminPassword"] = "Ci_Admin_Password_2026",
-        ["Bootstrap:TenantName"] = "CI"
+        ["Bootstrap:TenantName"] = "Panadería Sol",
+        ["Bootstrap:TenantSlug"] = "panaderia-sol",
+        ["Bootstrap:AdminName"] = "Ana Pérez"
     };
 }
 
@@ -179,6 +181,14 @@ public class SetupEndpointTests
 
         status!.Required.Should().BeFalse();
         login.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // ocap install pasa el nombre de la organización y del admin: no quedan "OCAP" ni "Administrator".
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+        var admin = await db.UserIdentities.IgnoreQueryFilters().SingleAsync();
+        var tenant = await db.Tenants.SingleAsync(t => t.Id == admin.TenantId);
+        admin.FullName.Should().Be("Ana Pérez");
+        tenant.Name.Should().Be("Panadería Sol");
     }
 
     [Theory]
