@@ -21,7 +21,10 @@ if [[ -f "$ENV_FILE" ]]; then
     key="${line%%=*}"
     key="${key%"${key##*[![:space:]]}"}"
     [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-    export "$key=${line#*=}"
+    value="${line#*=}"
+    # ocap install guarda los textos libres entre comillas simples.
+    if [[ "$value" == \'*\' && ${#value} -ge 2 ]]; then value="${value:1:${#value}-2}"; fi
+    export "$key=$value"
   done < "$ENV_FILE"
 fi
 

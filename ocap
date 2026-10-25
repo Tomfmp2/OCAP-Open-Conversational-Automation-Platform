@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # OCAP: instalar y levantar todo (base de datos, API, panel, WhatsApp) con Docker desde cualquier terminal.
 #
-#   ./ocap install     (una vez, desde la carpeta del repo) prepara todo e instala el comando `ocap`
+#   ./ocap install     (una vez, desde la carpeta del repo) configura, instala lo que falte y el comando `ocap`
 #   ocap               levanta OCAP (enciende Docker si hace falta) y abre el panel
 #   ocap help          todos los comandos
 set -euo pipefail
@@ -16,47 +16,41 @@ done
 ROOT="$(cd -P "$(dirname "$src")" && pwd)"
 cd "$ROOT"
 
-# shellcheck source=scripts/lib/prereqs.sh
-source "$ROOT/scripts/lib/prereqs.sh"
-
+ENV_FILE="$ROOT/.env"
 BIN_DIR="${OCAP_BIN_DIR:-$HOME/.local/bin}"
 STATE_DIR="$ROOT/.ocap"
 BUILD_STAMP="$STATE_DIR/build-stamp"
+CONFIGURED_MARK="$STATE_DIR/configured"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 info() { printf '==> %s\n' "$*"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
-usage() {
-  cat <<'EOF'
-Uso: ocap [comando]
+# shellcheck source=scripts/lib/i18n.sh
+source "$ROOT/scripts/lib/i18n.sh"
+# shellcheck source=scripts/lib/envfile.sh
+source "$ROOT/scripts/lib/envfile.sh"
+# shellcheck source=scripts/lib/prereqs.sh
+source "$ROOT/scripts/lib/prereqs.sh"
+# shellcheck source=scripts/lib/autostart.sh
+source "$ROOT/scripts/lib/autostart.sh"
+# shellcheck source=scripts/lib/wizard.sh
+source "$ROOT/scripts/lib/wizard.sh"
 
-  (sin comando)   Levanta OCAP y abre el panel. Si el código cambió, reconstruye.
-  install         Prepara .env y secretos, construye las imágenes e instala el comando `ocap`.
-  start           Igual que sin comando. --build fuerza la reconstrucción.
-  stop            Apaga OCAP (los datos se conservan).
-  restart         stop + start.
-  status          Estado de los contenedores y de la API y el panel.
-  logs [servicio] Logs en vivo (p. ej. `ocap logs ocap-api`).
-  update          git pull + reconstruir + levantar.
-  reset           Borra TODOS los datos (base, sesiones de WhatsApp) y empieza de cero. Pide confirmación.
-  uninstall       Quita el comando `ocap` (no borra el repo ni los datos).
-  help            Esta ayuda.
+# Idioma elegido en la instalación (OCAP_LANG lo fuerza para una ejecución).
+OCAP_LANGUAGE="${OCAP_LANG:-$(env_get "$ENV_FILE" OCAP_LANGUAGE)}"
+OCAP_LANGUAGE="${OCAP_LANGUAGE:-es}"
+export OCAP_LANGUAGE
 
-Variables: OCAP_NO_BROWSER=1 no abre el navegador.
-EOF
-}
-
-env_value() { grep -E "^$1=" "$ROOT/.env" 2>/dev/null | tail -n1 | cut -d= -f2- || true; }
-panel_port() { local p; p="$(env_value FRONTEND_HOST_PORT)"; echo "${p:-3000}"; }
-api_port() { local p; p="$(env_value API_HOST_PORT)"; echo "${p:-5000}"; }
+panel_port() { local p; p="$(env_get "$ENV_FILE" FRONTEND_HOST_PORT)"; echo "${p:-3000}"; }
+api_port() { local p; p="$(env_get "$ENV_FILE" API_HOST_PORT)"; echo "${p:-5000}"; }
 
 # --- Docker -------------------------------------------------------------------------------------
 # Para levantar: si falta algo, se indica `ocap install`, que es quien instala dependencias.
 require_tools() {
   local missing
   missing="$(missing_prerequisites)"
-  [[ -z "$missing" ]] || fail "faltan: ${missing}. Instálalos con: ocap install"
+  [[ -z "$missing" ]] || fail "$(t missing_run_install "$missing")"
 }
 
 # Enciende Docker si está apagado y corrige el permiso del usuario si hace falta; espera a que responda.
@@ -64,13 +58,13 @@ ensure_docker() {
   dk info >/dev/null 2>&1 && return 0
 
   if docker info 2>&1 | grep -qi "permission denied"; then
-    info "Tu usuario no tiene permiso para usar Docker."
-    confirm "¿Agregarlo al grupo docker (pide tu contraseña)?" || fail "sin permiso para Docker. Usa: sudo usermod -aG docker \$USER"
+    info "$(t docker_permission)"
+    confirm "$(t docker_group_ask)" || fail "sudo usermod -aG docker \$USER"
     grant_docker_group
     dk info >/dev/null 2>&1 && return 0
   fi
 
-  info "Docker está apagado; encendiéndolo…"
+  info "$(t docker_off)"
   if [[ "$(uname -s)" == "Darwin" ]]; then
     if command -v colima >/dev/null 2>&1; then
       colima start --cpu 4 --memory 8 >/dev/null
@@ -82,14 +76,29 @@ ensure_docker() {
   elif command -v systemctl >/dev/null 2>&1 && systemctl cat docker.service >/dev/null 2>&1; then
     as_root systemctl start docker
   else
-    fail "Docker no responde. Inícialo y vuelve a ejecutar: ocap"
+    fail "$(t docker_no_response)"
   fi
 
   for _ in $(seq 1 90); do
-    dk info >/dev/null 2>&1 && { info "Docker listo"; return 0; }
+    dk info >/dev/null 2>&1 && { info "$(t docker_ready)"; return 0; }
     sleep 2
   done
-  fail "Docker no arrancó a tiempo. Inícialo a mano y vuelve a ejecutar: ocap"
+  fail "$(t docker_timeout)"
+}
+
+stack_running() { [[ -n "$(dk compose ps -q 2>/dev/null)" ]]; }
+
+# Antes de levantar: un puerto tomado por otro programa haría fallar a Docker con un error poco claro.
+check_ports() {
+  stack_running && return 0
+  local entry key default label port
+  for entry in $OCAP_PORTS; do
+    key="${entry%%:*}"; default="${entry#*:}"; label="${default#*:}"; default="${default%%:*}"
+    port="$(env_get "$ENV_FILE" "$key")"
+    port="${port:-$default}"
+    port_in_use "$port" && fail "$(t port_busy "$port" "$label")"
+  done
+  return 0
 }
 
 # --- Construcción ---------------------------------------------------------------------------------
@@ -111,7 +120,7 @@ needs_build() {
 }
 
 build() {
-  info "Construyendo las imágenes (la primera vez tarda unos minutos)…"
+  info "$(t building)"
   dk compose build
   mkdir -p "$STATE_DIR"
   code_fingerprint > "$BUILD_STAMP"
@@ -120,7 +129,7 @@ build() {
 # --- Comandos ---------------------------------------------------------------------------------------
 wait_for() {
   local name="$1" url="$2"
-  printf '==> Esperando %s ' "$name"
+  printf '==> %s' "$(t waiting "$name")"
   for _ in $(seq 1 72); do
     if curl -fsS "$url" >/dev/null 2>&1; then
       echo "OK"
@@ -130,16 +139,25 @@ wait_for() {
     sleep 5
   done
   echo
-  fail "$name no respondió a tiempo. Revisa: ocap logs"
+  fail "$(t not_responding "$name")"
 }
 
 open_browser() {
   [[ "${OCAP_NO_BROWSER:-}" == "1" || ! -t 1 ]] && return 0
+  [[ "$(env_get "$ENV_FILE" OCAP_OPEN_BROWSER)" == "false" ]] && return 0
   if command -v xdg-open >/dev/null 2>&1; then
     xdg-open "$1" >/dev/null 2>&1 &
   elif command -v open >/dev/null 2>&1; then
     open "$1" >/dev/null 2>&1 &
   fi
+}
+
+# La contraseña del admin solo hace falta para crearlo: en cuanto existe, se quita del .env.
+forget_admin_password() {
+  [[ -n "$(env_get "$ENV_FILE" BOOTSTRAP_ADMIN_PASSWORD)" ]] || return 0
+  env_set "$ENV_FILE" BOOTSTRAP_ADMIN_PASSWORD ""
+  t admin_ready "$(env_get "$ENV_FILE" BOOTSTRAP_ADMIN_EMAIL)"; echo
+  t password_removed; echo
 }
 
 cmd_start() {
@@ -149,50 +167,58 @@ cmd_start() {
   require_tools
   ensure_docker
   "$ROOT/scripts/ocap-setup.sh" >/dev/null
+  check_ports
   if (( force_build )) || needs_build; then
     build
   fi
 
-  info "Levantando OCAP…"
+  info "$(t starting)"
   dk compose up -d --remove-orphans
 
   local panel api
   panel="$(panel_port)"
   api="$(api_port)"
-  wait_for "la API" "http://127.0.0.1:${api}/health/ready"
-  wait_for "el panel" "http://127.0.0.1:${panel}/login"
+  wait_for "$(t the_api)" "http://127.0.0.1:${api}/health/ready"
+  wait_for "$(t the_panel)" "http://127.0.0.1:${panel}/login"
 
   echo
-  bold "  OCAP en marcha"
+  bold "  $(t running)"
   echo "  Panel: http://localhost:${panel}"
   echo "  API:   http://localhost:${api}"
+  if [[ "$(env_get "$ENV_FILE" OCAP_BIND_ADDRESS)" == "0.0.0.0" ]]; then
+    local ip
+    ip="$(lan_ip)"
+    [[ -n "$ip" ]] && echo "  $(t lan_url "http://${ip}:${panel}")"
+  fi
 
   local target="http://localhost:${panel}"
+  echo
   if curl -fsS "http://127.0.0.1:${api}/api/setup/status" 2>/dev/null | grep -q '"required":true'; then
     # El código solo se imprime en los logs de la API: quien levanta el servidor es quien configura.
     local code
     code="$(dk compose logs ocap-api 2>/dev/null | grep -oE '[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}' | tail -n1 || true)"
     target="${target}/setup"
-    echo
-    bold "  Primera vez: crea tu cuenta en ${target}"
-    [[ -n "$code" ]] && echo "  Código de configuración: ${code}"
+    bold "  $(t first_setup "$target")"
+    [[ -n "$code" ]] && echo "  $(t setup_code "$code")"
+  else
+    forget_admin_password
   fi
   echo
-  echo "  Apagar: ocap stop    Estado: ocap status    Ayuda: ocap help"
+  echo "  $(t hints)"
   open_browser "$target"
 }
 
 cmd_stop() {
   require_tools
-  dk info >/dev/null 2>&1 || { info "Docker está apagado: OCAP ya está detenido."; return 0; }
-  info "Apagando OCAP (los datos se conservan)…"
+  dk info >/dev/null 2>&1 || { info "$(t already_stopped)"; return 0; }
+  info "$(t stopping)"
   dk compose stop
 }
 
 cmd_status() {
   require_tools
   if ! dk info >/dev/null 2>&1; then
-    echo "Docker está apagado: OCAP no está corriendo. Levántalo con: ocap"
+    t status_docker_off; echo
     return 0
   fi
   dk compose ps --format 'table {{.Service}}\t{{.Status}}'
@@ -200,8 +226,10 @@ cmd_status() {
   local panel api
   panel="$(panel_port)"
   api="$(api_port)"
-  curl -fsS "http://127.0.0.1:${api}/health/ready" >/dev/null 2>&1 && echo "API:   OK (http://localhost:${api})" || echo "API:   no responde"
-  curl -fsS "http://127.0.0.1:${panel}/login" >/dev/null 2>&1 && echo "Panel: OK (http://localhost:${panel})" || echo "Panel: no responde"
+  if curl -fsS "http://127.0.0.1:${api}/health/ready" >/dev/null 2>&1; then echo "API:   $(t status_ok) (http://localhost:${api})"; else echo "API:   $(t status_down)"; fi
+  if curl -fsS "http://127.0.0.1:${panel}/login" >/dev/null 2>&1; then echo "Panel: $(t status_ok) (http://localhost:${panel})"; else echo "Panel: $(t status_down)"; fi
+  if autostart_is_enabled; then t autostart_status_on; else t autostart_status_off; fi
+  echo
 }
 
 cmd_logs() {
@@ -212,7 +240,7 @@ cmd_logs() {
 
 cmd_update() {
   require_tools
-  info "Actualizando el código…"
+  info "$(t updating)"
   git -C "$ROOT" pull --ff-only
   cmd_start --build
 }
@@ -220,9 +248,10 @@ cmd_update() {
 cmd_reset() {
   require_tools
   ensure_docker
-  echo "Esto borra TODOS los datos de OCAP: usuarios, agentes, conversaciones y sesiones de WhatsApp."
-  read -r -p "Escribe 'borrar' para confirmar: " answer
-  [[ "$answer" == "borrar" ]] || { echo "Cancelado."; return 0; }
+  t reset_warning; echo
+  local answer
+  answer="$(_ask "$(t reset_confirm)")"
+  [[ "$answer" == "$(t reset_word)" ]] || { t cancelled; echo; return 0; }
   dk compose down -v --remove-orphans
   cmd_start
 }
@@ -230,13 +259,13 @@ cmd_reset() {
 link_command() {
   mkdir -p "$BIN_DIR"
   ln -sfn "$ROOT/ocap" "$BIN_DIR/ocap"
-  info "Comando instalado: $BIN_DIR/ocap"
+  info "$(t command_installed "$BIN_DIR/ocap")"
 
   case ":$PATH:" in
     *":$BIN_DIR:"*) ;;
     *)
       echo
-      echo "  $BIN_DIR no está en tu PATH. Agrégalo y abre una terminal nueva:"
+      echo "  $(t path_hint "$BIN_DIR")"
       case "$(basename "${SHELL:-bash}")" in
         fish) echo "    fish_add_path $BIN_DIR" ;;
         zsh) echo "    echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.zshrc" ;;
@@ -246,36 +275,93 @@ link_command() {
   esac
 }
 
+apply_autostart() {
+  if [[ "$W_AUTOSTART" == "1" ]]; then autostart_enable
+  elif autostart_is_enabled; then autostart_disable
+  fi
+}
+
 cmd_install() {
-  bold "Instalando OCAP desde $ROOT"
+  local first_time=1 wizard_mode=install
+  [[ -f "$CONFIGURED_MARK" ]] && first_time=0
+  # Instalación previa al asistente: ya tiene .env (y su cuenta), así que solo se preguntan las preferencias.
+  [[ -f "$ENV_FILE" ]] && wizard_mode=config
+
+  # El idioma primero: todo lo demás ya se pregunta y se informa en ese idioma.
+  if (( first_time )); then
+    ask_language
+    bold "$(t installing_from "$ROOT")"
+    [[ "$wizard_mode" == config ]] && dk info >/dev/null 2>&1 && stack_running && export OCAP_SKIP_PORT_CHECK=1
+    wizard_run "$wizard_mode" "$ENV_FILE"
+  else
+    bold "$(t installing_from "$ROOT")"
+    t already_configured; echo
+  fi
+
   ensure_prerequisites
   ensure_docker
-  "$ROOT/scripts/ocap-setup.sh"
+  "$ROOT/scripts/ocap-setup.sh" >/dev/null
+  if (( first_time )); then
+    wizard_apply "$ENV_FILE"
+  fi
   build
   link_command
+  if (( first_time )); then
+    apply_autostart
+    mkdir -p "$STATE_DIR"
+    date -u +%Y-%m-%dT%H:%M:%SZ > "$CONFIGURED_MARK"
+  fi
+
   echo
-  bold "Listo. Para levantar OCAP, en cualquier terminal escribe: ocap"
+  bold "$(t install_done)"
+  if interactive && ask_yes_no "$(t start_now)" s; then
+    echo
+    cmd_start
+  fi
+}
+
+cmd_config() {
+  [[ -f "$ENV_FILE" ]] || "$ROOT/scripts/ocap-setup.sh" >/dev/null
+  dk info >/dev/null 2>&1 && stack_running && export OCAP_SKIP_PORT_CHECK=1
+  ask_language
+  wizard_run config "$ENV_FILE"
+  wizard_apply "$ENV_FILE"
+  apply_autostart
+  t config_saved; echo
+  stack_running 2>/dev/null && { t config_restart; echo; }
+  return 0
+}
+
+cmd_autostart() {
+  case "${1:-}" in
+    on) autostart_enable ;;
+    off) autostart_disable ;;
+    *) if autostart_is_enabled; then t autostart_status_on; else t autostart_status_off; fi; echo ;;
+  esac
 }
 
 cmd_uninstall() {
+  autostart_is_enabled && autostart_disable
   if [[ -L "$BIN_DIR/ocap" ]]; then
     rm "$BIN_DIR/ocap"
-    info "Comando quitado. El repo y los datos siguen intactos (para borrar datos: ocap reset antes de desinstalar)."
+    info "$(t uninstalled)"
   else
-    info "El comando ocap no estaba instalado en $BIN_DIR."
+    info "$(t not_installed "$BIN_DIR")"
   fi
 }
 
 case "${1:-start}" in
   start) shift || true; cmd_start "$@" ;;
   install) cmd_install ;;
+  config) cmd_config ;;
   stop) cmd_stop ;;
   restart) cmd_stop; cmd_start ;;
   status) cmd_status ;;
   logs) shift; cmd_logs "$@" ;;
+  autostart) shift; cmd_autostart "$@" ;;
   update) cmd_update ;;
   reset) cmd_reset ;;
   uninstall) cmd_uninstall ;;
-  -h|--help|help) usage ;;
-  *) echo "Comando desconocido: $1" >&2; usage; exit 2 ;;
+  -h|--help|help) t help ;;
+  *) t unknown_command "$1" >&2; echo >&2; t help; exit 2 ;;
 esac

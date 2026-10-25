@@ -33,7 +33,18 @@ install_git() {
   fi
 }
 
+# Lo primero: el idioma, que también usa `ocap install` (no lo vuelve a preguntar).
+ask_language() {
+  [[ -n "${OCAP_LANG:-}" || "${OCAP_YES:-}" == "1" || ! -r /dev/tty ]] && return 0
+  local answer
+  printf 'Idioma / Language:\n  1) Español\n  2) English\nElige / Choose [1]: ' > /dev/tty
+  read -r answer < /dev/tty || answer=""
+  case "$answer" in 2|en|EN) OCAP_LANG=en ;; *) OCAP_LANG=es ;; esac
+  export OCAP_LANG
+}
+
 main() {
+  ask_language
   case "$(uname -s)" in
     Linux|Darwin) ;;
     *) fail "OCAP se instala en Linux o macOS. En Windows, ejecútalo dentro de WSL2." ;;

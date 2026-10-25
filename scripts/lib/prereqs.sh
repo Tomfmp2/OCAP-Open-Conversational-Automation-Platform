@@ -6,6 +6,7 @@
 # Fedora/RHEL/CentOS/Rocky/Alma (dnf + repo oficial), macOS (Homebrew + Colima). En Linux se instala Docker Engine.
 #
 # Variables: OCAP_YES=1 responde "sí" a las confirmaciones (instalación desatendida).
+# Requiere i18n.sh (función t).
 
 # Comando de Docker de esta sesión: pasa a `sudo docker` si el usuario recién se agregó al grupo docker
 # (el grupo solo rige desde la próxima sesión).
@@ -24,9 +25,10 @@ confirm() {
   [[ "${OCAP_YES:-}" == "1" ]] && return 0
   local answer
   if [[ -r /dev/tty ]]; then
-    read -r -p "$1 [s/N] " answer < /dev/tty || answer=""
+    printf '%s%s' "$1" "$(t yes_no_default_no)" > /dev/tty
+    read -r answer < /dev/tty || answer=""
   else
-    _pr_fail "se necesita confirmación y no hay terminal. Repite con OCAP_YES=1 para aceptar."
+    _pr_fail "$(t need_confirm_tty)"
   fi
   [[ "$answer" =~ ^[sSyY] ]]
 }
@@ -66,7 +68,7 @@ missing_prerequisites() {
 
 _need_sudo() {
   [[ ${#SUDO[@]} -eq 0 ]] && return 0
-  command -v sudo >/dev/null 2>&1 || _pr_fail "se necesita sudo (o ejecutar como root) para instalar paquetes."
+  command -v sudo >/dev/null 2>&1 || _pr_fail "$(t prereq_need_sudo)"
 }
 
 _install_arch() {
@@ -114,7 +116,7 @@ _install_fedora() {
 
 _install_macos() {
   if ! command -v brew >/dev/null 2>&1; then
-    confirm "Falta Homebrew (el gestor de paquetes de macOS). ¿Instalarlo?" || _pr_fail "instala Homebrew: https://brew.sh"
+    confirm "$(t prereq_brew)" || _pr_fail "https://brew.sh"
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
   fi
@@ -130,7 +132,7 @@ _enable_docker_linux() {
   if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
     as_root systemctl enable --now docker
   else
-    _pr_info "Sin systemd: inicia Docker con el servicio de tu sistema (p. ej. 'sudo service docker start')."
+    _pr_info "$(t prereq_no_systemd)"
   fi
   grant_docker_group
 }
@@ -141,7 +143,7 @@ grant_docker_group() {
   id -nG "$USER" 2>/dev/null | tr ' ' '\n' | grep -qx docker && return 0
   as_root usermod -aG docker "$USER"
   DOCKER=(sudo docker)
-  _pr_info "Tu usuario se agregó al grupo docker: desde tu próxima sesión no hará falta sudo."
+  _pr_info "$(t prereq_group)"
 }
 
 # Instala lo que falte (con confirmación). Sin argumentos revisa todo.
@@ -152,21 +154,21 @@ ensure_prerequisites() {
 
   family="$(os_family)"
   if [[ "$family" == "unsupported" ]]; then
-    _pr_fail "faltan: ${missing}. Este sistema no se instala solo; sigue https://docs.docker.com/engine/install/ (en Windows: WSL2 + Docker Desktop)."
+    _pr_fail "$(t prereq_unsupported "$missing")"
   fi
 
-  echo "OCAP necesita: ${missing}."
+  t prereq_need "$missing"; echo
   case "$family" in
-    macos) echo "Se instalará con Homebrew (Docker con Colima, sin Docker Desktop)." ;;
-    *) echo "Se instalará Docker Engine con el gestor de paquetes del sistema (pedirá tu contraseña)." ;;
+    macos) t prereq_macos; echo ;;
+    *) t prereq_linux; echo ;;
   esac
-  confirm "¿Continuar?" || _pr_fail "instalación cancelada."
+  confirm "$(t prereq_continue)" || _pr_fail "$(t prereq_cancelled)"
 
   [[ "$family" != "macos" ]] && _need_sudo
   "_install_${family}"
   [[ "$family" != "macos" ]] && _enable_docker_linux
 
   missing="$(missing_prerequisites)"
-  [[ -z "$missing" ]] || _pr_fail "no se pudo instalar: ${missing}."
-  _pr_info "Dependencias instaladas."
+  [[ -z "$missing" ]] || _pr_fail "$(t prereq_failed "$missing")"
+  _pr_info "$(t prereq_done)"
 }
