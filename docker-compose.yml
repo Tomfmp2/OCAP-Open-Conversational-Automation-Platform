@@ -155,6 +155,15 @@ services:
       # Opcional: sin él, las firmas del webhook se derivan de EVOLUTION_API_KEY.
       WhatsApp__WebhookSecret: ${WHATSAPP_WEBHOOK_SECRET:-}
       Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
+      # Enlaces de invitación y recuperación enviados por correo.
+      App__PublicPanelUrl: ${PUBLIC_PANEL_URL:-http://localhost:3000}
+      # Correo opcional: sin SMTP_HOST los enlaces se copian desde Ajustes → Equipo.
+      Email__Smtp__Host: ${SMTP_HOST:-}
+      Email__Smtp__Port: ${SMTP_PORT:-587}
+      Email__Smtp__Username: ${SMTP_USERNAME:-}
+      Email__Smtp__Password: ${SMTP_PASSWORD:-}
+      Email__Smtp__From: ${SMTP_FROM:-}
+      Email__Smtp__UseSsl: ${SMTP_USE_SSL:-true}
     ports:
       - "${OCAP_BIND_ADDRESS:-127.0.0.1}:${API_HOST_PORT:-5000}:5000"
     volumes:

@@ -15,6 +15,11 @@ public record LoginResponseDto(
     bool MfaRequired = false,
     string? MfaToken = null);
 
+// Definir la contraseña con el enlace de un solo uso.
+public record PasswordSetupRequestDto(string Token, string NewPassword);
+
+public record ForgotPasswordRequestDto(string Email);
+
 // Segundo paso del login con MFA.
 public record CompleteMfaLoginRequestDto(string MfaToken, string Code);
 

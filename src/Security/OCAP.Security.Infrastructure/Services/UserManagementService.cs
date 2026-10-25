@@ -120,8 +120,10 @@ public class UserManagementService : IUserManagementService
         var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Email == request.Email.ToLowerInvariant(), cancellationToken);
         if (user == null) return false;
 
-        var resetToken = Guid.NewGuid().ToString("N");
-        user.SetPasswordResetToken(resetToken);
+        // Solo se guarda el hash: el enlace para usarlo lo genera el equipo (POST /api/team/{id}/password-link).
+        var resetToken = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))).ToLowerInvariant();
+        user.IssuePasswordSetup(resetToken, DateTime.UtcNow.AddHours(24));
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         await _auditService.LogSecurityEventAsync(tenantId, user.Id, "User.PasswordResetRequested", $"Token de restablecimiento generado para '{user.Email}'", "UserManagementService", true, cancellationToken);

@@ -15,7 +15,9 @@ public class UserIdentity
     /// <summary>Contraseñas incorrectas seguidas desde el último login correcto.</summary>
     public int FailedLoginCount { get; private set; }
     public bool IsEmailVerified { get; private set; } = false;
+    /// <summary>Hash (SHA-256) del enlace de un solo uso para definir la contraseña: invitación o recuperación.</summary>
     public string? PasswordResetToken { get; private set; }
+    public DateTime? PasswordResetTokenExpiresUtc { get; private set; }
     public string? InviteToken { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -44,7 +46,7 @@ public class UserIdentity
     {
         PasswordHash = newPasswordHash;
         Salt = newSalt;
-        PasswordResetToken = null;
+        ClearPasswordResetToken();
     }
 
     public void ChangeEmail(string email)
@@ -100,13 +102,32 @@ public class UserIdentity
         IsEmailVerified = true;
     }
 
-    public void SetPasswordResetToken(string token)
+    /// <summary>Guarda el hash de un enlace para definir la contraseña; reemplaza cualquier enlace anterior.</summary>
+    public void IssuePasswordSetup(string tokenHash, DateTime expiresUtc)
     {
-        PasswordResetToken = token;
+        PasswordResetToken = tokenHash;
+        PasswordResetTokenExpiresUtc = expiresUtc;
+    }
+
+    public bool HasValidPasswordSetup(string tokenHash, DateTime utcNow) =>
+        PasswordResetToken is not null
+        && PasswordResetTokenExpiresUtc > utcNow
+        && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.ASCII.GetBytes(PasswordResetToken), System.Text.Encoding.ASCII.GetBytes(tokenHash));
+
+    /// <summary>Define la contraseña con el enlace: lo consume, verifica el correo y levanta un bloqueo por intentos.</summary>
+    public void CompletePasswordSetup(string passwordHash, string salt)
+    {
+        PasswordHash = passwordHash;
+        Salt = salt;
+        ClearPasswordResetToken();
+        IsEmailVerified = true;
+        Unlock();
     }
 
     public void ClearPasswordResetToken()
     {
         PasswordResetToken = null;
+        PasswordResetTokenExpiresUtc = null;
     }
 }

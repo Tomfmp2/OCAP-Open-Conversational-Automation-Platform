@@ -1689,6 +1689,9 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<DateTime?>("PasswordResetTokenExpiresUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Salt")
                         .IsRequired()
                         .HasMaxLength(256)

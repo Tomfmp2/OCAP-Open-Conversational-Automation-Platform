@@ -57,6 +57,44 @@ public class AuthController : ControllerBase
             result.MfaRequired, result.MfaToken));
     }
 
+    /// <summary>
+    /// Define la contraseña con un enlace de un solo uso (invitación al equipo o recuperación). Cierra las sesiones
+    /// abiertas de la cuenta.
+    /// </summary>
+    [HttpPost("password/setup")]
+    public async Task<IActionResult> SetupPassword(
+        [FromBody] PasswordSetupRequestDto request,
+        [FromServices] OCAP.Api.Team.TeamService team,
+        CancellationToken cancellationToken)
+    {
+        if (OCAP.Api.Security.PasswordRules.Validate(request.NewPassword) is { } rule)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: rule);
+
+        return await team.CompletePasswordSetupAsync(request.Token, request.NewPassword, cancellationToken)
+            ? NoContent()
+            : Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Enlace inválido",
+                detail: "El enlace no es válido, ya se usó o venció. Pide uno nuevo a un administrador.");
+    }
+
+    /// <summary>"Olvidé mi contraseña": envía un enlace si hay correo configurado. Misma respuesta exista o no la cuenta.</summary>
+    [HttpPost("password/forgot")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequestDto request,
+        [FromServices] OCAP.Api.Team.TeamService team,
+        CancellationToken cancellationToken)
+    {
+        await team.RequestPasswordResetAsync(request.Email, cancellationToken);
+        return Ok(new { emailConfigured = team.EmailConfigured });
+    }
+
+    /// <summary>Si el servidor puede enviar correos (cambia lo que ofrece el panel en "Olvidé mi contraseña").</summary>
+    [HttpGet("password/options")]
+    [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
+    public IActionResult PasswordOptions([FromServices] OCAP.Api.Team.TeamService team) =>
+        Ok(new { emailConfigured = team.EmailConfigured, minLength = OCAP.Api.Security.PasswordRules.MinLength });
+
     /// <summary>Rota refresh token y emite nuevo access token.</summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
