@@ -24,8 +24,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
+# Sin root: el usuario "app" de la imagen oficial. Solo escribe en /app/storage (documentos y archivos).
+RUN mkdir -p /app/storage && chown -R app:app /app/storage
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
+USER app
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
   CMD curl -fsS http://localhost:5000/health/ready || exit 1
 ENTRYPOINT ["dotnet", "OCAP.Api.dll"]

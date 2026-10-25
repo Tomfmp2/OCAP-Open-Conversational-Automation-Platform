@@ -158,6 +158,8 @@ services:
     volumes:
       - api_storage:/app/storage
     depends_on:
+      storage-permissions:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -172,6 +174,15 @@ services:
       timeout: 5s
       retries: 8
       start_period: 45s
+
+  # La API corre sin root (usuario app, UID 1654): ajusta una vez el volumen que versiones anteriores creaban como root.
+  storage-permissions:
+    image: busybox:1.37
+    container_name: ocap-storage-permissions
+    command: ["chown", "-R", "1654:1654", "/app/storage"]
+    volumes:
+      - api_storage:/app/storage
+    restart: "no"
 
   ocap-frontend:
     build:
