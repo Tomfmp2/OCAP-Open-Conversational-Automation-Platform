@@ -16,6 +16,13 @@ public interface IWebChatRuntimeManager
 
 public class WebChatRuntimeManager : IWebChatRuntimeManager
 {
+    public const string WidgetPublicKeyMetadata = "PublicKey";
+    /// <summary>Orígenes (https://tusitio.com) que pueden usar el widget, separados por coma.</summary>
+    public const string AllowedOriginsMetadata = "AllowedOrigins";
+
+    public static string NewPublicKey() =>
+        Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(18)).Replace('+', '-').Replace('/', '_');
+
     private readonly IChannelConnectionManager _connectionManager;
 
     public WebChatRuntimeManager(IChannelConnectionManager connectionManager)
@@ -31,7 +38,9 @@ public class WebChatRuntimeManager : IWebChatRuntimeManager
     {
         var metadata = new Dictionary<string, string>
         {
-            ["WidgetTitle"] = string.IsNullOrWhiteSpace(widgetTitle) ? "Asistente OCAP" : widgetTitle.Trim()
+            ["WidgetTitle"] = string.IsNullOrWhiteSpace(widgetTitle) ? "Asistente OCAP" : widgetTitle.Trim(),
+            // Identifica el canal en el widget público (va en el HTML del sitio: no es un secreto).
+            [WidgetPublicKeyMetadata] = NewPublicKey()
         };
 
         // Credencial opaca de widget (no es un secreto de proveedor externo).

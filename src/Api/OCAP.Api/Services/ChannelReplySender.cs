@@ -38,7 +38,7 @@ public sealed class ChannelReplySender
     public static bool CanReply(Conversation conversation) =>
         conversation.ChannelConnectionId is not null
         && !string.IsNullOrWhiteSpace(conversation.ExternalContactId)
-        && conversation.Channel is "WhatsApp" or "Telegram";
+        && conversation.Channel is "WhatsApp" or "Telegram" or "WebChat";
 
     /// <returns>true si el canal aceptó el mensaje.</returns>
     public async Task<bool> SendAsync(Conversation conversation, string text, CancellationToken cancellationToken)
@@ -65,6 +65,9 @@ public sealed class ChannelReplySender
                         new WhatsAppCloudSendMessageRequest { To = to, Text = new WhatsAppCloudText { Body = text } },
                         await _connections.GetCredentialsAsync(connection, cancellationToken),
                         cancellationToken);
+                // El widget lee las respuestas de la conversación: basta con registrarla (lo hace la bandeja).
+                case "WebChat":
+                    return true;
                 case "Telegram":
                     var token = await _connections.GetCredentialsAsync(connection, cancellationToken);
                     return token is not null && await _telegram.SendMessageAsync(

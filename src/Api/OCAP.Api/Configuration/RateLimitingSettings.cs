@@ -19,6 +19,12 @@ public class RateLimitingSettings
     // Intentos de autenticación por IP y minuto; 0 desactiva la política (solo para pruebas).
     public int AuthPermitLimit { get; set; } = 10;
 
+    // Widget público de WebChat: mensajes de visitantes (cada uno llama a la IA) y consultas de respuestas, por IP.
+    public const string WidgetMessagesPolicy = "widget-messages";
+    public const string WidgetReadPolicy = "widget-read";
+    public int WidgetMessagesPermitLimit { get; set; } = 15;
+    public int WidgetReadPermitLimit { get; set; } = 120;
+
     // Tamaño de la ventana deslizante en segundos.
     public int WindowSeconds { get; set; } = 60;
 

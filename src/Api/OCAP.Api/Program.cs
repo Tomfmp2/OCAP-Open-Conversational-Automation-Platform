@@ -114,10 +114,12 @@ if (app.Environment.IsDevelopment())
 app.UseResponseCompression();
 app.UseResponseCaching();
 
-// CORS debe configurarse antes del routing para que se aplique a todas las rutas.
-app.UseCors("OcapCorsPolicy");
 
 app.UseRouting();
+
+// Después del routing: la política por defecto es la del panel, y el widget público de WebChat declara la suya
+// ([EnableCors]) por endpoint, algo que antes del routing no se puede leer.
+app.UseCors("OcapCorsPolicy");
 
 // Autenticación y autorización deben ejecutarse después del routing y antes de MapControllers.
 app.UseAuthentication();

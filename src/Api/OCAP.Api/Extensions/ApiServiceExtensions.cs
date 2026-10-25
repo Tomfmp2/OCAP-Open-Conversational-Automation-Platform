@@ -124,6 +124,8 @@ public static partial class ApiServiceExtensions
         return services;
     }
 
+    public const string PublicWidgetCorsPolicy = "PublicWidget";
+
     private static void AddCors(IServiceCollection services, IConfiguration configuration)
     {
         var corsSettings = configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
@@ -149,6 +151,13 @@ public static partial class ApiServiceExtensions
                     policy.SetIsOriginAllowed(_ => false);
                 }
             });
+
+            // Widget de WebChat incrustado en sitios de clientes: cualquier origen puede llamarlo (sin cookies) y el
+            // controlador limita cada canal a sus dominios permitidos.
+            options.AddPolicy(PublicWidgetCorsPolicy, policy => policy
+                .AllowAnyOrigin()
+                .WithMethods("GET", "POST")
+                .WithHeaders("Content-Type"));
         });
     }
 
@@ -190,6 +199,11 @@ public static partial class ApiServiceExtensions
 
             // Por usuario con sesión (varios operadores detrás de una misma IP no se estorban) y por IP sin sesión.
             // Sin cola: una petición retenida hasta que se abre la ventana parecía un panel colgado.
+            options.AddPolicy(RateLimitingSettings.WidgetMessagesPolicy, context =>
+                PerIpPerMinute(context, "widget-msg", Settings(context).WidgetMessagesPermitLimit));
+            options.AddPolicy(RateLimitingSettings.WidgetReadPolicy, context =>
+                PerIpPerMinute(context, "widget-read", Settings(context).WidgetReadPermitLimit));
+
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
             {
                 var settings = Settings(context);
@@ -207,6 +221,16 @@ public static partial class ApiServiceExtensions
             });
         });
     }
+
+    private static RateLimitPartition<string> PerIpPerMinute(HttpContext context, string prefix, int limit) =>
+        limit <= 0
+            ? RateLimitPartition.GetNoLimiter($"{prefix}-off")
+            : RateLimitPartition.GetFixedWindowLimiter($"{prefix}:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
 
     // Health checks de Docker, métricas y la conexión en vivo (SignalR) no son tráfico de usuario.
     private static bool IsInfrastructurePath(PathString path) =>
