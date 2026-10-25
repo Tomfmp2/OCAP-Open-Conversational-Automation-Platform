@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { ArrowUp, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUp, Loader2, RotateCcw } from "lucide-react";
+import { cn } from "@/shared/utils/cn";
 
 interface ChatComposerProps {
   value: string;
@@ -40,49 +41,53 @@ export function ChatComposer({
         e.preventDefault();
         onSubmit();
       }}
-      className="ocap-composer w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-shadow focus-within:border-neutral-400"
+      className={cn(
+        "ocap-composer w-full rounded-3xl border border-neutral-200/80 bg-white text-left",
+        "shadow-[0_18px_50px_-22px_rgba(255,90,40,0.28),0_2px_6px_-2px_rgba(10,10,10,0.06)]",
+        "transition-shadow focus-within:border-neutral-300 focus-within:shadow-[0_22px_60px_-22px_rgba(255,90,40,0.38),0_2px_6px_-2px_rgba(10,10,10,0.08)]"
+      )}
     >
-      <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-2">
-        <p className="text-[11px] text-neutral-500">
-          {description}
-          {providerUsed ? (
-            <span className="ml-2 font-mono text-neutral-400">· {providerUsed}</span>
-          ) : null}
-        </p>
-        {onReset && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-500 transition-colors hover:text-neutral-950"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Nueva
-          </button>
-        )}
-      </div>
+      <label htmlFor="assistant-input" className="sr-only">
+        Mensaje para el asistente
+      </label>
+      <textarea
+        id="assistant-input"
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        rows={expanded ? 2 : 1}
+        placeholder="Pregúntame cualquier cosa…"
+        disabled={pending}
+        className="block w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-relaxed text-neutral-950 placeholder:text-neutral-400 focus:outline-none disabled:opacity-60"
+      />
 
-      <div className="px-4 pt-3">
-        <textarea
-          ref={inputRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          rows={expanded ? 3 : 2}
-          placeholder="Pregúntame cualquier cosa…"
-          disabled={pending}
-          className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-neutral-950 placeholder:text-neutral-400 focus:outline-none disabled:opacity-60"
-        />
-      </div>
+      <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-2">
+        <div className="flex min-w-0 items-center gap-2">
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              aria-label="Nueva conversación"
+              title="Nueva conversación"
+              className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-950"
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+            </button>
+          )}
+          <span className="truncate pl-2 text-[11px] text-neutral-400">
+            {description}
+            {providerUsed && <span className="font-mono"> · {providerUsed}</span>}
+          </span>
+        </div>
 
-      <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
-        <p className="pl-1 text-[10px] text-neutral-400">Enter para enviar · Shift+Enter nueva línea</p>
         <button
           type="submit"
           disabled={pending || !value.trim()}
           aria-label="Enviar"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-neutral-950 text-white transition-opacity disabled:opacity-30 hover:bg-neutral-800"
+          className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-[0_6px_16px_-6px_rgba(10,10,10,0.5)] transition-[transform,opacity] hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-25"
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+          {pending ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <ArrowUp className="h-4 w-4" aria-hidden />}
         </button>
       </div>
     </form>

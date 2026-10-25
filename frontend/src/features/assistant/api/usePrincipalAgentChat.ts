@@ -32,13 +32,18 @@ export function usePrincipalAgentChat() {
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [providerUsed, setProviderUsed] = React.useState<string | null>(null);
+  /** Respuesta que se está mostrando palabra por palabra (el orbe "habla" mientras tanto). */
+  const [revealingId, setRevealingId] = React.useState<string | null>(null);
 
   const reset = React.useCallback(() => {
     setSessionId(newSessionId());
     setLines([]);
     setError(null);
     setProviderUsed(null);
+    setRevealingId(null);
   }, []);
+
+  const finishReveal = React.useCallback(() => setRevealingId(null), []);
 
   const send = React.useCallback(
     async (text: string) => {
@@ -58,7 +63,9 @@ export function usePrincipalAgentChat() {
 
         const reply = res?.data?.reply || "Sin respuesta del agente.";
         if (res?.data?.providerUsed) setProviderUsed(res.data.providerUsed);
-        setLines((prev) => [...prev, { id: `a-${Date.now()}`, role: "assistant", text: String(reply) }]);
+        const id = `a-${Date.now()}`;
+        setLines((prev) => [...prev, { id, role: "assistant", text: String(reply) }]);
+        setRevealingId(id);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "No se pudo hablar con el agente principal.");
       } finally {
@@ -68,5 +75,5 @@ export function usePrincipalAgentChat() {
     [pending, sessionId]
   );
 
-  return { lines, pending, error, providerUsed, send, reset };
+  return { lines, pending, error, providerUsed, revealingId, finishReveal, send, reset };
 }
