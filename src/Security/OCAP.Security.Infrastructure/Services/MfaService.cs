@@ -123,7 +123,9 @@ public class MfaService : IMfaService
             }
         }
 
-        // Si falla la verificación TOTP, intentar con códigos de recuperación de uso único
+        // Si falla la verificación TOTP, intentar con códigos de recuperación de uso único. Solo si el código tiene su
+        // forma (xxxxx-xxxxx): cada comparación es un PBKDF2 lento y un TOTP incorrecto no debe recorrerlos todos.
+        if (!LooksLikeRecoveryCode(code)) return false;
         var recoveryCodes = await _dbContext.UserRecoveryCodes
             .IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && r.UserId == userId && !r.IsUsed)
@@ -163,6 +165,12 @@ public class MfaService : IMfaService
         await _auditService.LogSecurityEventAsync(tenantId, userId, "RecoveryCode.Regenerated", "Nuevos códigos de recuperación generados", "MfaService", true, cancellationToken);
 
         return rawCodes;
+    }
+
+    private static bool LooksLikeRecoveryCode(string code)
+    {
+        var value = code.Trim();
+        return value.Length == 11 && value[5] == '-';
     }
 
     private static List<string> GenerateRawRecoveryCodes(int count)

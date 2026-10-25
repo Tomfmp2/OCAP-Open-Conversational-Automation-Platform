@@ -11,6 +11,9 @@ public interface IUserAuthenticationQuery
 
     Task<UserAuthenticationRecord?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
+    /// <summary>Reemplaza el hash de la contraseña (migración a parámetros más fuertes tras un login correcto).</summary>
+    Task UpgradePasswordHashAsync(Guid userId, string hash, string salt, CancellationToken cancellationToken = default);
+
     /// <summary>true si el usuario activó el segundo factor (TOTP).</summary>
     Task<bool> IsMfaEnabledAsync(Guid userId, CancellationToken cancellationToken = default);
 

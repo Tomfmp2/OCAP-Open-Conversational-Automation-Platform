@@ -76,6 +76,12 @@ public class AuthenticateUserUseCase
 
         if (!isValid) return null;
 
+        if (_passwordHasher.NeedsRehash(record.User.PasswordHash))
+        {
+            var (hash, salt) = _passwordHasher.HashPassword(password);
+            await _userQuery.UpgradePasswordHashAsync(record.User.Id, hash, salt, cancellationToken);
+        }
+
         if (await _userQuery.IsMfaEnabledAsync(record.User.Id, cancellationToken))
         {
             return new AuthenticationResult(

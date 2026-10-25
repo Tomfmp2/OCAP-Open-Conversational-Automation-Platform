@@ -34,6 +34,14 @@ public sealed class EfUserAuthenticationQuery : IUserAuthenticationQuery
         return user is null ? null : await BuildRecordAsync(user, cancellationToken);
     }
 
+    public async Task UpgradePasswordHashAsync(Guid userId, string hash, string salt, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return;
+        user.UpdatePassword(hash, salt);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public Task<bool> IsMfaEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
         _dbContext.UserMfaSettings
             .IgnoreQueryFilters()
