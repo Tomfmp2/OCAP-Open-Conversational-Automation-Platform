@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -21,11 +22,14 @@ export const metadata: Metadata = {
     "Plataforma de automatización conversacional con agente principal, canales e IA.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Render por petición: la CSP usa un nonce nuevo en cada una (src/proxy.ts) y una página
+  // prerenderizada tendría scripts sin nonce que el navegador bloquearía.
+  await connection();
   return (
     <html lang="es" className="h-full">
       <body

@@ -24,6 +24,16 @@ async function login(page: Page) {
 }
 
 test("login, navegación principal y logout", async ({ page }) => {
+  // La CSP con nonce no debe bloquear nada propio del panel: cualquier violación es un error.
+  const cspViolations: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy|Content-Security-Policy/i.test(message.text())) cspViolations.push(message.text());
+  });
+  const response = await page.goto("/login");
+  expect(response?.headers()["content-security-policy"]).toContain("'nonce-");
+  expect(response?.headers()["x-frame-options"]).toBe("DENY");
+  expect(response?.headers()["x-powered-by"]).toBeUndefined();
+
   await login(page);
   await expect(page.getByRole("heading", { name: /En qué puedo ayudarte/i })).toBeVisible();
 
@@ -35,6 +45,7 @@ test("login, navegación principal y logout", async ({ page }) => {
 
   await page.getByTitle("Cerrar sesión").click();
   await expect(page).toHaveURL(/\/login$/);
+  expect(cspViolations).toEqual([]);
 });
 
 test("credenciales incorrectas muestran el error sin entrar", async ({ page }) => {
@@ -86,7 +97,8 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   await page.getByRole("button", { name: "WebChat" }).click();
   await page.getByPlaceholder("WebChat Portal").fill(channelName);
   await page.getByRole("button", { name: "Guardar y conectar" }).click();
-  await expect(page.getByRole("heading", { name: channelName })).toBeVisible();
+  // En un stack recién levantado la primera conexión puede tardar más que la espera por defecto.
+  await expect(page.getByRole("heading", { name: channelName })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: `Editar ${channelName}` }).click();
   await page.getByLabel("Nombre", { exact: true }).fill(`${channelName} ventas`);
