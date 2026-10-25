@@ -43,12 +43,22 @@ Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada mó
 
 ## Inicio rápido
 
-Requisitos: Docker (Docker Desktop o Docker Engine con Compose v2), git y curl. Linux o macOS (en Windows, WSL2).
+En Linux o macOS (en Windows, dentro de WSL2), una sola línea:
 
 ```bash
-git clone https://github.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform.git
-cd OCAP-Open-Conversational-Automation-Platform
-./ocap install      # una sola vez: .env con secretos, imágenes y el comando `ocap`
+curl -fsSL https://raw.githubusercontent.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform/main/install.sh | bash
+```
+
+Descarga OCAP en `~/ocap` y ejecuta `ocap install`, que **instala lo que falte** (Docker con Compose, git, curl)
+pidiendo confirmación, genera el `.env` con secretos aleatorios, construye las imágenes y deja el comando `ocap`.
+Docker se instala con el gestor de paquetes del sistema: `pacman` (Arch, CachyOS, Manjaro), `apt` con el
+repositorio oficial de Docker (Ubuntu, Debian, Mint) o `dnf` (Fedora, RHEL); en macOS, Homebrew con Colima. Pide
+tu contraseña una vez y agrega tu usuario al grupo `docker` (que equivale a permisos de administrador).
+
+O, si ya clonaste el repo:
+
+```bash
+./ocap install      # desde la carpeta del repo, una sola vez
 ```
 
 Desde entonces, en cualquier terminal y carpeta:
