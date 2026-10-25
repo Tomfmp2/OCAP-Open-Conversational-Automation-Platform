@@ -24,7 +24,16 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // Replace built-in logging with Serilog
+    // System.Net.Http en Information registra cada URL completa, y la API de Telegram lleva el token del bot en la
+    // ruta: por debajo de Warning nunca. EF Core y ASP.NET Core escribían una línea por consulta y por paso del
+    // pipeline; UseSerilogRequestLogging ya deja una por petición. La configuración puede sobrescribirlos.
     builder.Host.UseSerilog((context, services, configuration) => configuration
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("System.Net.Http", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.Extensions.Http", LogEventLevel.Warning)
+        .MinimumLevel.Override("Polly", LogEventLevel.Warning)
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
