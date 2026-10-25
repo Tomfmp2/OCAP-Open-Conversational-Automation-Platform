@@ -96,7 +96,8 @@ public static partial class ApiServiceExtensions
 
         // Registrar Webhooks Platform (HMAC SHA-256, Delivery Engine y Suscriptor de Event Bus)
         services.AddSingleton<IWebhookSigner, HmacSha256WebhookSigner>();
-        services.AddHttpClient<IWebhookService, WebhookService>();
+        services.AddHttpClient<IWebhookService, WebhookService>()
+            .ConfigurePrimaryHttpMessageHandler(() => OutboundUrlGuard.CreateHandler(allowPrivateNetwork: false));
         services.AddHostedService<WebhookEventSubscriber>();
 
         // Registrar Live Gateway (SignalR e integración con IEventBus para streaming en vivo)

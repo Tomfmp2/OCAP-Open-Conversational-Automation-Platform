@@ -50,8 +50,8 @@ public class WebhookServiceTests
         var tenantId2 = Guid.NewGuid();
 
         // Act - Create
-        var sub1 = await service.CreateSubscriptionAsync(tenantId1, "Main Endpoint", "https://example.com/webhook", "sec1", new[] { "WorkflowCompleted" });
-        var sub2 = await service.CreateSubscriptionAsync(tenantId2, "Tenant 2 Endpoint", "https://tenant2.com/webhook", "sec2", new[] { "*" });
+        var sub1 = await service.CreateSubscriptionAsync(tenantId1, "Main Endpoint", "https://93.184.215.14/webhook", "sec1", new[] { "WorkflowCompleted" });
+        var sub2 = await service.CreateSubscriptionAsync(tenantId2, "Tenant 2 Endpoint", "https://93.184.215.15/webhook", "sec2", new[] { "*" });
 
         // Assert - Tenant Isolation
         var tenant1Subs = await service.GetSubscriptionsForTenantAsync(tenantId1);
@@ -59,9 +59,9 @@ public class WebhookServiceTests
         tenant1Subs[0].Id.Should().Be(sub1.Id);
 
         // Act - Update
-        var updated = await service.UpdateSubscriptionAsync(sub1.Id, tenantId1, "Updated Endpoint", "https://example.com/v2", null, new[] { "WorkflowCompleted", "NodeExecuted" }, true);
+        var updated = await service.UpdateSubscriptionAsync(sub1.Id, tenantId1, "Updated Endpoint", "https://93.184.215.14/v2", null, new[] { "WorkflowCompleted", "NodeExecuted" }, true);
         updated.Should().NotBeNull();
-        updated!.TargetUrl.Should().Be("https://example.com/v2");
+        updated!.TargetUrl.Should().Be("https://93.184.215.14/v2");
         updated.SubscribedEvents.Should().Contain("NodeExecuted");
 
         // Act - Delete
@@ -82,7 +82,7 @@ public class WebhookServiceTests
         var service = new WebhookService(db, _signer, _auditMock.Object, httpClient);
 
         var tenantId = Guid.NewGuid();
-        var sub = await service.CreateSubscriptionAsync(tenantId, "Prod Webhook", "https://api.mycompany.com/webhook", "whsec_123", new[] { "WorkflowCompletedEvent" });
+        var sub = await service.CreateSubscriptionAsync(tenantId, "Prod Webhook", "https://93.184.215.16/webhook", "whsec_123", new[] { "WorkflowCompletedEvent" });
 
         var evt = new WorkflowCompletedEvent(Guid.NewGuid(), Guid.NewGuid(), tenantId, "{\"result\":\"ok\"}", 250.0);
 

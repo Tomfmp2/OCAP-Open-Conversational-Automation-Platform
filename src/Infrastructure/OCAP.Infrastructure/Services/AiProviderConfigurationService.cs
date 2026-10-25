@@ -48,6 +48,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
                 $"Ya hay un proveedor {normalizedProvider} registrado en esta organización. Edítalo para cambiar su key o modelo.");
         }
 
+        await EnsureAllowedBaseUrlAsync(normalizedProvider, dto.BaseUrl, dto.SettingsJson, cancellationToken);
+
         // 1. Guardar la API Key de forma cifrada en el Credential Vault
         var vaultRef = await _credentialVault.StoreSecretAsync(
             dto.TenantId,
@@ -111,6 +113,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == id, cancellationToken);
 
         if (entity == null) return null;
+        await EnsureAllowedBaseUrlAsync(entity.ProviderName, dto.BaseUrl, dto.SettingsJson, cancellationToken);
 
         var vaultRef = entity.VaultSecretReference;
 
@@ -294,6 +297,37 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         }
 
         return _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
+    }
+
+    /// <summary>
+    /// Defensa SSRF: la Base URL la escribe un usuario y la API la llama con la key. Ollama puede estar en tu equipo o
+    /// tu LAN; los proveedores en la nube, solo en internet.
+    /// </summary>
+    private static async Task EnsureAllowedBaseUrlAsync(string providerName, string? baseUrl, string? settingsJson, CancellationToken cancellationToken)
+    {
+        var url = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl.Trim() : ReadBaseUrl(settingsJson);
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        var error = await OutboundUrlGuard.ValidateAsync(url, allowPrivateNetwork: IsLocalProvider(providerName), cancellationToken);
+        if (error is not null) throw new ArgumentException($"Base URL no permitida: {error}", nameof(baseUrl));
+    }
+
+    private static bool IsLocalProvider(string providerName) =>
+        providerName.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+        || providerName.Equals("Local", StringComparison.OrdinalIgnoreCase);
+
+    private static string? ReadBaseUrl(string? settingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(settingsJson)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            return doc.RootElement.TryGetProperty("BaseUrl", out var value) ? value.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            throw new ArgumentException("SettingsJson no es un JSON válido.", nameof(settingsJson));
+        }
     }
 
     private string? ResolveEnvApiKey(string providerName)

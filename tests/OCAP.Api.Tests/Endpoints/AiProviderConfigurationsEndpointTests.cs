@@ -78,6 +78,40 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
             .StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    [Fact]
+    public async Task BaseUrl_CannotPointToTheInternalNetwork_ExceptForOllama()
+    {
+        var client = await AdminClientAsync();
+
+        var cloud = await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = SeedTenantId, providerName = "OpenAI", displayName = "Interno", modelName = "gpt-4o",
+            apiKey = "sk-x", baseUrl = "http://169.254.169.254/latest"
+        });
+        cloud.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await cloud.Content.ReadAsStringAsync()).Should().Contain("red interna");
+
+        var ollama = await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = SeedTenantId, providerName = "Ollama", displayName = "Ollama LAN", modelName = "llama3",
+            apiKey = "no-se-usa", baseUrl = "http://192.168.1.20:11434"
+        });
+        ollama.StatusCode.Should().Be(HttpStatusCode.Created, await ollama.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Webhooks_CannotTargetTheInternalNetwork()
+    {
+        var client = await AdminClientAsync();
+
+        var response = await client.PostAsJsonAsync("/api/webhooks", new
+        {
+            name = "Interno", targetUrl = "http://10.0.0.5/hook", secret = "un-secreto-hmac-largo", subscribedEvents = new[] { "*" }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private async Task<HttpClient> AdminClientAsync()
     {
         var client = _factory.CreateClient();

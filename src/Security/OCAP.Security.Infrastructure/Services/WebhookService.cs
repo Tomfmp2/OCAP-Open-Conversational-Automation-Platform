@@ -44,6 +44,7 @@ public class WebhookService : IWebhookService
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("El TenantId no puede ser vacío.", nameof(tenantId));
         if (string.IsNullOrWhiteSpace(targetUrl)) throw new ArgumentException("La URL destino es requerida.", nameof(targetUrl));
+        await EnsureAllowedTargetAsync(targetUrl, cancellationToken);
 
         var eventsJoined = string.Join(",", subscribedEvents ?? new[] { "*" });
         var sub = new WebhookSubscription(
@@ -67,6 +68,13 @@ public class WebhookService : IWebhookService
         return sub;
     }
 
+    // Los webhooks salen hacia internet: nunca a la red interna (la entrega usa además un handler que lo revalida).
+    private static async Task EnsureAllowedTargetAsync(string targetUrl, CancellationToken cancellationToken)
+    {
+        var error = await OutboundUrlGuard.ValidateAsync(targetUrl, allowPrivateNetwork: false, cancellationToken);
+        if (error is not null) throw new ArgumentException(error, nameof(targetUrl));
+    }
+
     public async Task<WebhookSubscription?> UpdateSubscriptionAsync(
         Guid subscriptionId,
         Guid tenantId,
@@ -80,6 +88,7 @@ public class WebhookService : IWebhookService
         var sub = await _dbContext.WebhookSubscriptions
             .FirstOrDefaultAsync(s => s.Id == subscriptionId && s.TenantId == tenantId, cancellationToken);
         if (sub == null) return null;
+        await EnsureAllowedTargetAsync(targetUrl, cancellationToken);
 
         var eventsJoined = string.Join(",", subscribedEvents ?? new[] { "*" });
         sub.Update(name, targetUrl, secret ?? sub.Secret, eventsJoined);
