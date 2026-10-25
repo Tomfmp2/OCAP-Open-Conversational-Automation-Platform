@@ -104,7 +104,8 @@ infraestructura. Cada organización (tenant) tiene sus propios usuarios, canales
 | WhatsApp por QR (Evolution API v2) | ✅ Listo ([guía](docs/channels/WHATSAPP.md)) |
 | WhatsApp Cloud API (Meta) | ✅ Listo con `WhatsApp__AppSecret` |
 | Telegram (bot conectado desde el panel, por polling o webhook) | ✅ Listo |
-| WebChat embebible | ✅ Listo |
+| WebChat: conversación de prueba dentro del panel | ✅ Listo |
+| WebChat: widget público para incrustar en tu sitio | ⛔ Pendiente |
 | Editar y eliminar canales desde el panel (desvincula WhatsApp y quita el webhook de Telegram) | ✅ Listo |
 | Base de conocimiento con búsqueda semántica (pgvector) | ✅ Listo |
 | Google Calendar, Gmail y Sheets | 🟡 Disponible con token OAuth |
@@ -226,7 +227,7 @@ Abre **Canales** y pulsa **Conectar canal**:
 | --- | --- |
 | **WhatsApp** | Elige WhatsApp y escanea el QR desde *WhatsApp → Dispositivos vinculados* en tu teléfono. La tarjeta pasa de *Esperando escaneo* a *Conectado*. ([guía](docs/channels/WHATSAPP.md)) |
 | **Telegram** | Crea un bot con [@BotFather](https://t.me/BotFather), copia su token y pégalo en **Bot API Token**. |
-| **WebChat** | Ponle un nombre y un título al widget; en **Canales → WebChat** obtienes el widget para tu sitio. |
+| **WebChat** | Ponle un nombre y un título; en **Canales → WebChat** lo pruebas dentro del panel. El widget público para tu sitio todavía no está disponible. |
 
 ### 7. Elige agente e IA de cada canal
 
