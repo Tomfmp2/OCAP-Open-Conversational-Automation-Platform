@@ -50,12 +50,17 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         await EnsureAllowedBaseUrlAsync(normalizedProvider, dto.BaseUrl, dto.SettingsJson, cancellationToken);
 
-        // 1. Guardar la API Key de forma cifrada en el Credential Vault
-        var vaultRef = await _credentialVault.StoreSecretAsync(
-            dto.TenantId,
-            $"{normalizedProvider}_ApiKey_{Guid.NewGuid():N}",
-            dto.ApiKey ?? string.Empty,
-            cancellationToken);
+        // 1. Guardar la API Key cifrada en el Credential Vault. Ollama corre en tu red y no usa key.
+        var isLocal = IsLocalProvider(normalizedProvider);
+        if (string.IsNullOrWhiteSpace(dto.ApiKey) && !isLocal)
+            throw new ArgumentException($"La API key de {normalizedProvider} es obligatoria.", nameof(dto.ApiKey));
+        var vaultRef = string.IsNullOrWhiteSpace(dto.ApiKey)
+            ? string.Empty
+            : await _credentialVault.StoreSecretAsync(
+                dto.TenantId,
+                $"{normalizedProvider}_ApiKey_{Guid.NewGuid():N}",
+                dto.ApiKey.Trim(),
+                cancellationToken);
 
         // 2. Armar SettingsJson si se proporcionó BaseUrl
         var settingsDict = new Dictionary<string, string>();
@@ -244,7 +249,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         }
 
         // Si el vault está vacío y no hay .env, no forzar un proveedor roto: caer al estático del DI.
-        if (string.IsNullOrWhiteSpace(apiKey))
+        // Ollama no usa key: su configuración (Base URL, modelo) vale tal cual.
+        if (string.IsNullOrWhiteSpace(apiKey) && !IsLocalProvider(config.ProviderName))
         {
             _logger.LogWarning(
                 "Configuración IA {Provider} sin API key (vault/.env) para Tenant {TenantId}. Fallback a estático.",

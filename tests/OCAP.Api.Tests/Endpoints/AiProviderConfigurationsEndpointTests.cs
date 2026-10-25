@@ -94,7 +94,7 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
         var ollama = await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
         {
             tenantId = SeedTenantId, providerName = "Ollama", displayName = "Ollama LAN", modelName = "llama3",
-            apiKey = "no-se-usa", baseUrl = "http://192.168.1.20:11434"
+            apiKey = "", baseUrl = "http://192.168.1.20:11434"
         });
         ollama.StatusCode.Should().Be(HttpStatusCode.Created, await ollama.Content.ReadAsStringAsync());
     }
