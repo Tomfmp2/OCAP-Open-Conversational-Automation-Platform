@@ -213,3 +213,26 @@ export function useAssignChannelAi() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
   });
 }
+
+/** Cambia el nombre visible de un canal. */
+export function useRenameChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, displayName }: { connectionId: string; displayName: string }) =>
+      apiClient.patch(`/api/channels/connections/${connectionId}`, { displayName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
+  });
+}
+
+/** Elimina un canal; la API limpia el servicio externo (desvincula WhatsApp, quita el webhook de Telegram). */
+export function useDeleteChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (connectionId: string) => apiClient.delete(`/api/channels/${connectionId}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["channelsData"] });
+      void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
+  });
+}

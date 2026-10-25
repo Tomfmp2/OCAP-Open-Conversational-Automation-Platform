@@ -282,9 +282,30 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión deshabilitada exitosamente.", Data = null });
     }
 
-    // DELETE /api/channels/{id} - Elimina una conexión de canal.
+    /// <summary>Cambia el nombre visible del canal.</summary>
+    [HttpPatch("connections/{id:guid}")]
+    public async Task<IActionResult> RenameChannel(Guid id, [FromBody] RenameChannelRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var name = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 100)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El nombre es obligatorio (máximo 100 caracteres).");
+
+        return await _connectionManager.RenameAsync(tenantId, id, name, cancellationToken) ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Elimina el canal y deja limpio su servicio externo: WhatsApp por QR cierra la sesión del teléfono y borra la
+    /// instancia; un bot de Telegram en modo webhook deja de enviar updates. El resto solo se borra de OCAP.
+    /// </summary>
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> RemoveChannel(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> RemoveChannel(
+        Guid id,
+        [FromServices] OCAP.Channels.WhatsApp.Services.WhatsAppLinkService whatsApp,
+        [FromServices] OCAP.Channels.Telegram.Services.TelegramApiClient telegram,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -294,10 +315,35 @@ public class ChannelManagementController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto no válido.", Data = null });
         }
 
-        var success = await _connectionManager.RemoveConnectionAsync(tenantId, id, cancellationToken);
-        if (!success)
+        var connection = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
+        if (connection is null)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
+        }
+
+        var mode = connection.ConfigurationMetadata.GetValueOrDefault("ConnectionMode");
+        if (connection.Provider == "WhatsApp" && mode == "evolution")
+        {
+            try
+            {
+                await whatsApp.UnlinkAsync(tenantId, cancellationToken);
+            }
+            catch (Exception ex) when (ex is OCAP.Channels.WhatsApp.Evolution.EvolutionApiException or HttpRequestException)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "No se pudo desvincular WhatsApp",
+                    detail: "Comprueba que el servicio de WhatsApp esté en marcha e inténtalo de nuevo.");
+            }
+        }
+        else
+        {
+            if (connection.Provider == "Telegram" && mode == "webhook")
+            {
+                var token = await _connectionManager.GetCredentialsAsync(connection, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(token)) await telegram.DeleteWebhookAsync(token, cancellationToken);
+            }
+            await _connectionManager.RemoveConnectionAsync(tenantId, id, cancellationToken);
         }
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
@@ -419,3 +465,4 @@ public class ChannelManagementController : ControllerBase
 
 public sealed record AssignChannelAgentRequest(Guid? AgentId);
 public sealed record AssignChannelAiRequest(Guid? AiProviderConfigId);
+public sealed record RenameChannelRequest(string DisplayName);

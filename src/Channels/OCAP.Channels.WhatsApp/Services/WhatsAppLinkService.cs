@@ -189,11 +189,13 @@ public sealed class WhatsAppLinkService
         if (!string.IsNullOrWhiteSpace(phone)) metadata["PhoneNumber"] = phone;
         if (!string.IsNullOrWhiteSpace(profile)) metadata["ProfileName"] = profile;
         // El agente y la IA asignados desde el panel sobreviven a los cambios de estado de la vinculación.
-        foreach (var key in new[] { "AgentId", "AiProviderConfigId" })
+        foreach (var key in new[] { "AgentId", "AiProviderConfigId", "CustomDisplayName" })
         {
             if (connection?.ConfigurationMetadata.TryGetValue(key, out var assigned) == true) metadata[key] = assigned;
         }
         var displayName = string.IsNullOrWhiteSpace(phone) ? "WhatsApp" : $"WhatsApp +{phone}";
+        // Si el usuario le puso nombre al canal, se conserva.
+        if (connection is not null && metadata.ContainsKey("CustomDisplayName")) displayName = connection.DisplayName;
 
         if (connection is null)
             await _connections.CreateConnectionAsync(tenantId, Provider, displayName, ManagedCredentials, metadata, cancellationToken);

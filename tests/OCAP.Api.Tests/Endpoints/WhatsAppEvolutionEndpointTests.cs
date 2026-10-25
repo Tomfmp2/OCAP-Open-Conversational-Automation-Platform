@@ -123,6 +123,43 @@ public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFac
     }
 
     [Fact]
+    public async Task Rename_IsKeptAfterReconnecting_AndDeleteUnlinksThePhone()
+    {
+        using var factory = new WhatsAppEvolutionFactory();
+        var admin = factory.CreateClient();
+        var login = await admin.PostAsJsonAsync("/api/auth/login", new { email = "admin@ocap.io", password = "ChangeMe_Admin_2026!" });
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", (await login.Content.ReadFromJsonAsync<Session>())!.AccessToken);
+
+        (await admin.PostAsync("/api/channels/whatsapp/link", null)).EnsureSuccessStatusCode();
+        var connectionId = (await admin.GetFromJsonAsync<Envelope>("/api/channels/connections"))!.Data.Single().Id;
+
+        (await admin.PatchAsJsonAsync($"/api/channels/connections/{connectionId}", new { displayName = " " }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PatchAsJsonAsync($"/api/channels/connections/{connectionId}", new { displayName = "Ventas Panadería" }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Evolution avisa que el teléfono se vinculó: el nombre elegido no se pisa con "WhatsApp +número".
+        factory.Evolution.Instances[SeedInstance] = "open";
+        var client = factory.CreateClient();
+        using (var request = new HttpRequestMessage(HttpMethod.Post, "/api/webhooks/whatsapp")
+        {
+            Content = new StringContent($$"""
+                { "event": "connection.update", "instance": "{{SeedInstance}}",
+                  "data": { "instance": "{{SeedInstance}}", "wuid": "573009998877@s.whatsapp.net", "state": "open" } }
+                """, Encoding.UTF8, "application/json")
+        })
+        {
+            request.Headers.Add(EvolutionInstanceIdentity.SignatureHeader, EvolutionInstanceIdentity.SignatureFor(SeedInstance, WhatsAppEvolutionFactory.WebhookSecret));
+            (await client.SendAsync(request)).EnsureSuccessStatusCode();
+        }
+        (await admin.GetFromJsonAsync<Envelope>("/api/channels/connections"))!.Data.Single().DisplayName.Should().Be("Ventas Panadería");
+
+        (await admin.DeleteAsync($"/api/channels/{connectionId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        factory.Evolution.Instances.Should().NotContainKey(SeedInstance);
+        (await admin.GetFromJsonAsync<Envelope>("/api/channels/connections"))!.Data.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Webhook_WithAnInvalidSignature_IsRejected()
     {
         var response = await PostWebhookAsync(
@@ -229,6 +266,8 @@ public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFac
     }
 
     private sealed record Session(string AccessToken);
+    private sealed record Connection(Guid Id, string DisplayName);
+    private sealed record Envelope(List<Connection> Data);
 
     private sealed record LinkStatus(string State, string? QrBase64, string? PairingCode, string? PhoneNumber, string? ProfileName);
 }

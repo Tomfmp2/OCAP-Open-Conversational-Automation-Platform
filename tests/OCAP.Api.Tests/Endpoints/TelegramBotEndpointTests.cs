@@ -96,6 +96,13 @@ public class TelegramWebhookBotTests : TelegramBotTestsBase
         (await PostUpdateAsync(path, FakeTelegramApi.PrivateMessageUpdate(5003, -7003, "en un grupo", "group"), secret))
             .StatusCode.Should().Be(HttpStatusCode.OK);
         _factory.Telegram.Sent.Should().NotContain(s => s.ChatId == "-7003");
+
+        // Eliminar el canal quita el webhook en Telegram (con el token del vault) y la conexión.
+        var connectionId = Guid.Parse(url[(url.LastIndexOf('/') + 1)..]);
+        (await admin.DeleteAsync($"/api/channels/{connectionId}")).StatusCode.Should().Be(HttpStatusCode.OK);
+        _factory.Telegram.DeletedWebhooks.Should().Contain(token);
+        (await PostUpdateAsync(path, FakeTelegramApi.PrivateMessageUpdate(5004, 7001, "hola"), secret))
+            .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 }
 

@@ -159,6 +159,19 @@ public class ChannelConnectionManager : IChannelConnectionManager
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> RenameAsync(Guid tenantId, Guid connectionId, string displayName, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.ChannelConnections
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == connectionId, cancellationToken);
+        if (connection == null) return false;
+
+        // El nombre lo eligió el usuario: los canales que se renombran solos (WhatsApp) lo respetan.
+        var metadata = new Dictionary<string, string>(connection.ConfigurationMetadata) { ["CustomDisplayName"] = "true" };
+        connection.UpdateConfiguration(displayName, connection.CredentialsReference, metadata);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> SetMetadataValueAsync(Guid tenantId, Guid connectionId, string key, string? value, CancellationToken cancellationToken = default)
     {
         var connection = await _dbContext.ChannelConnections

@@ -227,8 +227,12 @@ public class TelegramChannelController : ControllerBase
     }
 
     // DELETE /api/channels/telegram/bots/{id} - Elimina el bot de Telegram y desregistra el webhook.
+    // El token se toma del vault: el cliente nunca necesita conocerlo.
     [HttpDelete("bots/{id:guid}")]
-    public async Task<IActionResult> DeleteBot(Guid id, [FromQuery] string? token, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteBot(
+        Guid id,
+        [FromServices] IChannelConnectionManager connections,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -238,7 +242,10 @@ public class TelegramChannelController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Tenant no identificado.", Data = null });
         }
 
-        var success = await _telegramRuntime.DeleteBotAsync(tenantId, id, token ?? string.Empty, cancellationToken);
+        var connection = (await connections.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id && c.Provider == "Telegram");
+        var token = connection is null ? null : await connections.GetCredentialsAsync(connection, cancellationToken);
+        var success = connection is not null
+                      && await _telegramRuntime.DeleteBotAsync(tenantId, id, token ?? string.Empty, cancellationToken);
         if (!success)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión de bot no encontrada.", Data = null });

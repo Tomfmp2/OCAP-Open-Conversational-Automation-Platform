@@ -6,6 +6,7 @@ import { Badge } from "@/shared/components/ui/Badge";
 import { Button } from "@/shared/components/ui/Button";
 import { ChannelAgentSelect } from "./ChannelAgentSelect";
 import { ChannelAiSelect } from "./ChannelAiSelect";
+import { ChannelCardActions } from "./ChannelCardActions";
 
 interface ChannelCardProps {
   channel: ChannelConnection;
@@ -31,6 +32,7 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <ChannelCardActions channel={channel} />
           {channel.status === "Pending" ? (
             <Badge tone="warning">
               <QrCode className="h-3.5 w-3.5" /> Esperando escaneo

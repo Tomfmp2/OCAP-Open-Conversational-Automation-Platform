@@ -10,6 +10,7 @@ public sealed class FakeTelegramApi : HttpMessageHandler
 {
     public ConcurrentDictionary<string, (string Url, string Secret)> Webhooks { get; } = new();
     public ConcurrentQueue<(string Token, string ChatId, string Text, string? ParseMode)> Sent { get; } = new();
+    public ConcurrentQueue<string> DeletedWebhooks { get; } = new();
     private readonly ConcurrentDictionary<string, ConcurrentQueue<object>> _pending = new();
     private long _nextUpdateId = 1000;
 
@@ -53,6 +54,8 @@ public sealed class FakeTelegramApi : HttpMessageHandler
                 Webhooks[token] = (json.GetProperty("url").GetString()!, json.GetProperty("secret_token").GetString()!);
                 return Ok(true);
             case "deleteWebhook":
+                DeletedWebhooks.Enqueue(token);
+                Webhooks.TryRemove(token, out _);
                 return Ok(true);
             case "getUpdates":
                 var updates = new List<object>();
