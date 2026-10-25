@@ -83,6 +83,7 @@ public class AiProviderRuntimeAndConfigurationTests
         created.TenantId.Should().Be(tenantId);
         created.ProviderName.Should().Be("OpenAI");
         created.VaultSecretReference.Should().NotBeNullOrEmpty();
+        created.VaultSecretReference.Should().Be("vault:stored"); // ni la key ni su cifrado salen de la API
         created.VaultSecretReference.Should().NotContain("sk-secret-key-12345"); // Credenciales nunca en texto plano
 
         // Act - Get

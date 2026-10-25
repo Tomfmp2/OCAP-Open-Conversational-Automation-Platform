@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Intelligence.Abstractions;
+using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
@@ -9,11 +10,14 @@ public class AiProviderConfigurationsController : ControllerBase
 {
     private readonly IAiProviderConfigurationService _configurationService;
     private readonly IAiProviderRegistry _providerRegistry;
+    private readonly ITenantContext _tenantContext;
 
     public AiProviderConfigurationsController(
         IAiProviderConfigurationService configurationService,
-        IAiProviderRegistry providerRegistry)
+        IAiProviderRegistry providerRegistry,
+        ITenantContext tenantContext)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
     }
@@ -29,6 +33,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid tenantId,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var list = await _configurationService.GetConfigurationsByTenantAsync(tenantId, cancellationToken);
         return Ok(list);
     }
@@ -39,6 +44,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var config = await _configurationService.GetConfigurationByIdAsync(tenantId, id, cancellationToken);
         if (config == null) return NotFound(new { message = "Configuración no encontrada para el Tenant indicado." });
 
@@ -51,6 +57,8 @@ public class AiProviderConfigurationsController : ControllerBase
         CancellationToken cancellationToken)
     {
         if (dto == null) return BadRequest(new { message = "Los datos de la configuración son requeridos." });
+        // La configuración siempre es de la organización de la sesión, diga lo que diga el cuerpo.
+        if (!IsOwnTenant(dto.TenantId)) return NotFound();
 
         var created = await _configurationService.CreateConfigurationAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetConfigurationById), new { tenantId = created.TenantId, id = created.Id }, created);
@@ -63,6 +71,7 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromBody] UpdateAiProviderConfigurationDto dto,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var updated = await _configurationService.UpdateConfigurationAsync(tenantId, id, dto, cancellationToken);
         if (updated == null) return NotFound(new { message = "Configuración no encontrada o no pertenece al Tenant." });
 
@@ -76,6 +85,7 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromQuery] bool enable,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var success = await _configurationService.SetStatusAsync(tenantId, id, enable, cancellationToken);
         if (!success) return NotFound(new { message = "Configuración no encontrada." });
 
@@ -88,6 +98,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var success = await _configurationService.DeleteConfigurationAsync(tenantId, id, cancellationToken);
         if (!success) return NotFound(new { message = "Configuración no encontrada." });
 
@@ -100,6 +111,7 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromQuery] string? preferredProvider,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var provider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
         if (provider is null)
         {
@@ -113,4 +125,7 @@ public class AiProviderConfigurationsController : ControllerBase
         var health = await provider.HealthAsync(cancellationToken);
         return Ok(health);
     }
+
+    /// <summary>El tenant de la URL debe ser el de la sesión (los filtros de EF ya lo garantizan; esto lo hace explícito).</summary>
+    private bool IsOwnTenant(Guid tenantId) => tenantId != Guid.Empty && tenantId == _tenantContext.TenantId;
 }

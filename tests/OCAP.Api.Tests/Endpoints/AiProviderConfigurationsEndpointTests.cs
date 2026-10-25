@@ -28,6 +28,20 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
     }
 
     [Fact]
+    public async Task AnotherOrganizationsConfigurations_AreNotReachable()
+    {
+        var client = await AdminClientAsync();
+        var other = Guid.NewGuid();
+
+        (await client.GetAsync($"/api/aiproviderconfigurations/tenant/{other}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = other, providerName = "Gemini", displayName = "Ajena", modelName = "gemini-3.5-flash", apiKey = "AIza-ajena"
+        })).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await client.PostAsync($"/api/aiproviderconfigurations/tenant/{other}/test-connection", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task ChannelAiAssignment_ValidatesTheProviderOfTheOrganization()
     {
         var client = await AdminClientAsync();
@@ -37,6 +51,13 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
         });
         created.StatusCode.Should().Be(HttpStatusCode.Created);
         var config = (await created.Content.ReadFromJsonAsync<Config>())!;
+
+        // Un segundo Claude en la misma organización es un error de negocio claro, no un 500.
+        var duplicate = await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = SeedTenantId, providerName = "Claude", displayName = "Otro", modelName = "claude-sonnet-5-5", apiKey = "sk-ant-otra"
+        });
+        duplicate.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
         var bot = await client.PostAsJsonAsync("/api/channels/webchat/connect", new { displayName = "Web", widgetTitle = "Hola" });
         bot.IsSuccessStatusCode.Should().BeTrue();

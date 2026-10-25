@@ -39,6 +39,15 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         var normalizedProvider = dto.ProviderName.Trim();
 
+        // Una configuración por proveedor y organización (índice único): se avisa antes de dejar un secreto huérfano en el vault.
+        var exists = await _dbContext.AiProviderConfigurations
+            .AnyAsync(c => c.TenantId == dto.TenantId && c.ProviderName == normalizedProvider, cancellationToken);
+        if (exists)
+        {
+            throw new InvalidOperationException(
+                $"Ya hay un proveedor {normalizedProvider} registrado en esta organización. Edítalo para cambiar su key o modelo.");
+        }
+
         // 1. Guardar la API Key de forma cifrada en el Credential Vault
         var vaultRef = await _credentialVault.StoreSecretAsync(
             dto.TenantId,
@@ -300,6 +309,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         string.Equals(model, "gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(model, "gemini-2.0-flash-001", StringComparison.OrdinalIgnoreCase);
 
+    private const string MaskedVaultReference = "vault:stored";
+
     private static AiProviderConfigurationResponseDto MapToDto(AiProviderConfiguration config)
     {
         return new AiProviderConfigurationResponseDto(
@@ -309,7 +320,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             config.DisplayName,
             config.ModelName,
             config.IsEnabled,
-            config.VaultSecretReference,
+            // Solo indica que hay key en el vault: el cifrado no sale de la API.
+            string.IsNullOrWhiteSpace(config.VaultSecretReference) ? string.Empty : MaskedVaultReference,
             config.SettingsJson,
             config.CreatedAtUtc,
             config.UpdatedAtUtc);
