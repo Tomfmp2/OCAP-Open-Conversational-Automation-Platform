@@ -85,6 +85,7 @@ await app.Services.ApplyMigrationsAsync();
 
 // IP real del cliente detrás del panel o de Nginx: solo se cree X-Forwarded-For de la red interna de Docker.
 app.UseOcapForwardedHeaders(builder.Configuration);
+app.UseInternalOnlyMetrics(builder.Configuration);
 
 // Correlación y request IDs (X-Correlation-Id / X-Request-Id) antes del resto del pipeline.
 app.UseMiddleware<CorrelationIdMiddleware>();

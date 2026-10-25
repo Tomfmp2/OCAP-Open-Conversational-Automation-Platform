@@ -107,8 +107,9 @@ public static class ObservabilityServiceExtensions
                     })
                 });
             }
-        }).AllowAnonymous();
+        }).RequireAuthorization();
 
+        // Sin sesión, pero la API solo la sirve a la red interna (ver UseInternalOnlyMetrics en OCAP.Api).
         app.MapPrometheusScrapingEndpoint("/metrics").AllowAnonymous();
         return app;
     }

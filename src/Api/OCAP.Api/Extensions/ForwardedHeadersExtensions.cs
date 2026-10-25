@@ -21,13 +21,39 @@ public static class ForwardedHeadersExtensions
         options.KnownProxies.Clear();
         options.KnownIPNetworks.Clear();
 
-        var networks = configuration.GetSection("ForwardedHeaders:TrustedNetworks").Get<string[]>();
-        foreach (var network in networks is { Length: > 0 } ? networks : DefaultTrustedNetworks)
-        {
-            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
-        }
+        foreach (var network in TrustedNetworks(configuration)) options.KnownIPNetworks.Add(network);
 
         app.UseForwardedHeaders(options);
         return app;
+    }
+
+    /// <summary>
+    /// /metrics expone el detalle interno de la API (rutas, tiempos, contadores): solo lo lee Prometheus desde la
+    /// red de Docker. Con acceso LAN activado, un equipo de la red recibe 404.
+    /// </summary>
+    public static WebApplication UseInternalOnlyMetrics(this WebApplication app, IConfiguration configuration)
+    {
+        var networks = TrustedNetworks(configuration);
+        app.UseWhen(
+            context => context.Request.Path.StartsWithSegments("/metrics"),
+            branch => branch.Use(async (context, next) =>
+            {
+                var ip = context.Connection.RemoteIpAddress;
+                if (ip is null || !networks.Any(n => n.Contains(ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip)))
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return;
+                }
+                await next();
+            }));
+        return app;
+    }
+
+    private static List<System.Net.IPNetwork> TrustedNetworks(IConfiguration configuration)
+    {
+        var configured = configuration.GetSection("ForwardedHeaders:TrustedNetworks").Get<string[]>();
+        return (configured is { Length: > 0 } ? configured : DefaultTrustedNetworks)
+            .Select(System.Net.IPNetwork.Parse)
+            .ToList();
     }
 }

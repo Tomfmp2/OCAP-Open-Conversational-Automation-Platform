@@ -8,11 +8,12 @@ using OCAP.Infrastructure.Persistence.Context;
 namespace OCAP.Api.Controllers;
 
 /// <summary>
-/// Diagnóstico extendido para el instalador (no sustituye /health/ready|/live).
+/// Diagnóstico extendido (no sustituye /health/ready|/live). Detalla los servicios internos: solo para quien
+/// administra el despliegue.
 /// </summary>
 [ApiController]
 [Route("api/health/diagnostic")]
-[AllowAnonymous]
+[Authorize(Policy = OCAP.Api.Security.OcapPermissions.DeploymentManage)]
 public class HealthController : ControllerBase
 {
     [HttpGet]
