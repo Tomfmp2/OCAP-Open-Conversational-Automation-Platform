@@ -30,6 +30,17 @@ public class AiDemoModeTests
     }
 
     [Fact]
+    public async Task AgentSelector_InDemoMode_IgnoresAPreferredProviderWithoutKey()
+    {
+        var selector = new DefaultLanguageModelProviderSelector(
+            Array.Empty<ILanguageModelProvider>(), RegisteredProviders(), demoMode: new AiDemoMode(true));
+
+        var provider = await selector.GetProviderAsync(Guid.NewGuid(), preferredProvider: "Gemini");
+
+        provider.ProviderName.Should().Be(AiDemoMode.MockProviderName);
+    }
+
+    [Fact]
     public async Task AgentSelector_WithKeys_PrefersTheRealProvider()
     {
         var selector = new DefaultLanguageModelProviderSelector(

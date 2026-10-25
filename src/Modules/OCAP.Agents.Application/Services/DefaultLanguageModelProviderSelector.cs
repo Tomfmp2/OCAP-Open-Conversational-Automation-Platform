@@ -56,17 +56,19 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
         if (selected == null)
         {
             IAiProvider? ai = null;
-            if (!string.IsNullOrEmpty(preferredProvider))
+
+            // En modo demo los proveedores reales no tienen key: Mock es el único que responde, aunque la
+            // configuración prefiera otro (p. ej. AiProviders:PreferredProvider=Gemini en desarrollo).
+            if (_demoMode.Enabled)
+            {
+                ai = _aiProviders.FirstOrDefault(p =>
+                    string.Equals(p.Name, AiDemoMode.MockProviderName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (ai is null && !string.IsNullOrEmpty(preferredProvider))
             {
                 ai = _aiProviders.FirstOrDefault(p =>
                     string.Equals(p.Name, preferredProvider, StringComparison.OrdinalIgnoreCase));
-            }
-
-            // En modo demo los proveedores reales no tienen key: Mock es el único que responde.
-            if (_demoMode.Enabled)
-            {
-                ai ??= _aiProviders.FirstOrDefault(p =>
-                    string.Equals(p.Name, AiDemoMode.MockProviderName, StringComparison.OrdinalIgnoreCase));
             }
 
             // Preferir Gemini / OpenAI reales sobre Mock.
