@@ -12,8 +12,27 @@ OCAP adopta la estrategia **Provider Agnostic**: la plataforma no depende de un 
 |---|---|---|---|
 | **MockAI** | `OCAP.Intelligence.Mock` | **Activo (Default)** | Motor mock local para pruebas automatizadas y desarrollo offline. |
 | **OpenAI** | `OCAP.Providers.OpenAI` | **Preparado** | Adaptador para modelos GPT-4o / GPT-3.5 Turbo. |
-| **Google Gemini** | `OCAP.Providers.Gemini` | **Preparado** | Adaptador para modelos Gemini 1.5 Pro / Flash. |
+| **Google Gemini** | `OCAP.Providers.Gemini` | **Preparado** | Adaptador para modelos Gemini 3.5 / 2.5 Flash. |
+| **Anthropic Claude** | `OCAP.Providers.Claude` | **Preparado** | Adaptador para Claude (por defecto `claude-sonnet-5-5`). |
 | **Ollama Local** | `OCAP.Providers.Ollama` | **Preparado** | Adaptador self-hosted para Llama 3, Mistral u otros LLMs locales. |
+
+---
+
+## Keys desde el panel y proveedor por canal
+
+En **IA y modelos** cada organización registra sus proveedores (`/api/aiproviderconfigurations`). La API key se
+guarda cifrada en el vault de la organización y nunca vuelve al navegador: la respuesta solo trae `vault:stored`
+cuando hay key. Hay una configuración por tipo de proveedor y organización; registrar otra del mismo tipo responde
+422 (se edita la existente). Las rutas `tenant/{tenantId}` responden 404 si el tenant no es el de la sesión.
+
+Cada canal puede usar un proveedor concreto: `PUT /api/channels/connections/{id}/ai` con
+`{ "aiProviderConfigId": "<id>" | null }` (400 si no es de la organización o está deshabilitado). Se guarda en la
+metadata `AiProviderConfigId` de la conexión. Al responder un mensaje del canal se usa, en orden:
+
+1. El proveedor asignado al canal, si sigue habilitado y tiene key.
+2. Si no, el proveedor activo de la organización (el mismo que usa el asistente del panel).
+
+Así, quitar o deshabilitar el proveedor de un canal no lo deja sin respuesta.
 
 ---
 

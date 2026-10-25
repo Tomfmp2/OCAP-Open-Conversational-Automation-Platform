@@ -49,6 +49,14 @@ Teléfono ─QR─► Evolution (instancia ocap-{tenantId:N}) ──webhook firm
 
 Todas actúan sobre la organización de la sesión; no aceptan nombres de instancia.
 
+Desde la tarjeta del canal (comunes a todos los canales):
+
+| Método | Ruta | Resultado |
+|---|---|---|
+| `PATCH` | `/api/channels/connections/{id}` | `{ displayName }`, 1–100 caracteres. El nombre elegido se conserva al reconectar el teléfono. 204. |
+| `DELETE` | `/api/channels/{id}` | En WhatsApp por QR equivale a desvincular (cierra la sesión del teléfono y borra la instancia); 502 si Evolution no responde. En Telegram por webhook también quita el webhook del bot. Las conversaciones se conservan. |
+| `PUT` | `/api/channels/connections/{id}/agent` y `/ai` | Agente y proveedor de IA del canal (ver [proveedores de IA](../intelligence/AI_PROVIDERS.md)). |
+
 ## Configuración
 
 Compose la inyecta sola. Para la API fuera de Docker (`dotnet run`, puerto 5229) con Evolution en Docker:
