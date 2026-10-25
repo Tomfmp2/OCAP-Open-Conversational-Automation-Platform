@@ -47,4 +47,4 @@ if (( ${#generated[@]} )); then
 else
   echo "==> Los secretos ya estaban definidos; no se cambió nada"
 fi
-echo "==> Listo. Levanta OCAP con ./scripts/ocap-up.sh"
+echo "==> .env listo"
