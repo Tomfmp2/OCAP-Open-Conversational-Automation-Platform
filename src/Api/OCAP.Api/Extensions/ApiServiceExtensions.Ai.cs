@@ -57,7 +57,7 @@ public static partial class ApiServiceExtensions
         {
             ApiKey = configuration["AiProviders:Claude:ApiKey"] ?? string.Empty,
             BaseUrl = configuration["AiProviders:Claude:BaseUrl"] ?? "https://api.anthropic.com/v1",
-            ModelName = configuration["AiProviders:Claude:ModelName"] ?? "claude-3-5-sonnet-latest"
+            ModelName = configuration["AiProviders:Claude:ModelName"] ?? "claude-sonnet-5-5"
         };
 
         services.AddSingleton<IAiProvider>(sp => new OpenAiProvider(

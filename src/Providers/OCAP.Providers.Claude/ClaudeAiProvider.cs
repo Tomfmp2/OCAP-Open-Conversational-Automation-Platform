@@ -11,7 +11,7 @@ namespace OCAP.Providers.Claude;
 public sealed class ClaudeAiProvider : IAiProvider
 {
     private const string DefaultBaseUrl = "https://api.anthropic.com/v1";
-    private const string DefaultModel = "claude-3-5-sonnet-latest";
+    private const string DefaultModel = "claude-sonnet-5-5";
     private readonly HttpClient _httpClient;
     private readonly AiProviderSettings _settings;
 

@@ -69,9 +69,9 @@ function parseBaseUrl(settingsJson: string | null | undefined): string | null {
 }
 
 export const PROVIDER_MODEL_PRESETS: Record<string, string[]> = {
-  Gemini: ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
+  Gemini: ["gemini-3.5-flash", "gemini-2.5-flash"],
   OpenAI: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o4-mini"],
-  Claude: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest", "claude-sonnet-4-20250514"],
+  Claude: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
   Ollama: ["llama3", "llama3.2", "mistral", "qwen2.5"],
 };
 
