@@ -366,7 +366,10 @@ public class EmbeddingProviderTests
         var vectors = await provider.GenerateEmbeddingsAsync(["local"], "nomic-embed-text");
 
         Assert.Single(vectors);
-        Assert.Equal([0.7f, 0.1f, 0.2f], vectors[0].Values);
+        // Se completa con ceros hasta la dimensión de la columna: la similitud coseno no cambia.
+        Assert.Equal(1536, vectors[0].Values.Length);
+        Assert.Equal([0.7f, 0.1f, 0.2f], vectors[0].Values[..3]);
+        Assert.All(vectors[0].Values[3..], v => Assert.Equal(0f, v));
         Assert.Equal("Ollama", vectors[0].Provider);
     }
 
@@ -454,7 +457,7 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
 {
     public string ProviderName => "Fake";
 
-    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<KnowledgeChunk> chunks, string model, CancellationToken cancellationToken = default)
+    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<KnowledgeChunk> chunks, string model, EmbeddingCredential? credential = null, CancellationToken cancellationToken = default)
     {
         var vectors = chunks.Select(c => new EmbeddingVector(
             c.Id,
@@ -469,7 +472,7 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
         return Task.FromResult(vectors);
     }
 
-    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<string> texts, string model, CancellationToken cancellationToken = default)
+    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<string> texts, string model, EmbeddingCredential? credential = null, CancellationToken cancellationToken = default)
     {
         var vectors = texts.Select(t => new EmbeddingVector(Guid.NewGuid(), ProviderName, model, 8, TextToVector(t))).ToList();
         return Task.FromResult(vectors);

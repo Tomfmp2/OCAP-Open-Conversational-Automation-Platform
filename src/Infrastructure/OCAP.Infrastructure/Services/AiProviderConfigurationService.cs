@@ -209,6 +209,22 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         return await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
     }
 
+    public async Task<AiProviderCredential?> GetCredentialAsync(Guid tenantId, string providerName, CancellationToken cancellationToken = default)
+    {
+        var config = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.IsEnabled && c.ProviderName == providerName, cancellationToken);
+        if (config is null) return null;
+
+        var apiKey = string.IsNullOrWhiteSpace(config.VaultSecretReference)
+            ? string.Empty
+            : await _credentialVault.RetrieveSecretAsync(tenantId, config.VaultSecretReference, cancellationToken) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(apiKey) && !IsLocalProvider(config.ProviderName)) return null;
+
+        return new AiProviderCredential(apiKey, ReadBaseUrl(config.SettingsJson));
+    }
+
     public async Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default)
     {
         var config = await _dbContext.AiProviderConfigurations

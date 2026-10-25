@@ -29,8 +29,14 @@ public record AiProviderConfigurationResponseDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+/// <summary>Key descifrada y Base URL de una configuración habilitada (p. ej. para generar embeddings).</summary>
+public sealed record AiProviderCredential(string ApiKey, string? BaseUrl);
+
 public interface IAiProviderConfigurationService
 {
+    /// <summary>Credencial de la configuración habilitada de ese proveedor en el tenant; null si no hay.</summary>
+    Task<AiProviderCredential?> GetCredentialAsync(Guid tenantId, string providerName, CancellationToken cancellationToken = default);
+
     Task<AiProviderConfigurationResponseDto> CreateConfigurationAsync(CreateAiProviderConfigurationDto dto, CancellationToken cancellationToken = default);
     Task<AiProviderConfigurationResponseDto?> GetConfigurationByIdAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiProviderConfigurationResponseDto>> GetConfigurationsByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);

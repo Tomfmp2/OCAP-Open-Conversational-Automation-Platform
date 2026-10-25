@@ -50,6 +50,8 @@ builder.Services.AddApplicationServices();
 
 // Registra el módulo de Knowledge Base y RAG
 builder.Services.AddKnowledgeModule(builder.Configuration);
+// Embeddings con las keys de IA y modelos de cada organización.
+builder.Services.AddScoped<OCAP.Knowledge.Abstractions.IEmbeddingTargetResolver, OCAP.Api.Services.TenantEmbeddingTargetResolver>();
 
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);

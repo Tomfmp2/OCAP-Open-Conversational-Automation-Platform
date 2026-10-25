@@ -77,7 +77,11 @@ public static class DependencyInjection
                 sp.GetRequiredService<IOptions<KnowledgeOptions>>(),
                 sp.GetRequiredService<ILogger<OllamaEmbeddingProvider>>()));
 
-        services.AddSingleton<IEmbeddingGenerator, EmbeddingGenerator>();
+        // Scoped: la credencial depende de la organización de la petición (IEmbeddingTargetResolver, si existe).
+        services.AddScoped<IEmbeddingGenerator>(sp => new EmbeddingGenerator(
+            sp.GetServices<IEmbeddingProvider>(),
+            sp.GetRequiredService<IOptions<KnowledgeOptions>>(),
+            sp.GetService<IEmbeddingTargetResolver>()));
 
         var knowledgeOptions = configuration?.GetSection(KnowledgeOptions.SectionName).Get<KnowledgeOptions>() ?? new KnowledgeOptions();
         if (configuration is not null)

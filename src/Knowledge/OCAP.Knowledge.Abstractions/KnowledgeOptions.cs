@@ -33,7 +33,8 @@ public sealed class KnowledgeOptions
     public EmbeddingProviderOptions Gemini { get; set; } = new()
     {
         BaseUrl = "https://generativelanguage.googleapis.com/v1beta",
-        DefaultModel = "text-embedding-004"
+        // Admite outputDimensionality: genera vectores del tamaño de la columna (1536).
+        DefaultModel = "gemini-embedding-001"
     };
 
     public EmbeddingProviderOptions Ollama { get; set; } = new()
