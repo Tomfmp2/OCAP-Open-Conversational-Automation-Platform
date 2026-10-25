@@ -154,22 +154,7 @@ class ApiClient {
             continue;
           }
 
-          const message =
-            typeof errorBody === "object" &&
-            errorBody !== null
-              ? ("detail" in errorBody &&
-                typeof (errorBody as { detail: unknown }).detail === "string" &&
-                (errorBody as { detail: string }).detail) ||
-                ("title" in errorBody &&
-                  typeof (errorBody as { title: unknown }).title === "string" &&
-                  (errorBody as { title: string }).title) ||
-                ("message" in errorBody &&
-                  typeof (errorBody as { message: unknown }).message === "string" &&
-                  (errorBody as { message: string }).message) ||
-                `Error HTTP ${response.status}`
-              : `Error HTTP ${response.status}`;
-
-          throw new ApiError(message, response.status, errorBody);
+          throw new ApiError(errorMessage(errorBody, response.status), response.status, errorBody);
         }
 
         if (response.status === 204) {
@@ -285,3 +270,14 @@ apiClient.setRefreshHandler(defaultRefreshHandler);
 
 export { ApiError };
 export type { ApiRequestOptions };
+
+/** Mensaje legible de una respuesta de error: ProblemDetails (detail/title) o { message } / { error }. */
+function errorMessage(body: unknown, status: number): string {
+  if (typeof body === "object" && body !== null) {
+    for (const key of ["detail", "title", "message", "error"] as const) {
+      const value = (body as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+  return `Error HTTP ${status}`;
+}
