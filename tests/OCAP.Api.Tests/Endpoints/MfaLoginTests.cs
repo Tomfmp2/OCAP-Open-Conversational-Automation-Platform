@@ -23,6 +23,9 @@ public class MfaLoginTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         var setup = (await (await client.PostAsync("/api/auth/mfa/setup", null)).Content.ReadFromJsonAsync<Setup>())!;
         (await client.PostAsJsonAsync("/api/auth/mfa/enable", new { code = Totp(setup.Secret) })).EnsureSuccessStatusCode();
+        (await client.GetFromJsonAsync<Status>("/api/auth/mfa/status"))!.Enabled.Should().BeTrue();
+        // Con el MFA activo, la sesión sola no puede reemplazar el segundo factor.
+        (await client.PostAsync("/api/auth/mfa/setup", null)).IsSuccessStatusCode.Should().BeFalse();
         client.DefaultRequestHeaders.Authorization = null;
 
         // La contraseña sola ya no da sesión.
@@ -96,4 +99,5 @@ public class MfaLoginTests
 
     private sealed record LoginResult(string AccessToken, bool MfaRequired, string? MfaToken);
     private sealed record Setup(string Secret, string QrCodeUri);
+    private sealed record Status(bool Enabled, int RecoveryCodesLeft);
 }

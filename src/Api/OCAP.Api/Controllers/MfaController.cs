@@ -23,6 +23,15 @@ public class MfaController : ControllerBase
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
     }
 
+    [HttpGet("status")]
+    [ProducesResponseType(typeof(MfaStatusDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+        return Ok(await _mfaService.GetStatusAsync(_tenantContext.TenantId, userId, cancellationToken));
+    }
+
     [HttpPost("setup")]
     [ProducesResponseType(typeof(MfaSetupDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

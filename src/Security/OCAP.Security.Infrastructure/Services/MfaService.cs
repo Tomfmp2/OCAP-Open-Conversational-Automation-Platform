@@ -32,6 +32,11 @@ public class MfaService : IMfaService
 
     public async Task<MfaSetupDto> SetupMfaAsync(Guid tenantId, Guid userId, string userEmail, CancellationToken cancellationToken = default)
     {
+        // Con el MFA activo, reemplazar el secreto exigiría solo una sesión: quien la robara cambiaría el segundo factor
+        // por el suyo. Primero hay que desactivarlo con un código válido.
+        if (await _dbContext.UserMfaSettings.AnyAsync(m => m.TenantId == tenantId && m.UserId == userId && m.IsEnabled, cancellationToken))
+            throw new InvalidOperationException("La verificación en dos pasos ya está activa. Desactívala con un código para configurarla de nuevo.");
+
         var secretKey = _totpService.GenerateSecretKey();
         var secretRef = await _credentialVault.StoreSecretAsync(tenantId, $"MFA_TOTP_{userId}", secretKey, cancellationToken);
 
@@ -165,6 +170,15 @@ public class MfaService : IMfaService
         await _auditService.LogSecurityEventAsync(tenantId, userId, "RecoveryCode.Regenerated", "Nuevos códigos de recuperación generados", "MfaService", true, cancellationToken);
 
         return rawCodes;
+    }
+
+    public async Task<MfaStatusDto> GetStatusAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var enabled = await _dbContext.UserMfaSettings.AnyAsync(m => m.TenantId == tenantId && m.UserId == userId && m.IsEnabled, cancellationToken);
+        var left = enabled
+            ? await _dbContext.UserRecoveryCodes.CountAsync(r => r.TenantId == tenantId && r.UserId == userId && !r.IsUsed, cancellationToken)
+            : 0;
+        return new MfaStatusDto(enabled, left);
     }
 
     private static bool LooksLikeRecoveryCode(string code)
