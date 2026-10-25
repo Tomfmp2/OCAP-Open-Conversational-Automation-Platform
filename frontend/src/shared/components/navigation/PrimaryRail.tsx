@@ -11,10 +11,10 @@ export function PrimaryRail() {
   const pathname = usePathname();
   const { hasPermission, isAuthenticated } = useAuth();
 
-  const items = PRIMARY_NAV.filter((item) => {
-    if (!item.permission) return true;
-    return isAuthenticated && hasPermission(item.permission);
-  });
+  const allowed = (item: { permission?: string }) =>
+    !item.permission || (isAuthenticated && hasPermission(item.permission));
+  const items = PRIMARY_NAV.filter(allowed);
+  const footer = SECONDARY_NAV_FOOTER.filter(allowed);
 
   return (
     <aside className="z-30 flex w-14 shrink-0 flex-col items-center border-r border-neutral-200 bg-white py-4 select-none">
@@ -53,7 +53,7 @@ export function PrimaryRail() {
       </nav>
 
       <div className="flex w-full flex-col items-center gap-1 border-t border-neutral-200 px-2 pt-2">
-        {SECONDARY_NAV_FOOTER.map((item) => {
+        {footer.map((item) => {
           const Icon = item.icon;
           const isActive = pathname.startsWith(item.href);
           return (

@@ -19,8 +19,11 @@ import type { StoredUser } from "@/shared/api/types";
 import { apiClient, defaultRefreshHandler } from "@/shared/api/apiClient";
 import { useTenantStore } from "@/shared/stores/useTenantStore";
 import { redirectToLogin } from "@/shared/api/sessionRedirect";
+import { permissionsFromToken } from "@/shared/api/jwt";
 
 const REFRESH_INTERVAL_MS = 14 * 60 * 1000;
+// Permiso de plataforma que cumple todos los demás (igual que en la API).
+const FULL_ACCESS = "Admin.Full";
 
 interface AuthContextValue {
  user: StoredUser | null;
@@ -43,15 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  const [isLoading, setIsLoading] = React.useState(true);
  const syncTenantFromAuth = useTenantStore((s) => s.syncFromAuth);
 
- const loadPermissionsForRole = React.useCallback(async (roleName: string) => {
- try {
- const roles = await authApi.getRoles();
- const match = roles.find((r) => r.name.toLowerCase() === roleName.toLowerCase());
- return match?.permissions ?? [];
- } catch {
- return [];
- }
- }, []);
 
  const bootstrapSession = React.useCallback(async () => {
  const token = getAccessToken();
@@ -65,10 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
  try {
  const profile = await authApi.getProfile();
- const permissions =
- storedUser.permissions.length > 0
- ? storedUser.permissions
- : await loadPermissionsForRole(storedUser.roleName);
+ // Los permisos salen del JWT vigente: /api/roles solo lo puede leer quien administra la seguridad.
+ const permissions = permissionsFromToken(token);
 
  const hydrated = mapLoginToStoredUser(
  {
@@ -91,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  } finally {
  setIsLoading(false);
  }
- }, [loadPermissionsForRole, syncTenantFromAuth]);
+ }, [syncTenantFromAuth]);
 
  React.useEffect(() => {
  apiClient.setRefreshHandler(async () => {
@@ -113,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  ...stored,
  tenantId: result.tenantId,
  roleName: result.roleName,
+ permissions: permissionsFromToken(result.accessToken),
  }
  );
  }
@@ -161,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  provisionalUser
  );
 
- const permissions = await loadPermissionsForRole(result.roleName);
+ const permissions = permissionsFromToken(result.accessToken);
  const profile = await authApi.getProfile().catch(() => undefined);
  const storedUser = mapLoginToStoredUser(result, profile, permissions);
 
@@ -177,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  setUser(storedUser);
  syncTenantFromAuth(result.tenantId, profile?.fullName || result.email);
  },
- [loadPermissionsForRole, syncTenantFromAuth]
+ [syncTenantFromAuth]
  );
 
  const login = React.useCallback(
@@ -218,8 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  const hasPermission = React.useCallback(
  (permission: string) => {
  if (!user) return false;
- if (user.roleName.toLowerCase() === "admin") return true;
- return user.permissions.includes(permission);
+ return user.permissions.includes(permission) || user.permissions.includes(FULL_ACCESS);
  },
  [user]
  );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 import { Search, LogOut, User } from "lucide-react";
 import { useAuth } from "@/features/auth/context/AuthProvider";
@@ -92,11 +93,16 @@ export function Topbar({ compact = false }: TopbarProps) {
           {isAuthenticated && (
             <>
               <div className="mx-1 hidden h-4 w-px bg-neutral-200 sm:block" />
-              <div className="hidden items-center gap-2 pl-1 lg:flex">
+              <Link
+                href="/account"
+                aria-label="Mi cuenta"
+                title="Mi cuenta"
+                className="focus-ring flex items-center gap-2 rounded-md pl-1 pr-1.5 py-0.5 hover:bg-neutral-100"
+              >
                 <div className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-300 bg-neutral-100 text-neutral-700">
-                  <User className="h-4 w-4" />
+                  <User className="h-4 w-4" aria-hidden />
                 </div>
-                <div className="text-left">
+                <div className="hidden text-left lg:block">
                   <p className="text-xs leading-none font-semibold text-neutral-950">
                     {user?.fullName || user?.roleName || "Usuario"}
                   </p>
@@ -104,12 +110,13 @@ export function Topbar({ compact = false }: TopbarProps) {
                     {user?.email || "—"}
                   </p>
                 </div>
-              </div>
+              </Link>
               <button
                 type="button"
                 onClick={() => void logout()}
-                className="rounded-md p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
+                className="focus-ring rounded-md p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
                 title="Cerrar sesión"
+                aria-label="Cerrar sesión"
               >
                 <LogOut className="h-4 w-4" />
               </button>

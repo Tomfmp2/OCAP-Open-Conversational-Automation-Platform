@@ -3,8 +3,8 @@
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthProvider";
+import { isPublicRoute, requiredPermissionFor } from "@/shared/config/navigation";
 
-const PUBLIC_ROUTES = ["/login", "/setup"];
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -21,9 +21,7 @@ export function AuthGuard({
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPublic = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  const isPublic = isPublicRoute(pathname);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -51,8 +49,9 @@ export function AuthGuard({
     return null;
   }
 
-  const lacksPermission =
-    !!requiredPermission && !hasPermission(requiredPermission);
+  // Sin permiso explícito, el de la ruta según el menú (p. ej. un Operador no entra a Canales escribiendo la URL).
+  const permission = requiredPermission ?? requiredPermissionFor(pathname);
+  const lacksPermission = !!permission && !hasPermission(permission);
   const lacksRole = !!requiredRole && !hasRole(requiredRole);
 
   if (isAuthenticated && (lacksPermission || lacksRole)) {

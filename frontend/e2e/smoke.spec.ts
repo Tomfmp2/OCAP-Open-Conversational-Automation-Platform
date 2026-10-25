@@ -114,3 +114,42 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   await page.getByRole("button", { name: `Eliminar ${providerName}` }).click();
   await expect(page.getByText(providerName)).toHaveCount(0);
 });
+
+test("equipo: invitar a un operador, aceptar el enlace y ver solo lo suyo", async ({ page, browser }, testInfo) => {
+  // La invitación crea una cuenta: va en un solo proyecto para no repetir el correo.
+  test.skip(testInfo.project.name.includes("mobile"), "Crea una cuenta única");
+  const email = `operador-${Date.now()}@ocap.io`;
+  const operatorPassword = "operadora-segura-2026";
+  await login(page);
+
+  await page.goto("/team");
+  await page.getByRole("button", { name: "Invitar" }).first().click();
+  await page.getByLabel("Nombre").fill("Operadora E2E");
+  await page.getByLabel("Correo").fill(email);
+  await page.getByLabel("Rol").selectOption("Operator");
+  await page.getByRole("button", { name: "Invitar", exact: true }).last().click();
+  const link = await page.getByLabel("Enlace para definir la contraseña").inputValue();
+  expect(link).toContain("/accept?token=");
+
+  // La persona invitada abre el enlace en otro navegador (sin la sesión del administrador).
+  const guest = await browser.newContext({ baseURL: testInfo.project.use.baseURL });
+  const operator = await guest.newPage();
+  await operator.goto(new URL(link).pathname + new URL(link).search);
+  await operator.getByLabel("Nueva contraseña").fill(operatorPassword);
+  await operator.getByLabel("Repite la contraseña").fill(operatorPassword);
+  await operator.getByRole("button", { name: "Guardar contraseña" }).click();
+  await expect(operator.getByRole("heading", { name: "Contraseña guardada" })).toBeVisible();
+
+  await operator.goto("/login");
+  await operator.getByLabel("Email").fill(email);
+  await operator.getByLabel("Contraseña").fill(operatorPassword);
+  await operator.getByRole("button", { name: "Entrar" }).click();
+  await expect(operator).toHaveURL(/\/$/);
+
+  // Solo ve el asistente y la bandeja; Canales por URL dice que no tiene acceso.
+  await expect(operator.getByRole("link", { name: "Conversaciones" }).first()).toBeVisible();
+  await expect(operator.getByRole("link", { name: "Canales" })).toHaveCount(0);
+  await operator.goto("/channels");
+  await expect(operator.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
+  await guest.close();
+});

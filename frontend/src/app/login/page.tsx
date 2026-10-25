@@ -7,6 +7,8 @@ import { useAuth } from "@/features/auth/context/AuthProvider";
 import { useSetupStatus } from "@/features/setup/api/setupApi";
 import { ApiError } from "@/shared/api/apiClient";
 import { Button, Input } from "@/shared/components/ui";
+import Link from "next/link";
+import { AuthAlert, AuthScreen } from "@/features/auth/components/AuthScreen";
 
 export default function LoginPage() {
   const { login, completeMfa } = useAuth();
@@ -58,104 +60,92 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-dvh w-full bg-neutral-50 text-neutral-950">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "linear-gradient(#e5e5e5 1px, transparent 1px), linear-gradient(90deg, #e5e5e5 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-        aria-hidden
-      />
+    <AuthScreen
+      title={mfaToken ? "Verificación en dos pasos" : "Iniciar sesión"}
+      description={
+        mfaToken
+          ? "Tu cuenta tiene la verificación en dos pasos activada."
+          : "Accede con tu cuenta de OCAP."
+      }
+    >
+      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        {error && (
+          <AuthAlert>
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </AuthAlert>
+        )}
 
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-12">
-        <div className="mb-10">
-          <p className="text-3xl font-semibold tracking-tight">OCAP</p>
-          <p className="mt-1 text-sm text-neutral-500">
-            Open Conversational Automation Platform
-          </p>
-        </div>
-
-        <h1 className="text-2xl font-semibold tracking-tight">Iniciar sesión</h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Accede con la cuenta de administrador que creaste en la configuración inicial.
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          {error && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-md border-2 border-neutral-950 bg-white px-3.5 py-3 text-sm text-neutral-950"
+        {mfaToken ? (
+          <>
+            <Input
+              id="mfa-code"
+              label="Código de verificación"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              hint="El código de 6 dígitos de tu app autenticadora, o uno de tus códigos de recuperación."
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setMfaToken(null);
+                setCode("");
+                setError(null);
+              }}
+              className="focus-ring text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-950"
             >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+              Usar otra cuenta
+            </button>
+          </>
+        ) : (
+          <>
+            <Input
+              id="email"
+              label="Email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@tudominio.com"
+            />
 
-          {mfaToken ? (
-            <>
-              <Input
-                id="mfa-code"
-                label="Código de verificación"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                required
-                autoFocus
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                hint="El código de 6 dígitos de tu app autenticadora, o uno de tus códigos de recuperación."
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setMfaToken(null);
-                  setCode("");
-                  setError(null);
-                }}
-                className="focus-ring text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-950"
-              >
-                Usar otra cuenta
-              </button>
-            </>
-          ) : (
-            <>
-              <Input
-                id="email"
-                label="Email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@tudominio.com"
-              />
+            <Input
+              id="password"
+              label="Contraseña"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </>
+        )}
 
-              <Input
-                id="password"
-                label="Contraseña"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </>
-          )}
+        <Button
+          type="submit"
+          size="lg"
+          loading={isSubmitting}
+          className="mt-2 w-full"
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+          <span>{isSubmitting ? "Entrando…" : mfaToken ? "Verificar" : "Entrar"}</span>
+        </Button>
+      </form>
 
-          <Button
-            type="submit"
-            size="lg"
-            loading={isSubmitting}
-            className="mt-2 w-full"
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            <span>{isSubmitting ? "Entrando…" : mfaToken ? "Verificar" : "Entrar"}</span>
-          </Button>
-        </form>
-
-      </div>
-    </div>
+      {!mfaToken && (
+        <Link
+          href="/forgot-password"
+          className="focus-ring mt-4 self-start text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-950"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
+      )}
+    </AuthScreen>
   );
 }

@@ -3,7 +3,8 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search, X } from "lucide-react";
-import { COMMAND_ITEMS } from "@/shared/config/navigation";
+import { COMMAND_ITEMS, requiredPermissionFor } from "@/shared/config/navigation";
+import { useAuth } from "@/features/auth/context/AuthProvider";
 import { Modal } from "@/shared/components/ui";
 
 interface CommandPaletteProps {
@@ -14,12 +15,16 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const [query, setQuery] = React.useState("");
+  const { hasPermission } = useAuth();
 
-  const filtered = COMMAND_ITEMS.filter(
-    (cmd) =>
+  const filtered = COMMAND_ITEMS.filter((cmd) => {
+    const permission = requiredPermissionFor(cmd.href);
+    if (permission && !hasPermission(permission)) return false;
+    return (
       cmd.label.toLowerCase().includes(query.toLowerCase()) ||
       cmd.category.toLowerCase().includes(query.toLowerCase())
-  );
+    );
+  });
 
   const handleSelect = (href: string) => {
     router.push(href);
