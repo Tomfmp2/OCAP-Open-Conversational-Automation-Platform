@@ -14,7 +14,7 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 
 | Área | Estado |
 | --- | --- |
-| Instalación con Docker (`ocap-up.sh`) y configuración inicial en `/setup` | Listo |
+| Instalación con `./ocap install`, arranque con `ocap` y configuración inicial en `/setup` | Listo |
 | Asistente principal (chat del panel), con modo demo si no hay keys de IA | Listo |
 | Agentes por canal: instrucciones propias, historial, base de conocimiento, chat de prueba y pase a una persona | Listo |
 | Bandeja de conversaciones: ver chats de WhatsApp y Telegram, tomarlos, responder y devolverlos al agente | Listo |
@@ -41,23 +41,37 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 
 Consulta `docs/` y los proyectos bajo `src/` para conocer el alcance de cada módulo. El estado honesto de huecos (Slack/Teams, Qdrant, etc.) está en `docs/roadmap/ROADMAP.md`.
 
-## Inicio rápido con Docker
+## Inicio rápido
 
-Requisitos: Docker Engine y Docker Compose.
+Requisitos: Docker (Docker Desktop o Docker Engine con Compose v2), git y curl. Linux o macOS (en Windows, WSL2).
 
 ```bash
-./scripts/ocap-up.sh
+git clone https://github.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform.git
+cd OCAP-Open-Conversational-Automation-Platform
+./ocap install      # una sola vez: .env con secretos, imágenes y el comando `ocap`
 ```
 
-El script genera el `.env` con secretos aleatorios (`./scripts/ocap-setup.sh`), construye el stack y, al terminar,
-muestra el **código de configuración**. Abre `http://localhost:3000/setup`, ingrésalo y crea la organización y tu
-cuenta de administrador; la conexión con un proveedor de IA es opcional y se puede hacer después (mientras tanto el
-asistente responde en modo demo).
+Desde entonces, en cualquier terminal y carpeta:
 
-Reset total: `docker compose down -v && ./scripts/ocap-up.sh`.
+```bash
+ocap                # enciende Docker si está apagado, levanta todo y abre el panel
+```
 
-Equivalente manual: `./scripts/ocap-setup.sh && docker compose up --build -d`. Detalle en
-[`docs/deployment/FIRST_RUN_SETUP.md`](docs/deployment/FIRST_RUN_SETUP.md).
+`ocap` levanta PostgreSQL (con PgVector), Redis, RabbitMQ, NATS, la API, el panel y Evolution (WhatsApp), espera
+a que respondan y abre `http://localhost:3000`. Si el código cambió (por ejemplo tras un `git pull`), reconstruye
+solo. La primera vez muestra el **código de configuración** para crear la organización y tu cuenta en `/setup`.
+
+| Comando | Qué hace |
+| --- | --- |
+| `ocap` | Levanta OCAP y abre el panel |
+| `ocap stop` | Lo apaga (los datos se conservan) |
+| `ocap status` | Estado de los servicios |
+| `ocap logs [servicio]` | Logs en vivo, p. ej. `ocap logs ocap-api` |
+| `ocap update` | `git pull` + reconstruir + levantar |
+| `ocap reset` | Borra todos los datos y empieza de cero (pide confirmación) |
+| `ocap uninstall` | Quita el comando (no borra el repo ni los datos) |
+
+Detalle de la configuración inicial en [`docs/deployment/FIRST_RUN_SETUP.md`](docs/deployment/FIRST_RUN_SETUP.md).
 
 Servicios y puertos publicados por `docker-compose.yml`:
 

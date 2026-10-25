@@ -6,7 +6,7 @@ escaneo real del QR. Usa un número de prueba: al vincularlo, el asistente respo
 ## Preparación
 
 ```bash
-./scripts/ocap-up.sh
+ocap
 docker compose ps evolution-api   # healthy
 ```
 

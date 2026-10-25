@@ -9,7 +9,7 @@ falta WhatsApp Business ni Meta Cloud API. El puente es [Evolution API](https://
 
 ## Uso
 
-1. `./scripts/ocap-up.sh` (genera `EVOLUTION_API_KEY` si falta; no hay que configurar nada más).
+1. `ocap` (o `./ocap install` la primera vez; genera `EVOLUTION_API_KEY` si falta; no hay que configurar nada más).
 2. Panel → **Canales → Conectar canal → WhatsApp → Generar QR**.
 3. En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo → escanear.
 4. El modal pasa a "WhatsApp vinculado · +número". Desde ahí mismo se puede **Desvincular**.

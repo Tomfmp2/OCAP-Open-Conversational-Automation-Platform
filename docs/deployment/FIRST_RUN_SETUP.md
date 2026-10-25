@@ -13,7 +13,8 @@ secretos) se decide antes de arrancar, y lo del producto se guarda en la base de
 ## 1. Infraestructura: `ocap-setup.sh`
 
 ```bash
-./scripts/ocap-up.sh        # ejecuta ocap-setup.sh, construye y espera a que todo responda
+./ocap install   # una vez: ejecuta ocap-setup.sh, construye e instala el comando
+ocap             # levanta todo y espera a que responda
 ```
 
 `ocap-setup.sh` crea `.env` desde `.env.example` (permisos `600`) y rellena con valores aleatorios los secretos
@@ -22,12 +23,12 @@ Es idempotente: nunca cambia un valor que ya tenga contenido. `docker compose` s
 alguno de esos secretos; no hay valores por defecto publicados en el repositorio.
 
 > Cambiar `POSTGRES_PASSWORD` después del primer arranque rompe la conexión con la base existente:
-> para empezar de cero usa `docker compose down -v && ./scripts/ocap-up.sh`.
+> para empezar de cero usa `ocap reset`.
 
 ## 2. Producto: configuración inicial en `/setup`
 
 Mientras la base no tenga usuarios, la API imprime en sus logs un **código de configuración** de un solo uso
-(`ABCD-EFGH-JKLM`). `ocap-up.sh` lo muestra al terminar; también se ve con:
+(`ABCD-EFGH-JKLM`). `ocap` lo muestra al terminar; también se ve con:
 
 ```bash
 docker compose logs ocap-api | grep 'código'
