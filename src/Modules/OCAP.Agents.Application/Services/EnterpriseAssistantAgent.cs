@@ -61,7 +61,7 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
             Tienes acceso al ESTADO REAL del tenant del usuario (más abajo). Debes usarlo como fuente de verdad.
 
             Reglas obligatorias:
-            - Responde en español, claro y concreto.
+            - Responde en {{LANGUAGE}}, claro y concreto.
             - Cuando pregunten por canales, agentes, IA, conocimiento o usuarios: responde con los datos del ESTADO REAL (nombres, providers, enabled, conteos). NO digas solo "ve a la sección Canales".
             - Si un dato no aparece en el ESTADO REAL, dilo explícitamente ("no hay registros") en lugar de inventar.
             - Puedes añadir una frase corta de cómo gestionar algo en el panel, pero primero da los hechos.
@@ -79,6 +79,7 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
 
             """ + snapshot);
 
+        systemPrompt = PromptMessage.System(systemPrompt.Content.Replace("{{LANGUAGE}}", ResponseLanguage()));
         var userPrompt = PromptMessage.User(context.UserMessage);
         var request = new LanguageModelRequest(new[] { systemPrompt, userPrompt });
         var response = await provider.GenerateAsync(request, cancellationToken);
@@ -132,6 +133,10 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
 
         return AgentExecutionResult.CreateSuccess(reply, GlobalAgentId, response.ProviderName, metadata);
     }
+
+    /// <summary>Idioma de las respuestas del panel (Assistant:Language, lo elige el instalador): "en" o español.</summary>
+    private string ResponseLanguage() =>
+        string.Equals(_configuration["Assistant:Language"], "en", StringComparison.OrdinalIgnoreCase) ? "inglés" : "español";
 
     private string BuildToolsCatalog()
     {
