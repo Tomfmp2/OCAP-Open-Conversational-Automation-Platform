@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Agentes por canal**: cada canal responde con el agente que se le asigna (o con un agente de atención por defecto), usando sus instrucciones, el historial de la conversación y la base de conocimiento; puede pasar la conversación a una persona. Los contactos ya no hablan con el agente madre del panel ni ven datos internos. Chat de prueba en *Agentes*.
+- **Bandeja de conversaciones** (`/inbox`): conversaciones de WhatsApp y Telegram, tomar el control (el agente deja de responder), responder como persona por el mismo canal y devolver al agente. Migración `AddConversationChannel`.
 - **WhatsApp por QR (Evolution API v2.3.7)**: *Canales → Conectar canal → WhatsApp* muestra el QR, el estado llega en vivo por SignalR y el asistente principal responde los chats individuales. Una instancia por organización, sesiones persistentes en Postgres y endpoints `POST/GET/DELETE /api/channels/whatsapp/link`.
 - **Modo demo de IA**: sin keys de IA en el servidor el asistente responde con el proveedor Mock en vez de fallar (`AiProviders__DemoMode=false` lo desactiva).
 - `scripts/ocap-dev.sh` para desarrollar sin Docker en Linux y macOS.

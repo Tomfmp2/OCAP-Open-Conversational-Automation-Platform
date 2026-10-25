@@ -22,6 +22,8 @@ El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Ev
 | IA y modelos | Listo | CRUD por tenant, probar/usar/editar, preferred provider |
 | Gemini | Listo | Modelo por defecto `gemini-3.5-flash`; auth por `x-goog-api-key` |
 | WhatsApp Evolution | Listo | QR desde el panel, webhook firmado por organización, respuesta del asistente; validado contra Evolution v2.3.7 real salvo el escaneo con teléfono ([checklist](testing/WHATSAPP_E2E.md)) |
+| Agentes por canal | Listo | Asignables por canal; prompt, historial, conocimiento, herramientas seguras para contactos, pase a una persona; chat de prueba |
+| Bandeja | Listo | `/inbox`: tomar, responder por el canal y devolver al agente |
 | WebChat | Listo | Canal usable en panel |
 | Telegram | Listo | Bot desde el panel; polling con el token de cada bot o webhook por conexión con secreto derivado del token; responde chats privados |
 | Workflows UI | Fuera de v1 | Rutas placeholder; motor backend sigue en el repo |

@@ -15,7 +15,9 @@ El proyecto está en desarrollo activo. La presencia de una abstracción o un pr
 | Área | Estado |
 | --- | --- |
 | Instalación con Docker (`ocap-up.sh`) y configuración inicial en `/setup` | Listo |
-| Asistente principal (chat), con modo demo si no hay keys de IA | Listo |
+| Asistente principal (chat del panel), con modo demo si no hay keys de IA | Listo |
+| Agentes por canal: instrucciones propias, historial, base de conocimiento, chat de prueba y pase a una persona | Listo |
+| Bandeja de conversaciones: ver chats de WhatsApp y Telegram, tomarlos, responder y devolverlos al agente | Listo |
 | IA y modelos por organización: Gemini, OpenAI, Claude, Ollama | Listo |
 | WhatsApp por QR (Evolution API v2), con respuesta del asistente | Listo ([guía](docs/channels/WHATSAPP.md)) |
 | WebChat | Listo |
