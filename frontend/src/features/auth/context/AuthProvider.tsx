@@ -26,7 +26,9 @@ interface AuthContextValue {
  user: StoredUser | null;
  isAuthenticated: boolean;
  isLoading: boolean;
- login: (credentials: LoginRequest) => Promise<void>;
+ /** Devuelve el desafío si la cuenta tiene MFA; la sesión se abre con completeMfa. */
+ login: (credentials: LoginRequest) => Promise<{ mfaToken: string } | null>;
+ completeMfa: (mfaToken: string, code: string) => Promise<void>;
  /** Abre la sesión con tokens ya emitidos (p. ej. al terminar la configuración inicial). */
  adoptSession: (result: LoginResponse) => Promise<void>;
  logout: () => Promise<void>;
@@ -180,7 +182,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
  const login = React.useCallback(
  async (credentials: LoginRequest) => {
- await adoptSession(await authApi.login(credentials));
+ const result = await authApi.login(credentials);
+ if (result.mfaRequired && result.mfaToken) return { mfaToken: result.mfaToken };
+ await adoptSession(result);
+ return null;
+ },
+ [adoptSession]
+ );
+
+ const completeMfa = React.useCallback(
+ async (mfaToken: string, code: string) => {
+ await adoptSession(await authApi.verifyMfa(mfaToken, code));
  },
  [adoptSession]
  );
@@ -217,6 +229,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  isAuthenticated: !!user,
  isLoading,
  login,
+ completeMfa,
  adoptSession,
  logout,
  hasRole,

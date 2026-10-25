@@ -13,6 +13,9 @@ export interface LoginResponse {
  tenantId: string;
  email: string;
  roleName: string;
+ /** Contraseña correcta, falta el código de la app autenticadora: sin tokens hasta verificarlo. */
+ mfaRequired?: boolean;
+ mfaToken?: string | null;
 }
 
 export interface ProfileResponse {
@@ -37,6 +40,15 @@ export interface RoleDto {
 export const authApi = {
  login(payload: LoginRequest): Promise<LoginResponse> {
  return apiClient.post<LoginResponse>("/api/auth/login", payload, { skipAuth: true });
+ },
+
+ /** Segundo paso del login con MFA: el desafío del login más el código TOTP o de recuperación. */
+ verifyMfa(mfaToken: string, code: string): Promise<LoginResponse> {
+ return apiClient.post<LoginResponse>(
+ "/api/auth/mfa/verify",
+ { mfaToken, code },
+ { skipAuth: true, skipRetry: true }
+ );
  },
 
  refresh(refreshToken: string): Promise<LoginResponse> {
