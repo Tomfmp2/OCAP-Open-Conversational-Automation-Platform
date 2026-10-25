@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -13,6 +14,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/channels/whatsapp/webhook")]
 [AllowAnonymous]
+[DisableRateLimiting]
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly WhatsAppWebhookValidator _validator;

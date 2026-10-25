@@ -74,6 +74,9 @@ await app.Services.ApplyMigrationsAsync();
 
 // Configuración del pipeline HTTP — el orden importa para la seguridad.
 
+// IP real del cliente detrás del panel o de Nginx: solo se cree X-Forwarded-For de la red interna de Docker.
+app.UseOcapForwardedHeaders(builder.Configuration);
+
 // Correlación y request IDs (X-Correlation-Id / X-Request-Id) antes del resto del pipeline.
 app.UseMiddleware<CorrelationIdMiddleware>();
 
@@ -102,15 +105,11 @@ app.UseResponseCaching();
 // CORS debe configurarse antes del routing para que se aplique a todas las rutas.
 app.UseCors("OcapCorsPolicy");
 
-// Rate Limiting protege el gateway antes de que las peticiones lleguen a los controladores.
-var rateLimitingSection = builder.Configuration.GetSection("RateLimiting");
-var enableRateLimiting = rateLimitingSection.GetValue<bool>("EnableRateLimiting");
-if (enableRateLimiting)
-{
-    app.UseRateLimiter();
-}
-
 app.UseRouting();
+
+// Después del routing para que se apliquen las políticas por endpoint ([EnableRateLimiting]); el límite global
+// por IP solo existe si RateLimiting:EnableRateLimiting es true.
+app.UseRateLimiter();
 
 // Autenticación y autorización deben ejecutarse después del routing y antes de MapControllers.
 app.UseAuthentication();

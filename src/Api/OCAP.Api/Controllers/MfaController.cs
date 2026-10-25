@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/auth/mfa")]
 [Authorize]
+[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class MfaController : ControllerBase
 {
     private readonly IMfaService _mfaService;

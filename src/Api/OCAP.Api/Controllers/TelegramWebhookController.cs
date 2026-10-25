@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Responses;
@@ -10,6 +11,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/webhooks/telegram")]
 [AllowAnonymous]
+[DisableRateLimiting]
 public class TelegramWebhookController : ControllerBase
 {
     private readonly TelegramWebhookValidator _validator;

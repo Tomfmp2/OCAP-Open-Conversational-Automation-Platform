@@ -14,6 +14,9 @@ public record AuthenticationResult(
 
 public class AuthenticateUserUseCase
 {
+    // Hash de una contraseña aleatoria, calculado una vez, contra el que se compara cuando el correo no existe.
+    private static (string Hash, string Salt)? _timingDecoy;
+
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ISecurityAuditService _auditService;
@@ -41,11 +44,14 @@ public class AuthenticateUserUseCase
         var record = await _userQuery.FindByEmailAsync(email, cancellationToken);
         if (record is null)
         {
+            // Mismo costo que una contraseña real: el tiempo de respuesta no revela qué correos existen.
+            var decoy = _timingDecoy ??= _passwordHasher.HashPassword(Guid.NewGuid().ToString("N"));
+            _passwordHasher.VerifyPassword(password, decoy.Hash, decoy.Salt);
             await _auditService.LogSecurityEventAsync(Guid.Empty, Guid.Empty, "User.Login", $"Login fallido (usuario inexistente): {email}", ipAddress, false, cancellationToken);
             return null;
         }
 
-        if (record.User.IsLocked)
+        if (record.User.IsLockedOut(DateTime.UtcNow))
         {
             await _auditService.LogSecurityEventAsync(record.Tenant.Id, record.User.Id, "User.Login", $"Login bloqueado: {email}", ipAddress, false, cancellationToken);
             return null;
@@ -60,6 +66,7 @@ public class AuthenticateUserUseCase
             ipAddress,
             isValid,
             cancellationToken);
+        await _userQuery.RecordLoginAttemptAsync(record.User.Id, isValid, cancellationToken);
 
         if (!isValid) return null;
 

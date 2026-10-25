@@ -7,11 +7,17 @@ public class RateLimitingSettings
     // Clave usada en appsettings.json para enlazar esta sección.
     public const string SectionName = "RateLimiting";
 
-    // Habilita o deshabilita el rate limiting (útil para deshabilitar en testing).
+    // Política que limita login, refresh, configuración inicial y MFA (fuerza bruta).
+    public const string AuthPolicy = "auth";
+
+    // Habilita o deshabilita el límite global por IP (útil para deshabilitar en testing).
     public bool EnableRateLimiting { get; set; } = true;
 
-    // Número máximo de peticiones permitidas dentro de la ventana de tiempo.
-    public int PermitLimit { get; set; } = 100;
+    // Número máximo de peticiones permitidas por IP dentro de la ventana de tiempo.
+    public int PermitLimit { get; set; } = 300;
+
+    // Intentos de autenticación por IP y minuto; 0 desactiva la política (solo para pruebas).
+    public int AuthPermitLimit { get; set; } = 10;
 
     // Tamaño de la ventana deslizante en segundos.
     public int WindowSeconds { get; set; } = 60;

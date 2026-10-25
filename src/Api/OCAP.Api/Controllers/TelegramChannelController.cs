@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -164,6 +165,7 @@ public class TelegramChannelController : ControllerBase
     /// </summary>
     [HttpPost("webhook/{connectionId:guid}")]
     [AllowAnonymous]
+    [DisableRateLimiting]
     public async Task<IActionResult> HandleBotWebhook(
         Guid connectionId,
         [FromBody] TelegramUpdate update,

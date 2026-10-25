@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [AllowAnonymous]
+[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class AuthController : ControllerBase
 {
     private readonly AuthenticateUserUseCase _authUseCase;
@@ -74,7 +76,8 @@ public class AuthController : ControllerBase
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Id == newRefreshToken.UserId && u.IsActive, cancellationToken);
 
-        if (user is null)
+        // Una cuenta bloqueada no renueva la sesión aunque tenga un refresh token vigente.
+        if (user is null || user.IsLockedOut(DateTime.UtcNow))
         {
             await _refreshTokenService.RevokeRefreshTokenAsync(newRefreshToken.Token, cancellationToken: cancellationToken);
             return Unauthorized(new ProblemDetails

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/setup")]
 [AllowAnonymous]
+[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public sealed class SetupController : ControllerBase
 {
     private readonly SetupCodeService _setupCode;

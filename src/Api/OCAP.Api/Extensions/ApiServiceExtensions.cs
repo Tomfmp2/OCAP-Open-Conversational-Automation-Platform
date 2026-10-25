@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using OCAP.Api.Configuration;
 using OCAP.Api.Filters;
 using OCAP.Api.Middlewares;
@@ -118,7 +119,7 @@ public static partial class ApiServiceExtensions
         services.Configure<RateLimitingSettings>(configuration.GetSection(RateLimitingSettings.SectionName));
 
         AddCors(services, configuration);
-        AddRateLimiting(services, configuration);
+        AddRateLimiting(services);
 
         return services;
     }
@@ -151,27 +152,59 @@ public static partial class ApiServiceExtensions
         });
     }
 
-    private static void AddRateLimiting(IServiceCollection services, IConfiguration configuration)
+    private static void AddRateLimiting(IServiceCollection services)
     {
-        var rateLimitSettings = configuration.GetSection(RateLimitingSettings.SectionName).Get<RateLimitingSettings>()
-            ?? new RateLimitingSettings();
-
-        if (!rateLimitSettings.EnableRateLimiting)
-        {
-            return;
-        }
+        // Los límites se leen en cada petición (IOptions): así respetan la configuración final del host.
+        static RateLimitingSettings Settings(HttpContext context) =>
+            context.RequestServices.GetRequiredService<IOptions<RateLimitingSettings>>().Value;
 
         services.AddRateLimiter(options =>
         {
-            options.AddFixedWindowLimiter("IpFixed", limiterOptions =>
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.OnRejected = async (context, _) =>
             {
-                limiterOptions.PermitLimit = rateLimitSettings.PermitLimit;
-                limiterOptions.Window = TimeSpan.FromSeconds(rateLimitSettings.WindowSeconds);
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = rateLimitSettings.QueueLimit;
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+                }
+                await Results.Problem(
+                        statusCode: StatusCodes.Status429TooManyRequests,
+                        title: "Demasiadas solicitudes",
+                        detail: "Espera un momento antes de volver a intentarlo.")
+                    .ExecuteAsync(context.HttpContext);
+            };
+
+            // Login, refresh, setup y MFA: pocos intentos por IP aunque el límite global esté apagado.
+            options.AddPolicy(RateLimitingSettings.AuthPolicy, context =>
+            {
+                var limit = Settings(context).AuthPermitLimit;
+                return limit <= 0
+                    ? RateLimitPartition.GetNoLimiter("auth-off")
+                    : RateLimitPartition.GetFixedWindowLimiter($"auth:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = limit,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    });
             });
 
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            {
+                var settings = Settings(context);
+                return !settings.EnableRateLimiting
+                    ? RateLimitPartition.GetNoLimiter("global-off")
+                    : RateLimitPartition.GetFixedWindowLimiter(ClientKey(context), _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = settings.PermitLimit,
+                        Window = TimeSpan.FromSeconds(settings.WindowSeconds),
+                        QueueLimit = settings.QueueLimit,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    });
+            });
         });
     }
+
+    // IP del cliente; detrás del panel o de Nginx llega por X-Forwarded-For (ver UseOcapForwardedHeaders).
+    private static string ClientKey(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -8,6 +9,7 @@ namespace OCAP.Api.Controllers;
 // Controlador REST para autenticación y gestión de proveedores de identidad externos (CAP-15).
 [ApiController]
 [Route("api/auth/external")]
+[EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
 public class ExternalAuthController : ControllerBase
 {
     private readonly IExternalAuthenticationService _externalAuthService;

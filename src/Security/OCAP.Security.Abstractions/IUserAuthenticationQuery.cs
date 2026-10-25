@@ -8,6 +8,9 @@ namespace OCAP.Security.Abstractions;
 public interface IUserAuthenticationQuery
 {
     Task<UserAuthenticationRecord?> FindByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>Guarda el resultado del intento (contador de fallos y bloqueo temporal).</summary>
+    Task RecordLoginAttemptAsync(Guid userId, bool succeeded, CancellationToken cancellationToken = default);
 }
 
 public sealed record UserAuthenticationRecord(

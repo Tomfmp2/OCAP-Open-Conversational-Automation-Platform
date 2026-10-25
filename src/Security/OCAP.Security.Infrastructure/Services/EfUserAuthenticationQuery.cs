@@ -43,4 +43,20 @@ public sealed class EfUserAuthenticationQuery : IUserAuthenticationQuery
 
         return new UserAuthenticationRecord(user, tenant, role);
     }
+
+    /// <summary>Contraseñas incorrectas seguidas que bloquean la cuenta.</summary>
+    public const int MaxFailedAttempts = 5;
+    public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
+    public async Task RecordLoginAttemptAsync(Guid userId, bool succeeded, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return;
+
+        if (succeeded) user.RegisterSuccessfulLogin();
+        else user.RegisterFailedLogin(MaxFailedAttempts, LockoutDuration);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

@@ -12,6 +12,8 @@ public class UserIdentity
     public bool IsActive { get; private set; } = true;
     public bool IsLocked { get; private set; } = false;
     public DateTime? LockoutEndUtc { get; private set; }
+    /// <summary>Contraseñas incorrectas seguidas desde el último login correcto.</summary>
+    public int FailedLoginCount { get; private set; }
     public bool IsEmailVerified { get; private set; } = false;
     public string? PasswordResetToken { get; private set; }
     public string? InviteToken { get; private set; }
@@ -70,6 +72,27 @@ public class UserIdentity
     {
         IsLocked = false;
         LockoutEndUtc = null;
+        FailedLoginCount = 0;
+    }
+
+    /// <summary>Bloqueado ahora: un bloqueo temporal vencido ya no cuenta.</summary>
+    public bool IsLockedOut(DateTime utcNow) => IsLocked && (LockoutEndUtc is null || LockoutEndUtc > utcNow);
+
+    /// <summary>Cuenta una contraseña incorrecta; al llegar a <paramref name="maxAttempts"/> bloquea por <paramref name="lockout"/>.</summary>
+    public void RegisterFailedLogin(int maxAttempts, TimeSpan lockout)
+    {
+        FailedLoginCount++;
+        if (FailedLoginCount >= maxAttempts)
+        {
+            Lock(lockout);
+            FailedLoginCount = 0;
+        }
+    }
+
+    public void RegisterSuccessfulLogin()
+    {
+        FailedLoginCount = 0;
+        if (IsLocked && LockoutEndUtc <= DateTime.UtcNow) Unlock();
     }
 
     public void VerifyEmail()

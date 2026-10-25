@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +25,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/webhooks/whatsapp")]
 [AllowAnonymous]
+[DisableRateLimiting]
 public sealed class EvolutionWhatsAppWebhookController : ControllerBase
 {
     /// <summary>Evento de SignalR que escucha el panel mientras se vincula WhatsApp.</summary>
