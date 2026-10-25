@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, CheckCircle2, RefreshCw, Power } from "lucide-react";
+import { MessageSquare, CheckCircle2, RefreshCw, Power, QrCode } from "lucide-react";
 import { ChannelConnection } from "../api/useChannelsData";
 import { Surface } from "@/shared/components/ui/Surface";
 import { Badge } from "@/shared/components/ui/Badge";
@@ -29,7 +29,11 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           </div>
         </div>
 
-        {isConnected ? (
+        {channel.status === "Pending" ? (
+          <Badge tone="warning">
+            <QrCode className="h-3.5 w-3.5" /> Esperando escaneo
+          </Badge>
+        ) : isConnected ? (
           <Badge tone="success">
             <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
           </Badge>

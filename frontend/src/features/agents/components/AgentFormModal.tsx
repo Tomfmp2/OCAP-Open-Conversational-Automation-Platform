@@ -121,7 +121,10 @@ function AgentForm({ agent, onDone }: { agent: Agent | null; onDone: () => void 
             </span>
           </label>
         ))}
-        <p className="text-[11px] text-neutral-500">Las herramientas actúan de verdad (envían correos, crean eventos): habilita solo las necesarias.</p>
+        <p className="text-[11px] text-neutral-500">
+          Solo aparecen acciones seguras frente a clientes (agendar, registrar datos); actúan de verdad, así que habilita
+          solo las necesarias. Leer o enviar correos del negocio no se ofrece a los agentes de canal.
+        </p>
       </fieldset>
 
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-3">

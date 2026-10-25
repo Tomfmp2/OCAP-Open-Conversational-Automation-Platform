@@ -74,7 +74,14 @@ export function useChannelsData() {
             id: item.id,
             name: item.displayName || item.name || `${item.provider} Channel`,
             provider: item.provider,
-            status: item.enabled ? "Connected" : "Disconnected",
+            // WhatsApp por QR guarda su estado real (pending/linked/unlinked); habilitada no implica vinculada.
+            status: !item.enabled
+              ? "Disconnected"
+              : item.configurationMetadata?.Status === "pending"
+                ? "Pending"
+                : item.configurationMetadata?.Status === "unlinked"
+                  ? "Disconnected"
+                  : "Connected",
             accountIdentifier: item.accountIdentifier || "—",
             messagesHandled24h: item.messagesHandled24h ?? 0,
             lastSync: item.lastSyncAtUtc
