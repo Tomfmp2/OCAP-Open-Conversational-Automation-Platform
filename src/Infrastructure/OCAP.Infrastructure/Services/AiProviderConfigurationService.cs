@@ -189,6 +189,20 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             return null;
         }
 
+        return await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
+    }
+
+    public async Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default)
+    {
+        var config = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == configurationId && c.IsEnabled, cancellationToken);
+        return config is null ? null : await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
+    }
+
+    /// <summary>Proveedor listo para usar con la key de la configuración (vault, o .env en desarrollo).</summary>
+    private async Task<IAiProvider?> BuildRuntimeProviderAsync(Guid tenantId, AiProviderConfiguration config, CancellationToken cancellationToken)
+    {
         // 2. Recuperar la API key cifrada desde Credential Vault
         var apiKey = string.Empty;
         if (!string.IsNullOrWhiteSpace(config.VaultSecretReference))

@@ -21,6 +21,9 @@ public sealed class ChannelConversationService : IConversationResponder
     /// <summary>Metadato de la conexión del canal con el agente que la atiende.</summary>
     public const string AgentIdMetadataKey = "AgentId";
 
+    /// <summary>Metadato de la conexión con el proveedor de IA (configuración de la organización) que usa el canal.</summary>
+    public const string AiProviderMetadataKey = "AiProviderConfigId";
+
     /// <summary>Turnos previos que se le pasan al agente como contexto.</summary>
     private const int HistoryTurns = 12;
 
@@ -102,16 +105,18 @@ public sealed class ChannelConversationService : IConversationResponder
                 .Select(m => new ChannelTurn(m.SenderType == SenderType.User, m.Content.Value))
                 .ToList();
 
+            var assignment = await AssignmentAsync(tenantId, channelConnectionId, cancellationToken);
             var result = await _agent.ReplyAsync(
                 new ChannelAgentRequest(
                     tenantId,
-                    await AgentForAsync(tenantId, channelConnectionId, cancellationToken),
+                    assignment.AgentId,
                     userId,
                     conversation.Id,
                     message.ChannelName,
                     string.IsNullOrWhiteSpace(displayName) ? message.ExternalUserId : displayName,
                     history,
-                    message.Message),
+                    message.Message,
+                    AiProviderConfigId: assignment.AiProviderConfigId),
                 cancellationToken);
             reply = result.Text;
 
@@ -131,16 +136,18 @@ public sealed class ChannelConversationService : IConversationResponder
         return reply;
     }
 
-    /// <summary>Agente asignado a la conexión del canal; null si no tiene (se usa el de atención por defecto).</summary>
-    private async Task<Guid?> AgentForAsync(Guid tenantId, Guid? channelConnectionId, CancellationToken cancellationToken)
+    /// <summary>Agente y proveedor de IA asignados a la conexión del canal; null = los de la organización.</summary>
+    private async Task<(Guid? AgentId, Guid? AiProviderConfigId)> AssignmentAsync(
+        Guid tenantId,
+        Guid? channelConnectionId,
+        CancellationToken cancellationToken)
     {
-        if (channelConnectionId is not { } id) return null;
+        if (channelConnectionId is not { } id) return (null, null);
         var connection = await _connections.FindConnectionAsync(id, cancellationToken);
-        return connection is not null
-               && connection.TenantId == tenantId
-               && connection.ConfigurationMetadata.TryGetValue(AgentIdMetadataKey, out var raw)
-               && Guid.TryParse(raw, out var agentId)
-            ? agentId
-            : null;
+        if (connection is null || connection.TenantId != tenantId) return (null, null);
+
+        Guid? Read(string key) =>
+            connection.ConfigurationMetadata.TryGetValue(key, out var raw) && Guid.TryParse(raw, out var value) ? value : null;
+        return (Read(AgentIdMetadataKey), Read(AiProviderMetadataKey));
     }
 }

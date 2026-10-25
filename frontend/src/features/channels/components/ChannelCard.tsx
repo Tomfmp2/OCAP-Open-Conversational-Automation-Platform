@@ -5,6 +5,7 @@ import { Surface } from "@/shared/components/ui/Surface";
 import { Badge } from "@/shared/components/ui/Badge";
 import { Button } from "@/shared/components/ui/Button";
 import { ChannelAgentSelect } from "./ChannelAgentSelect";
+import { ChannelAiSelect } from "./ChannelAiSelect";
 
 interface ChannelCardProps {
   channel: ChannelConnection;
@@ -17,8 +18,8 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
 
   return (
     <Surface className="space-y-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-neutral-50 text-neutral-800">
             <MessageSquare className="h-5 w-5" />
           </div>
@@ -29,23 +30,28 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           </div>
         </div>
 
-        {channel.status === "Pending" ? (
-          <Badge tone="warning">
-            <QrCode className="h-3.5 w-3.5" /> Esperando escaneo
-          </Badge>
-        ) : isConnected ? (
-          <Badge tone="success">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
-          </Badge>
-        ) : (
-          <Badge tone="neutral">
-            <Power className="h-3.5 w-3.5" /> Desconectado
-          </Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {channel.status === "Pending" ? (
+            <Badge tone="warning">
+              <QrCode className="h-3.5 w-3.5" /> Esperando escaneo
+            </Badge>
+          ) : isConnected ? (
+            <Badge tone="success">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Conectado
+            </Badge>
+          ) : (
+            <Badge tone="neutral">
+              <Power className="h-3.5 w-3.5" /> Desconectado
+            </Badge>
+          )}
+        </div>
       </div>
 
       {channel.provider.toLowerCase() !== "webchat" && (
-        <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
+          <ChannelAiSelect connectionId={channel.id} aiProviderConfigId={channel.aiProviderConfigId} />
+        </div>
       )}
 
       <div className="flex items-center justify-between border-t border-neutral-100 pt-2">

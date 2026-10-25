@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Abstractions.Providers;
 using OCAP.Agents.Domain.Entities;
+using OCAP.Intelligence.Abstractions;
 using OCAP.Knowledge.Abstractions;
 using OCAP.Knowledge.Domain.Enums;
 using OCAP.Tools.Abstractions;
@@ -15,6 +16,7 @@ public sealed record ChannelTurn(bool FromContact, string Text);
 /// <param name="AgentId">Agente asignado al canal; null o inexistente usa el agente de atención por defecto.</param>
 /// <param name="ConversationId">Conversación donde se registran las herramientas ejecutadas; vacío en pruebas.</param>
 /// <param name="ExecuteTools">false en las pruebas del panel: el agente dice qué haría pero no envía nada real.</param>
+/// <param name="AiProviderConfigId">Proveedor de IA asignado al canal; null usa el activo de la organización.</param>
 public sealed record ChannelAgentRequest(
     Guid TenantId,
     Guid? AgentId,
@@ -24,7 +26,8 @@ public sealed record ChannelAgentRequest(
     string ContactName,
     IReadOnlyList<ChannelTurn> History,
     string Message,
-    bool ExecuteTools = true);
+    bool ExecuteTools = true,
+    Guid? AiProviderConfigId = null);
 
 /// <param name="TransferToHuman">El agente pidió pasar la conversación a una persona del equipo.</param>
 public sealed record ChannelAgentReply(string Text, string ProviderUsed, Guid? AgentId, string AgentName, bool TransferToHuman);
@@ -65,6 +68,7 @@ public sealed class ChannelAgentRunner
     private readonly IConfiguration _configuration;
     private readonly ILogger<ChannelAgentRunner> _logger;
     private readonly IKnowledgeRetriever? _knowledge;
+    private readonly IAiProviderConfigurationService? _aiConfigurations;
 
     public ChannelAgentRunner(
         IAgentRepository agents,
@@ -73,8 +77,10 @@ public sealed class ChannelAgentRunner
         IActionDispatcher dispatcher,
         IConfiguration configuration,
         ILogger<ChannelAgentRunner> logger,
-        IKnowledgeRetriever? knowledge = null)
+        IKnowledgeRetriever? knowledge = null,
+        IAiProviderConfigurationService? aiConfigurations = null)
     {
+        _aiConfigurations = aiConfigurations;
         _agents = agents;
         _providers = providers;
         _tools = tools;
@@ -102,7 +108,7 @@ public sealed class ChannelAgentRunner
             turn.FromContact ? PromptMessage.User(turn.Text) : PromptMessage.Assistant(turn.Text)));
         messages.Add(PromptMessage.User(request.Message));
 
-        var provider = await _providers.GetProviderAsync(request.TenantId, _configuration["AiProviders:PreferredProvider"], cancellationToken);
+        var provider = await ResolveProviderAsync(request, cancellationToken);
         var response = await provider.GenerateAsync(new LanguageModelRequest(messages), cancellationToken);
 
         var plan = AssistantPlanParser.TryParse(response.Content);
@@ -143,6 +149,18 @@ public sealed class ChannelAgentRunner
 
         if (string.IsNullOrWhiteSpace(text)) text = "Gracias por tu mensaje. ¿En qué más te puedo ayudar?";
         return new ChannelAgentReply(text, response.ProviderName, agent?.Id, agent?.Name.Value ?? DefaultAgentName, transfer);
+    }
+
+    /// <summary>El proveedor asignado al canal si sigue disponible; si no, el activo de la organización.</summary>
+    private async Task<ILanguageModelProvider> ResolveProviderAsync(ChannelAgentRequest request, CancellationToken cancellationToken)
+    {
+        if (request.AiProviderConfigId is { } configId && _aiConfigurations is not null)
+        {
+            var assigned = await _aiConfigurations.GetRuntimeProviderByIdAsync(request.TenantId, configId, cancellationToken);
+            if (assigned is not null) return new LanguageModelProviderAdapter(assigned);
+            _logger.LogWarning("El proveedor de IA {ConfigId} del canal no está disponible; se usa el de la organización.", configId);
+        }
+        return await _providers.GetProviderAsync(request.TenantId, _configuration["AiProviders:PreferredProvider"], cancellationToken);
     }
 
     private async Task<Agent?> ResolveAgentAsync(Guid? agentId, CancellationToken cancellationToken)

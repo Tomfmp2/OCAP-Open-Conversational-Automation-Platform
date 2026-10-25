@@ -208,6 +208,32 @@ public class ChannelManagementController : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
+    /// <summary>
+    /// Asigna el proveedor de IA (una configuración de «IA y modelos») que usa este canal; null vuelve al proveedor
+    /// activo de la organización.
+    /// </summary>
+    [HttpPut("connections/{id:guid}/ai")]
+    public async Task<IActionResult> AssignAiProvider(
+        Guid id,
+        [FromBody] AssignChannelAiRequest request,
+        [FromServices] OCAP.Intelligence.Abstractions.IAiProviderConfigurationService aiConfigurations,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        if (request.AiProviderConfigId is { } configId)
+        {
+            var config = await aiConfigurations.GetConfigurationByIdAsync(tenantId, configId, cancellationToken);
+            if (config is null) return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El proveedor de IA no existe en esta organización.");
+            if (!config.IsEnabled) return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El proveedor de IA está deshabilitado.");
+        }
+
+        var updated = await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelConversationService.AiProviderMetadataKey, request.AiProviderConfigId?.ToString(), cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
     // POST /api/channels/{id}/enable - Habilita una conexión de canal.
     [HttpPost("{id:guid}/enable")]
     public async Task<IActionResult> EnableChannel(Guid id, CancellationToken cancellationToken)
@@ -392,3 +418,4 @@ public class ChannelManagementController : ControllerBase
 }
 
 public sealed record AssignChannelAgentRequest(Guid? AgentId);
+public sealed record AssignChannelAiRequest(Guid? AiProviderConfigId);

@@ -38,4 +38,6 @@ public interface IAiProviderConfigurationService
     Task<bool> SetStatusAsync(Guid tenantId, Guid id, bool enable, CancellationToken cancellationToken = default);
     Task<bool> DeleteConfigurationAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default);
     Task<IAiProvider?> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default);
+    /// <summary>Proveedor de una configuración concreta del tenant (p. ej. la asignada a un canal); null si no existe, está deshabilitada o no tiene key.</summary>
+    Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default);
 }

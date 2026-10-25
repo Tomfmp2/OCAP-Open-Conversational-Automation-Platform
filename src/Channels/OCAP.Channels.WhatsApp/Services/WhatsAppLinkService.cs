@@ -188,8 +188,11 @@ public sealed class WhatsAppLinkService
         };
         if (!string.IsNullOrWhiteSpace(phone)) metadata["PhoneNumber"] = phone;
         if (!string.IsNullOrWhiteSpace(profile)) metadata["ProfileName"] = profile;
-        // El agente asignado desde el panel sobrevive a los cambios de estado de la vinculación.
-        if (connection?.ConfigurationMetadata.TryGetValue("AgentId", out var agentId) == true) metadata["AgentId"] = agentId;
+        // El agente y la IA asignados desde el panel sobreviven a los cambios de estado de la vinculación.
+        foreach (var key in new[] { "AgentId", "AiProviderConfigId" })
+        {
+            if (connection?.ConfigurationMetadata.TryGetValue(key, out var assigned) == true) metadata[key] = assigned;
+        }
         var displayName = string.IsNullOrWhiteSpace(phone) ? "WhatsApp" : $"WhatsApp +{phone}";
 
         if (connection is null)

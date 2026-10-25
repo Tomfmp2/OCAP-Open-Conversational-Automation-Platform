@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/apiClient";
+import { getTenantId } from "@/shared/api/tokenStorage";
 
 export interface ChannelProviderHealthDto {
   provider: string;
@@ -21,6 +22,8 @@ export interface ChannelConnectionDto {
   health?: ChannelProviderHealthDto;
   /** Agente que responde en este canal; null = agente de atención por defecto. */
   agentId: string | null;
+  /** Proveedor de IA (configuración de «IA y modelos») del canal; null = el activo de la organización. */
+  aiProviderConfigId: string | null;
 }
 
 export type ChannelConnection = ChannelConnectionDto;
@@ -90,6 +93,7 @@ export function useChannelsData() {
             latencyMs: health?.latencyMs ?? 0,
             health,
             agentId: item.configurationMetadata?.AgentId ?? null,
+            aiProviderConfigId: item.configurationMetadata?.AiProviderConfigId ?? null,
           });
         });
       }
@@ -170,6 +174,42 @@ export function useAssignChannelAgent() {
   return useMutation({
     mutationFn: ({ connectionId, agentId }: { connectionId: string; agentId: string | null }) =>
       apiClient.put(`/api/channels/connections/${connectionId}/agent`, { agentId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
+  });
+}
+
+export interface AiProviderOption {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
+/** Proveedores de IA registrados en «IA y modelos» para la organización. */
+export function useAiProviderOptions() {
+  return useQuery<AiProviderOption[]>({
+    queryKey: ["intelligenceProviders", "options"],
+    queryFn: async () => {
+      const tenantId = getTenantId();
+      if (!tenantId) return [];
+      const configs = await apiClient.get<
+        Array<{ id: string; displayName: string; providerName: string; modelName: string; isEnabled: boolean }>
+      >(`/api/aiproviderconfigurations/tenant/${tenantId}`);
+      return configs.map((c) => ({
+        id: c.id,
+        label: `${c.displayName || c.providerName} · ${c.modelName}`,
+        enabled: c.isEnabled,
+      }));
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Asigna el proveedor de IA de un canal (null = el activo de la organización). */
+export function useAssignChannelAi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, aiProviderConfigId }: { connectionId: string; aiProviderConfigId: string | null }) =>
+      apiClient.put(`/api/channels/connections/${connectionId}/ai`, { aiProviderConfigId }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
   });
 }

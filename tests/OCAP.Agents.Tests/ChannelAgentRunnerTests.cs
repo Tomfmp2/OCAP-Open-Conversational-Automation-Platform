@@ -24,6 +24,7 @@ public class ChannelAgentRunnerTests
     private readonly Mock<IToolRegistry> _tools = new();
     private readonly Mock<IActionDispatcher> _dispatcher = new();
     private readonly Mock<IKnowledgeRetriever> _knowledge = new();
+    private readonly Mock<OCAP.Intelligence.Abstractions.IAiProviderConfigurationService> _aiConfigs = new();
 
     private ChannelAgentRunner CreateRunner()
     {
@@ -35,7 +36,7 @@ public class ChannelAgentRunnerTests
             .ReturnsAsync(new List<KnowledgeSearchResult>());
         return new ChannelAgentRunner(
             _agents.Object, selector.Object, _tools.Object, _dispatcher.Object,
-            new Mock<IConfiguration>().Object, NullLogger<ChannelAgentRunner>.Instance, _knowledge.Object);
+            new Mock<IConfiguration>().Object, NullLogger<ChannelAgentRunner>.Instance, _knowledge.Object, _aiConfigs.Object);
     }
 
     private Agent RegisterAgent(string prompt, params string[] tools)
@@ -71,6 +72,26 @@ public class ChannelAgentRunnerTests
         system.Should().NotContain("ESTADO REAL");
         _model.LastRequest.Messages.Skip(1).Select(m => m.Content)
             .Should().Equal("Hola", "¡Hola! ¿En qué te ayudo?", "¿A qué hora abren?");
+    }
+
+    [Fact]
+    public async Task ChannelAssignedAiProvider_IsUsed_AndFallsBackWhenUnavailable()
+    {
+        var assignedId = Guid.NewGuid();
+        var assigned = new Mock<OCAP.Intelligence.Abstractions.IAiProvider>();
+        assigned.Setup(p => p.Name).Returns("Claude");
+        assigned.Setup(p => p.GenerateResponseAsync(It.IsAny<OCAP.Intelligence.Abstractions.AiRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OCAP.Intelligence.Abstractions.AiResponse { GeneratedText = "Respuesta de Claude", ProviderName = "Claude" });
+        _aiConfigs.Setup(c => c.GetRuntimeProviderByIdAsync(TenantId, assignedId, It.IsAny<CancellationToken>())).ReturnsAsync(assigned.Object);
+        _model.Next = "Respuesta del proveedor de la organización";
+        var runner = CreateRunner();
+
+        var withAssigned = await runner.ReplyAsync(Request(null, "hola") with { AiProviderConfigId = assignedId }, CancellationToken.None);
+        var unavailable = await runner.ReplyAsync(Request(null, "hola") with { AiProviderConfigId = Guid.NewGuid() }, CancellationToken.None);
+
+        withAssigned.ProviderUsed.Should().Be("Claude");
+        withAssigned.Text.Should().Be("Respuesta de Claude");
+        unavailable.ProviderUsed.Should().Be("Fake");
     }
 
     [Fact]
