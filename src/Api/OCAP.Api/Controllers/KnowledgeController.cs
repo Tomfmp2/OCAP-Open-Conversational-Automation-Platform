@@ -1,3 +1,4 @@
+using OCAP.Api.Validation;
 using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -76,27 +77,18 @@ public class KnowledgeController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [RequestSizeLimit(KnowledgeUploadValidator.MaxBytes + 64 * 1024)]
     public async Task<ActionResult> UploadDocument([FromForm] IFormFile file, [FromForm] Guid knowledgeBaseId, [FromForm] DocumentCategory category, CancellationToken cancellationToken)
     {
-        if (file == null || file.Length == 0) return BadRequest("File is empty or missing.");
+        if (file == null) return BadRequest("Falta el archivo.");
+
+        var (documentType, fileName, error) = await KnowledgeUploadValidator.ValidateAsync(file, cancellationToken);
+        if (error is not null)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Archivo no válido", detail: error);
 
         var tenantId = _tenantContext.TenantId;
-        var extension = Path.GetExtension(file.FileName).TrimStart('.').ToLowerInvariant();
-        
-        var documentType = extension switch
-        {
-            "pdf" => DocumentType.Pdf,
-            "docx" => DocumentType.Docx,
-            "md" or "markdown" => DocumentType.Markdown,
-            "csv" => DocumentType.Csv,
-            "json" => DocumentType.Json,
-            "html" or "htm" => DocumentType.Html,
-            "xml" => DocumentType.Xml,
-            _ => DocumentType.Txt
-        };
-
         using var stream = file.OpenReadStream();
-        var doc = await _knowledgeService.UploadDocumentAsync(tenantId, knowledgeBaseId, stream, file.FileName, documentType, category, "WebUser", cancellationToken);
+        var doc = await _knowledgeService.UploadDocumentAsync(tenantId, knowledgeBaseId, stream, fileName, documentType, category, "WebUser", cancellationToken);
 
         return Ok(doc);
     }
