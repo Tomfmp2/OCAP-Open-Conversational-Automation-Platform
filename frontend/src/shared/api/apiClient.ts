@@ -11,6 +11,11 @@ import {
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+/**
+ * Solo se reintentan métodos sin efectos: repetir un POST (p. ej. un mensaje al agente que envía un correo) podría
+ * ejecutar la acción dos veces, y además retrasa varios segundos el error que debe ver el usuario.
+ */
+const RETRYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function generateId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -140,6 +145,7 @@ class ApiClient {
 
           if (
             !skipRetry &&
+            RETRYABLE_METHODS.has(method.toUpperCase()) &&
             RETRYABLE_STATUSES.has(response.status) &&
             attempt < MAX_RETRIES
           ) {
