@@ -172,6 +172,7 @@ export function ProviderCard({
                 size="sm"
                 onClick={() => onDelete(provider)}
                 loading={isDeleting}
+                aria-label={`Eliminar ${provider.displayName || provider.providerName}`}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>

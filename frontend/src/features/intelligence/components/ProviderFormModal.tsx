@@ -162,6 +162,7 @@ export function ProviderFormModal({
         )}
 
         <Input
+          id="provider-display-name"
           label="Nombre visible"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -170,6 +171,7 @@ export function ProviderFormModal({
         />
 
         <Input
+          id="provider-api-key"
           label={isEdit ? "API key (opcional)" : "API key"}
           type="password"
           value={apiKey}
@@ -187,6 +189,7 @@ export function ProviderFormModal({
 
         <div className="space-y-2">
           <Input
+            id="provider-model"
             label="Modelo"
             value={modelName}
             onChange={(e) => setModelName(e.target.value)}
@@ -213,6 +216,7 @@ export function ProviderFormModal({
         </div>
 
         <Input
+          id="provider-base-url"
           label="Base URL (opcional)"
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}

@@ -220,7 +220,14 @@ export function useIntelligenceData() {
         `/api/aiproviderconfigurations/tenant/${tenantId}/${id}`
       );
     },
-    onSuccess: invalidate,
+    onSuccess: (_result, id) => {
+      // La recarga espera los chequeos de salud (segundos): la tarjeta se quita ya.
+      queryClient.setQueryData<{ providers: TenantProviderConfig[]; runtime: AiRuntimeStatus | null }>(
+        ["intelligenceProviders"],
+        (old) => old && { ...old, providers: old.providers.filter((p) => p.id !== id) }
+      );
+      invalidate();
+    },
   });
 
   const selectProviderMutation = useMutation({
