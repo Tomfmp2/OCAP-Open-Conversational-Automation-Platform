@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Agents.Application.Services;
@@ -9,6 +11,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.AgentRead)]
 public class AgentsController : ControllerBase
 {
     private readonly AgentService _agentService;
@@ -42,6 +45,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = OcapPermissions.AgentWrite)]
     public async Task<ActionResult<AgentDto>> CreateAgent([FromBody] CreateAgentRequest request, CancellationToken cancellationToken)
     {
         var agent = await _agentService.CreateAgentAsync(
@@ -57,6 +61,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = OcapPermissions.AgentWrite)]
     public async Task<IActionResult> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request, CancellationToken cancellationToken)
     {
         try
@@ -71,6 +76,7 @@ public class AgentsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = OcapPermissions.AgentWrite)]
     public async Task<IActionResult> DeleteAgent(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -140,6 +146,7 @@ public class AgentsController : ControllerBase
     /// canales: prompt, historial y base de conocimiento. No guarda nada ni ejecuta herramientas reales.
     /// </summary>
     [HttpPost("{id:guid}/test")]
+    [Authorize(Policy = OcapPermissions.AgentExecute)]
     public async Task<ActionResult<AgentTestResponse>> TestAgent(
         Guid id,
         [FromBody] AgentTestRequest request,

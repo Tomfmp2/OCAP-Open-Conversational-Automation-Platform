@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +29,7 @@ public record IntegrationStatusDto(
 
 [ApiController]
 [Route("api/integrations")]
+[Authorize(Policy = OcapPermissions.OAuthManage)]
 public class IntegrationsController : ControllerBase
 {
     private readonly OCAPDbContext _dbContext;

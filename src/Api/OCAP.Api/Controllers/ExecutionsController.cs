@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
@@ -7,6 +9,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.WorkflowManage)]
 public class ExecutionsController : ControllerBase
 {
     private readonly OCAPDbContext _dbContext;

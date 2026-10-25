@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -100,6 +102,7 @@ public class ProvidersController : ControllerBase
     }
 
     [HttpPost("select")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
     public IActionResult SelectProvider([FromBody] SelectProviderRequestDto request)
     {
         if (string.IsNullOrWhiteSpace(request.ProviderName))
@@ -113,6 +116,7 @@ public class ProvidersController : ControllerBase
     /// Prueba UN proveedor concreto (vault del tenant o estático). Sin failover a Claude/Ollama/etc.
     /// </summary>
     [HttpPost("test")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
     public async Task<ActionResult<TestProviderResponseDto>> TestProvider(
         [FromBody] TestProviderRequestDto request,
         CancellationToken cancellationToken)
@@ -201,6 +205,7 @@ public class ProvidersController : ControllerBase
     }
 
     [HttpPost("stream")]
+    [Authorize(Policy = OcapPermissions.AiExecute)]
     public async Task StreamResponse([FromBody] TestProviderRequestDto request, CancellationToken cancellationToken)
     {
         Response.ContentType = "text/event-stream";

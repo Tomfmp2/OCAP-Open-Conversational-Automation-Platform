@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Requests;
 using OCAP.Api.DTOs.Responses;
@@ -9,6 +11,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/channels")]
+[Authorize(Policy = OcapPermissions.DashboardRead)]
 public class ChannelManagementController : ControllerBase
 {
     private readonly IChannelRegistry _channelRegistry;
@@ -95,6 +98,7 @@ public class ChannelManagementController : ControllerBase
 
     // POST /api/channels/connect - Registra una nueva conexión de canal para el Tenant.
     [HttpPost("connect")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> ConnectChannel(
         [FromBody] CreateChannelConnectionRequest request,
         CancellationToken cancellationToken)
@@ -181,6 +185,7 @@ public class ChannelManagementController : ControllerBase
     /// Asigna el agente que responde en este canal; <c>agentId</c> null vuelve al agente de atención por defecto.
     /// </summary>
     [HttpPut("connections/{id:guid}/agent")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> AssignAgent(
         Guid id,
         [FromBody] AssignChannelAgentRequest request,
@@ -213,6 +218,7 @@ public class ChannelManagementController : ControllerBase
     /// activo de la organización.
     /// </summary>
     [HttpPut("connections/{id:guid}/ai")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> AssignAiProvider(
         Guid id,
         [FromBody] AssignChannelAiRequest request,
@@ -236,6 +242,7 @@ public class ChannelManagementController : ControllerBase
 
     // POST /api/channels/{id}/enable - Habilita una conexión de canal.
     [HttpPost("{id:guid}/enable")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> EnableChannel(Guid id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -260,6 +267,7 @@ public class ChannelManagementController : ControllerBase
 
     // POST /api/channels/{id}/disable - Deshabilita una conexión de canal.
     [HttpPost("{id:guid}/disable")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> DisableChannel(Guid id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -284,6 +292,7 @@ public class ChannelManagementController : ControllerBase
 
     /// <summary>Cambia el nombre visible del canal.</summary>
     [HttpPatch("connections/{id:guid}")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> RenameChannel(Guid id, [FromBody] RenameChannelRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -301,6 +310,7 @@ public class ChannelManagementController : ControllerBase
     /// instancia; un bot de Telegram en modo webhook deja de enviar updates. El resto solo se borra de OCAP.
     /// </summary>
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> RemoveChannel(
         Guid id,
         [FromServices] OCAP.Channels.WhatsApp.Services.WhatsAppLinkService whatsApp,
@@ -409,6 +419,7 @@ public class ChannelManagementController : ControllerBase
 
     // GET /api/channels/{provider}/configuration
     [HttpGet("{provider}/configuration")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> GetProviderConfiguration(string provider, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;

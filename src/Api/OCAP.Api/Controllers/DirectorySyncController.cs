@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -9,6 +10,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/directory")]
 [Authorize]
+[Authorize(Policy = OcapPermissions.SecurityManage)]
 public class DirectorySyncController : ControllerBase
 {
     private readonly ILdapService _ldapService;

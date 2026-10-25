@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +67,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
     public async Task<ActionResult<SettingsConfigDto>> UpdateSettings([FromBody] SettingsConfigDto request, CancellationToken cancellationToken)
     {
         if (request == null) return BadRequest("Configuración inválida.");

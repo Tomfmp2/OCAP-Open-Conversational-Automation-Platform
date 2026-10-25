@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Agents.Abstractions.Models;
 using OCAP.Agents.Application.Services;
@@ -55,6 +57,7 @@ public class WebChatChannelController : ControllerBase
     }
 
     [HttpPost("connect")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> Connect([FromBody] CreateWebChatConnectionRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -119,6 +122,7 @@ public class WebChatChannelController : ControllerBase
     }
 
     [HttpPost("messages")]
+    [Authorize(Policy = OcapPermissions.AiExecute)]
     public async Task<IActionResult> SendMessage([FromBody] WebChatSendMessageRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;

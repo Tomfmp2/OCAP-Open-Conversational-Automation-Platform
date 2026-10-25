@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/eventbus")]
 [Authorize]
+[Authorize(Policy = OcapPermissions.DeploymentManage)]
 public class EventBusController : ControllerBase
 {
     private readonly IEventTransport _transport;

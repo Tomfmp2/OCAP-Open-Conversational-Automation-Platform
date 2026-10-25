@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Queries;
 using OCAP.Api.Services;
@@ -15,6 +17,7 @@ public sealed record InboxReplyRequest(string Text);
 /// </summary>
 [ApiController]
 [Route("api/inbox")]
+[Authorize(Policy = OcapPermissions.ConversationRead)]
 public sealed class InboxController : ControllerBase
 {
     private readonly ConversationInboxQueries _queries;
@@ -42,11 +45,13 @@ public sealed class InboxController : ControllerBase
 
     /// <summary>Una persona toma la conversación: el agente deja de responder.</summary>
     [HttpPost("{id:guid}/takeover")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
     public Task<IActionResult> TakeOver(Guid id, CancellationToken cancellationToken) =>
         ChangeAsync(id, c => c.TakeOver(), cancellationToken);
 
     /// <summary>Devuelve la conversación al agente.</summary>
     [HttpPost("{id:guid}/release")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
     public Task<IActionResult> Release(Guid id, CancellationToken cancellationToken) =>
         ChangeAsync(id, c => c.ReturnToAgent(), cancellationToken);
 
@@ -55,6 +60,7 @@ public sealed class InboxController : ControllerBase
     /// conteste encima del equipo.
     /// </summary>
     [HttpPost("{id:guid}/reply")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
     public async Task<IActionResult> Reply(
         Guid id,
         [FromBody] InboxReplyRequest request,

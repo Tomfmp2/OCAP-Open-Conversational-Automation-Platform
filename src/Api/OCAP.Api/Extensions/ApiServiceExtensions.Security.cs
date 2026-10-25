@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using OCAP.Api.Security;
 using OCAP.Security.Abstractions;
 using OCAP.Security.Abstractions.Options;
 using OCAP.Security.Application.UseCases;
@@ -44,7 +45,7 @@ public static partial class ApiServiceExtensions
         services.AddScoped<IConsentService, ConsentService>();
 
         AddJwtBearerAuthentication(services, jwtOptions);
-        services.AddAuthorization();
+        services.AddAuthorization(options => options.AddOcapPermissionPolicies());
         services.AddOcapOpenIddict();
 
         services.AddSingleton<ISecurityAuditService, SecurityAuditService>();

@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Application.UseCases;
 using OCAP.Api.DTOs.Requests;
@@ -7,6 +9,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.AiExecute)]
 public class MessagesController : ControllerBase
 {
     private readonly ReceiveMessageUseCase _receiveMessageUseCase;

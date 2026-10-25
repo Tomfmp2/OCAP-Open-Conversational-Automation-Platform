@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Workflow;
 using OCAP.Workflow.Abstractions;
@@ -12,6 +14,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.WorkflowManage)]
 public class WorkflowsController : ControllerBase
 {
     private readonly IWorkflowEngine _workflowEngine;

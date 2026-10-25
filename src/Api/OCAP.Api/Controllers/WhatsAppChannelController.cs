@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Responses;
 using OCAP.Channels.WhatsApp.Evolution;
@@ -21,6 +23,7 @@ public class CreateWhatsAppConnectionRequest
 
 [ApiController]
 [Route("api/channels/whatsapp")]
+[Authorize(Policy = OcapPermissions.ChannelManage)]
 public class WhatsAppChannelController : ControllerBase
 {
     private readonly IWhatsAppRuntimeManager _whatsAppRuntime;

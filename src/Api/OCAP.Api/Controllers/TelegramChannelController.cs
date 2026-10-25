@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -26,6 +27,7 @@ public class CreateTelegramBotRequest
 
 [ApiController]
 [Route("api/channels/telegram")]
+[Authorize(Policy = OcapPermissions.ChannelManage)]
 public class TelegramChannelController : ControllerBase
 {
     private readonly ITelegramBotRuntimeManager _telegramRuntime;

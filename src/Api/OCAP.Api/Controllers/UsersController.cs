@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -22,6 +23,7 @@ public class UsersController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(OCAP.Api.Models.Common.PagedResult<UserDetailDto>), StatusCodes.Status200OK)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> GetUsers(
         [FromQuery] OCAP.Api.Models.Common.PagedQuery query,
         CancellationToken cancellationToken)
@@ -53,6 +55,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(UserDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> GetUserById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var user = await _userService.GetUserByIdAsync(_tenantContext.TenantId, id, cancellationToken);
@@ -64,6 +67,7 @@ public class UsersController : ControllerBase
     [HttpPost("invite")]
     [ProducesResponseType(typeof(UserDetailDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> InviteUser([FromBody] InviteUserRequestDto request, CancellationToken cancellationToken)
     {
         try
@@ -80,6 +84,7 @@ public class UsersController : ControllerBase
     [HttpPost("reset-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequestDto request, CancellationToken cancellationToken)
     {
         var success = await _userService.ResetPasswordAsync(_tenantContext.TenantId, request, cancellationToken);
@@ -105,6 +110,7 @@ public class UsersController : ControllerBase
     [HttpPost("{id:guid}/lock")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> LockUser([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var success = await _userService.LockUserAsync(_tenantContext.TenantId, id, null, cancellationToken);
@@ -116,6 +122,7 @@ public class UsersController : ControllerBase
     [HttpPost("{id:guid}/unlock")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> UnlockUser([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var success = await _userService.UnlockUserAsync(_tenantContext.TenantId, id, cancellationToken);
@@ -127,6 +134,7 @@ public class UsersController : ControllerBase
     [HttpPost("{id:guid}/activate")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> ActivateUser([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var success = await _userService.ActivateUserAsync(_tenantContext.TenantId, id, cancellationToken);
@@ -138,6 +146,7 @@ public class UsersController : ControllerBase
     [HttpPost("{id:guid}/deactivate")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> DeactivateUser([FromRoute] Guid id, CancellationToken cancellationToken)
     {
         var success = await _userService.DeactivateUserAsync(_tenantContext.TenantId, id, cancellationToken);

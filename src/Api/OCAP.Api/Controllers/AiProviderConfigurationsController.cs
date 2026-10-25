@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Security.Abstractions;
@@ -6,6 +8,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.SettingsManage)]
 public class AiProviderConfigurationsController : ControllerBase
 {
     private readonly IAiProviderConfigurationService _configurationService;

@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Knowledge.Application.Services;
@@ -8,6 +10,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.KnowledgeManage)]
 public class KnowledgeController : ControllerBase
 {
     private readonly KnowledgeService _knowledgeService;

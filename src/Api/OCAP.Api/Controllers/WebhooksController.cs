@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
 
@@ -6,6 +8,7 @@ namespace OCAP.Api.Controllers;
 /// <summary>Administración de suscripciones e historial de entregas de Webhooks (CAP-12).</summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.SettingsManage)]
 public class WebhooksController : ControllerBase
 {
     private readonly IWebhookService _webhookService;

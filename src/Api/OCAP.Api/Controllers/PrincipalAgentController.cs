@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Agents.Abstractions.Models;
@@ -19,6 +20,7 @@ public class PrincipalAgentMessageRequest
 [ApiController]
 [Authorize]
 [Route("api/agents/principal")]
+[Authorize(Policy = OcapPermissions.AiExecute)]
 public class PrincipalAgentController : ControllerBase
 {
     private readonly IEnterpriseAssistantAgent _assistantAgent;

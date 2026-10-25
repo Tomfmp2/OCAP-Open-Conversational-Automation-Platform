@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Api.Queries;
@@ -8,6 +10,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 // Controlador de API que expone el estado general, métricas y diagnóstico para el Enterprise Dashboard (CAP-12).
+[Authorize(Policy = OcapPermissions.DashboardRead)]
 public class DashboardController : ControllerBase
 {
     private readonly DashboardQueries _queries;
