@@ -111,6 +111,9 @@ services:
       VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
       Security__Vault__MasterKey: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      # En Docker la base es siempre el Postgres del stack, aunque el .env (o ASPNETCORE_ENVIRONMENT=Development)
+      # pida memoria: con UseInMemory los datos se perdían en cada reinicio. La memoria es solo para ocap-dev.sh.
+      UseInMemory: "false"
       Knowledge__UseInMemory: "false"
       Knowledge__VectorStore: "PgVector"
       EventBus__Provider: ${EVENTBUS_PROVIDER:-RabbitMQ}
