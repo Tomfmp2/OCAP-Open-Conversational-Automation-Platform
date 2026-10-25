@@ -52,7 +52,9 @@ public class AuthController : ControllerBase
             });
         }
 
-        return Ok(new LoginResponseDto(result.AccessToken, result.RefreshToken, result.UserId, result.TenantId, result.Email, result.RoleName));
+        return Ok(new LoginResponseDto(
+            result.AccessToken, result.RefreshToken, result.UserId, result.TenantId, result.Email, result.RoleName,
+            result.MfaRequired, result.MfaToken));
     }
 
     /// <summary>Rota refresh token y emite nuevo access token.</summary>

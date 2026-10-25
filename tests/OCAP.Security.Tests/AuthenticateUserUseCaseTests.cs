@@ -32,7 +32,7 @@ public class AuthenticateUserUseCaseTests
 
         var jwtService = new JwtTokenService("SUPER_SECRET_KEY_FOR_SECURITY_TESTS_2026_OCAP_JWT");
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);
-        var useCase = new AuthenticateUserUseCase(hasher, jwtService, auditService, query.Object, refresh.Object);
+        var useCase = new AuthenticateUserUseCase(hasher, jwtService, auditService, query.Object, refresh.Object, new Mock<IMfaService>().Object);
 
         var result = await useCase.ExecuteAsync("admin@ocap.io", "Pass123!", "192.168.1.100");
 
@@ -53,7 +53,7 @@ public class AuthenticateUserUseCaseTests
         var refresh = new Mock<IRefreshTokenService>();
         var jwtService = new JwtTokenService("SUPER_SECRET_KEY_FOR_SECURITY_TESTS_2026_OCAP_JWT");
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);
-        var useCase = new AuthenticateUserUseCase(hasher, jwtService, auditService, query.Object, refresh.Object);
+        var useCase = new AuthenticateUserUseCase(hasher, jwtService, auditService, query.Object, refresh.Object, new Mock<IMfaService>().Object);
 
         var result = await useCase.ExecuteAsync("nobody@ocap.io", "Pass123!", "127.0.0.1");
         result.Should().BeNull();

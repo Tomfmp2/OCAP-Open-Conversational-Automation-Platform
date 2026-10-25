@@ -9,7 +9,10 @@ public record AuthenticationResult(
     Guid UserId,
     Guid TenantId,
     string Email,
-    string RoleName
+    string RoleName,
+    // Contraseña correcta pero falta el segundo factor: no hay tokens de sesión, solo el desafío.
+    bool MfaRequired = false,
+    string? MfaToken = null
 );
 
 public class AuthenticateUserUseCase
@@ -22,14 +25,17 @@ public class AuthenticateUserUseCase
     private readonly ISecurityAuditService _auditService;
     private readonly IUserAuthenticationQuery _userQuery;
     private readonly IRefreshTokenService _refreshTokenService;
+    private readonly IMfaService _mfaService;
 
     public AuthenticateUserUseCase(
         IPasswordHasher passwordHasher,
         IJwtTokenService jwtTokenService,
         ISecurityAuditService auditService,
         IUserAuthenticationQuery userQuery,
-        IRefreshTokenService refreshTokenService)
+        IRefreshTokenService refreshTokenService,
+        IMfaService mfaService)
     {
+        _mfaService = mfaService ?? throw new ArgumentNullException(nameof(mfaService));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _jwtTokenService = jwtTokenService ?? throw new ArgumentNullException(nameof(jwtTokenService));
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
@@ -70,6 +76,43 @@ public class AuthenticateUserUseCase
 
         if (!isValid) return null;
 
+        if (await _userQuery.IsMfaEnabledAsync(record.User.Id, cancellationToken))
+        {
+            return new AuthenticationResult(
+                string.Empty,
+                string.Empty,
+                record.User.Id,
+                record.Tenant.Id,
+                record.User.Email,
+                record.Role.Name,
+                MfaRequired: true,
+                MfaToken: _jwtTokenService.GenerateMfaChallengeToken(record.User.Id, record.Tenant.Id));
+        }
+
+        return await IssueSessionAsync(record, cancellationToken);
+    }
+
+    /// <summary>
+    /// Segundo paso del login con MFA: el desafío emitido tras la contraseña más un código TOTP o de recuperación.
+    /// Los códigos incorrectos cuentan para el bloqueo de la cuenta.
+    /// </summary>
+    public async Task<AuthenticationResult?> CompleteMfaAsync(string mfaToken, string code, string ipAddress, CancellationToken cancellationToken = default)
+    {
+        if (_jwtTokenService.ValidateMfaChallengeToken(mfaToken) is not { } challenge) return null;
+
+        var record = await _userQuery.FindByIdAsync(challenge.UserId, cancellationToken);
+        if (record is null || record.Tenant.Id != challenge.TenantId || record.User.IsLockedOut(DateTime.UtcNow)) return null;
+
+        var verified = await _mfaService.VerifyMfaCodeAsync(record.Tenant.Id, record.User.Id, code, cancellationToken);
+        await _auditService.LogSecurityEventAsync(
+            record.Tenant.Id, record.User.Id, "User.LoginMfa", $"Segundo factor para {record.User.Email}", ipAddress, verified, cancellationToken);
+        await _userQuery.RecordLoginAttemptAsync(record.User.Id, verified, cancellationToken);
+
+        return verified ? await IssueSessionAsync(record, cancellationToken) : null;
+    }
+
+    private async Task<AuthenticationResult> IssueSessionAsync(UserAuthenticationRecord record, CancellationToken cancellationToken)
+    {
         var accessToken = _jwtTokenService.GenerateAccessToken(record.User, record.Tenant, record.Role, record.Role.Permissions);
         var refreshToken = await _refreshTokenService.CreateRefreshTokenAsync(record.User.Id, cancellationToken: cancellationToken);
 

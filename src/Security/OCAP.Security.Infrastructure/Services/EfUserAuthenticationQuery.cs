@@ -22,8 +22,25 @@ public sealed class EfUserAuthenticationQuery : IUserAuthenticationQuery
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email.ToLower() == normalized && u.IsActive, cancellationToken);
 
-        if (user is null) return null;
+        return user is null ? null : await BuildRecordAsync(user, cancellationToken);
+    }
 
+    public async Task<UserAuthenticationRecord?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, cancellationToken);
+
+        return user is null ? null : await BuildRecordAsync(user, cancellationToken);
+    }
+
+    public Task<bool> IsMfaEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        _dbContext.UserMfaSettings
+            .IgnoreQueryFilters()
+            .AnyAsync(m => m.UserId == userId && m.IsEnabled, cancellationToken);
+
+    private async Task<UserAuthenticationRecord?> BuildRecordAsync(OCAP.Security.Domain.Entities.UserIdentity user, CancellationToken cancellationToken)
+    {
         var tenant = await _dbContext.Tenants
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Id == user.TenantId, cancellationToken);

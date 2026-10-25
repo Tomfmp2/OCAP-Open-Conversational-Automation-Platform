@@ -110,4 +110,57 @@ public class JwtTokenService : IJwtTokenService
             return null;
         }
     }
+
+    private const string MfaPurposeClaim = "purpose";
+    private static readonly TimeSpan MfaChallengeLifetime = TimeSpan.FromMinutes(5);
+    private string MfaAudience => $"{_audience}.mfa";
+
+    public string GenerateMfaChallengeToken(Guid userId, Guid tenantId)
+    {
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim("tenant_id", tenantId.ToString()),
+                new Claim(MfaPurposeClaim, "mfa")
+            ]),
+            Expires = DateTime.UtcNow.Add(MfaChallengeLifetime),
+            Issuer = _issuer,
+            Audience = MfaAudience,
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)), SecurityAlgorithms.HmacSha256Signature)
+        };
+        var handler = new JwtSecurityTokenHandler();
+        return handler.WriteToken(handler.CreateToken(descriptor));
+    }
+
+    public (Guid UserId, Guid TenantId)? ValidateMfaChallengeToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        try
+        {
+            var principal = new JwtSecurityTokenHandler().ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)),
+                ValidateIssuer = true,
+                ValidIssuer = _issuer,
+                ValidateAudience = true,
+                ValidAudience = MfaAudience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            }, out _);
+
+            if (principal.FindFirst(MfaPurposeClaim)?.Value != "mfa") return null;
+            return Guid.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)
+                   && Guid.TryParse(principal.FindFirst("tenant_id")?.Value, out var tenantId)
+                ? (userId, tenantId)
+                : null;
+        }
+        catch (Exception ex) when (ex is SecurityTokenException or ArgumentException)
+        {
+            return null;
+        }
+    }
 }

@@ -111,7 +111,8 @@ public class MfaService : IMfaService
     {
         if (string.IsNullOrWhiteSpace(code)) return false;
 
-        var settings = await _dbContext.UserMfaSettings.FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
+        // Se llama durante el login, sin tenant de sesión: el filtro global lo pone la condición explícita por tenant.
+        var settings = await _dbContext.UserMfaSettings.IgnoreQueryFilters().FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
         if (settings != null && settings.IsEnabled)
         {
             var secretKey = await _credentialVault.RetrieveSecretAsync(tenantId, settings.EncryptedTotpSecret, cancellationToken) ?? string.Empty;
@@ -124,6 +125,7 @@ public class MfaService : IMfaService
 
         // Si falla la verificación TOTP, intentar con códigos de recuperación de uso único
         var recoveryCodes = await _dbContext.UserRecoveryCodes
+            .IgnoreQueryFilters()
             .Where(r => r.TenantId == tenantId && r.UserId == userId && !r.IsUsed)
             .ToListAsync(cancellationToken);
 
