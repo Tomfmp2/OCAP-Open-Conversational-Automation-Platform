@@ -87,7 +87,7 @@ export function Topbar({ compact = false }: TopbarProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge tone={healthTone}>API {healthLabel}</Badge>
+          <Badge tone={healthTone} className="hidden sm:inline-flex">API {healthLabel}</Badge>
 
           {isAuthenticated && (
             <>
