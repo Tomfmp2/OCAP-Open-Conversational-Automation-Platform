@@ -110,7 +110,9 @@ services:
       Jwt__SecretKey: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
       VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
       Security__Vault__MasterKey: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      # Variable propia del stack: ASPNETCORE_ENVIRONMENT del .env es la del modo desarrollo (ocap-dev.sh), y en
+      # Docker Development expondría Swagger y los mensajes internos de error y apagaría el límite global.
+      ASPNETCORE_ENVIRONMENT: ${OCAP_API_ENVIRONMENT:-Production}
       # En Docker la base es siempre el Postgres del stack, aunque el .env (o ASPNETCORE_ENVIRONMENT=Development)
       # pida memoria: con UseInMemory los datos se perdían en cada reinicio. La memoria es solo para ocap-dev.sh.
       UseInMemory: "false"
