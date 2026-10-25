@@ -49,8 +49,13 @@ En Linux o macOS (en Windows, dentro de WSL2), una sola línea:
 curl -fsSL https://raw.githubusercontent.com/Tomfmp2/OCAP-Open-Conversational-Automation-Platform/main/install.sh | bash
 ```
 
-Descarga OCAP en `~/ocap` y ejecuta `ocap install`, que **instala lo que falte** (Docker con Compose, git, curl)
-pidiendo confirmación, genera el `.env` con secretos aleatorios, construye las imágenes y deja el comando `ocap`.
+Descarga OCAP en `~/ocap` y ejecuta `ocap install`. Primero pregunta el **idioma** (español o inglés) y después,
+en ese idioma: el nombre de tu organización, tu **cuenta de administrador** (nombre, correo y contraseña), un
+proveedor de IA opcional, si quieres usar el panel desde otros dispositivos de tu red, si abre el navegador y si
+OCAP debe **iniciarse solo al encender el equipo**. Revisa los puertos y elige otros si alguno está ocupado,
+muestra un resumen y, al confirmar, **instala lo que falte** (Docker con Compose, git, curl), genera el `.env` con
+secretos aleatorios, construye las imágenes y deja el comando `ocap`. La contraseña del administrador se borra del
+`.env` en cuanto la cuenta queda creada.
 Docker se instala con el gestor de paquetes del sistema: `pacman` (Arch, CachyOS, Manjaro), `apt` con el
 repositorio oficial de Docker (Ubuntu, Debian, Mint) o `dnf` (Fedora, RHEL); en macOS, Homebrew con Colima. Pide
 tu contraseña una vez y agrega tu usuario al grupo `docker` (que equivale a permisos de administrador).
@@ -69,7 +74,11 @@ ocap                # enciende Docker si está apagado, levanta todo y abre el p
 
 `ocap` levanta PostgreSQL (con PgVector), Redis, RabbitMQ, NATS, la API, el panel y Evolution (WhatsApp), espera
 a que respondan y abre `http://localhost:3000`. Si el código cambió (por ejemplo tras un `git pull`), reconstruye
-solo. La primera vez muestra el **código de configuración** para crear la organización y tu cuenta en `/setup`.
+solo. Si no creaste la cuenta en la instalación, la primera vez muestra el **código de configuración** para
+crearla en `/setup`.
+
+Instalación sin preguntas (servidores, scripts): `OCAP_YES=1 OCAP_LANG=es OCAP_ORG_NAME="Mi empresa"
+OCAP_ADMIN_EMAIL=… OCAP_ADMIN_PASSWORD=… ./ocap install`.
 
 | Comando | Qué hace |
 | --- | --- |
@@ -77,6 +86,8 @@ solo. La primera vez muestra el **código de configuración** para crear la orga
 | `ocap stop` | Lo apaga (los datos se conservan) |
 | `ocap status` | Estado de los servicios |
 | `ocap logs [servicio]` | Logs en vivo, p. ej. `ocap logs ocap-api` |
+| `ocap config` | Cambia idioma, IA, acceso desde la red, puertos e inicio automático |
+| `ocap autostart on\|off` | Inicia (o no) OCAP al encender el equipo |
 | `ocap update` | `git pull` + reconstruir + levantar |
 | `ocap reset` | Borra todos los datos y empieza de cero (pide confirmación) |
 | `ocap uninstall` | Quita el comando (no borra el repo ni los datos) |
