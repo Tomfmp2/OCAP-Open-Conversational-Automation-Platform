@@ -18,5 +18,6 @@ El módulo `OCAP.Security` proporciona la infraestructura completa para la auten
 - La base guarda el **SHA-256** de cada refresh token, no el valor: una copia de la base no abre sesiones.
 - **Rotación con detección de reutilización**: cada canje revoca el token y emite otro de la misma familia. Si
   aparece un token ya rotado (alguien tiene una copia), se revoca toda la familia y esa sesión se cierra en todos
-  los dispositivos. La rotación es un `UPDATE` condicional: dos peticiones con el mismo token no obtienen ambas uno
-  nuevo. Entre pestañas, el panel serializa la renovación con Web Locks.
+  los dispositivos. Revocar el token y emitir su sucesor ocurre en una sola transacción con un `UPDATE`
+  condicional: si dos peticiones presentan el mismo token a la vez, se trata como reutilización. Entre pestañas, el
+  panel serializa la renovación con Web Locks para no provocarlo.

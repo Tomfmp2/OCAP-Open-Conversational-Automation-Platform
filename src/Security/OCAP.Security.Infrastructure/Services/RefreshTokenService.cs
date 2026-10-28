@@ -63,13 +63,24 @@ public class RefreshTokenService : IRefreshTokenService
         if (!existing.IsActive) return null;
 
         var newValue = NewTokenValue();
+        // Revocar el anterior e insertar el sucesor es una sola transacción: nadie ve el token como rotado sin que
+        // su sucesor exista, así revocar la familia siempre alcanza al token nuevo.
+        await using var transaction = _dbContext.Database.IsRelational()
+            ? await _dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         if (!await TryRevokeAsync(existing.Id, RefreshToken.Hash(newValue), cancellationToken))
         {
-            // Otra petición lo rotó en paralelo: esta pierde, sin tumbar la sesión.
+            // Otra petición rotó este mismo token a la vez. El panel serializa las renovaciones entre pestañas, así
+            // que dos usos simultáneos indican una copia: se trata como reutilización.
+            if (transaction is not null) await transaction.RollbackAsync(cancellationToken);
+            await RevokeFamilyAsync(existing.FamilyId, cancellationToken);
+            _logger?.LogWarning("Uso simultáneo del refresh token {TokenId}: se revocó la sesión.", existing.Id);
             return null;
         }
 
         var issued = await IssueAsync(existing.UserId, existing.TenantId, existing.FamilyId, newExpiry, cancellationToken, newValue);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         _logger?.LogInformation("Refresh Token {OldId} rotado para el usuario {UserId}.", existing.Id, existing.UserId);
         return issued;
     }
