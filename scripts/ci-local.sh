@@ -63,6 +63,10 @@ step "Backend: pruebas"
 dotnet test OCAP.slnx -c Release --no-build --verbosity quiet
 ok
 
+step "Backend: pruebas de la API sobre PostgreSQL (rol limitado + RLS)"
+OCAP_TEST_DATABASE=postgres dotnet test tests/OCAP.Api.Tests -c Release --no-build --verbosity quiet
+ok
+
 # --- Frontend (job "Frontend Lint Typecheck Build") -----------------------------------------------
 pushd frontend >/dev/null
 step "Frontend: dependencias"

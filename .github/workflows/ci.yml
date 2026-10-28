@@ -36,6 +36,16 @@ jobs:
           --results-directory ./test-results
           --logger "trx;LogFileName=backend.trx"
 
+      - name: API tests on PostgreSQL (limited role + RLS)
+        # La misma suite de la API contra PostgreSQL real (Testcontainers): ejercita RLS, el rol sin privilegios y
+        # las restricciones que la base en memoria de EF no aplica.
+        env:
+          OCAP_TEST_DATABASE: postgres
+        run: >
+          dotnet test tests/OCAP.Api.Tests -c Release --no-build --verbosity normal
+          --results-directory ./test-results
+          --logger "trx;LogFileName=api-postgres.trx"
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
