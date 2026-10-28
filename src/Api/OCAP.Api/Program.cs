@@ -154,9 +154,11 @@ app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthCh
 await app.RunAsync();
 
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
     Log.Fatal(ex, "OCAP API Server terminated unexpectedly");
+    // Código distinto de 0: Docker reinicia la API y no da por buena una migración fallida (ocap-migrate).
+    Environment.ExitCode = 1;
 }
 finally
 {
