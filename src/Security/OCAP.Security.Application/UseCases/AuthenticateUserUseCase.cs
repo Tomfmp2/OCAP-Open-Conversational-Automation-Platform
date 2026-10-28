@@ -5,7 +5,7 @@ namespace OCAP.Security.Application.UseCases;
 
 public record AuthenticationResult(
     string AccessToken,
-    string RefreshToken,
+    IssuedRefreshToken? RefreshToken,
     Guid UserId,
     Guid TenantId,
     string Email,
@@ -86,7 +86,7 @@ public class AuthenticateUserUseCase
         {
             return new AuthenticationResult(
                 string.Empty,
-                string.Empty,
+                null,
                 record.User.Id,
                 record.Tenant.Id,
                 record.User.Email,
@@ -124,7 +124,7 @@ public class AuthenticateUserUseCase
 
         return new AuthenticationResult(
             accessToken,
-            refreshToken.Token,
+            refreshToken,
             record.User.Id,
             record.Tenant.Id,
             record.User.Email,

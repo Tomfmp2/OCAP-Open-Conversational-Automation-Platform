@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,8 +53,9 @@ public class AuthController : ControllerBase
             });
         }
 
+        if (result.RefreshToken is not null) RefreshTokenCookie.Append(Response, result.RefreshToken);
         return Ok(new LoginResponseDto(
-            result.AccessToken, result.RefreshToken, result.UserId, result.TenantId, result.Email, result.RoleName,
+            result.AccessToken, result.UserId, result.TenantId, result.Email, result.RoleName,
             result.MfaRequired, result.MfaToken));
     }
 
@@ -95,15 +97,19 @@ public class AuthController : ControllerBase
     public IActionResult PasswordOptions([FromServices] OCAP.Api.Team.TeamService team) =>
         Ok(new { emailConfigured = team.EmailConfigured, minLength = OCAP.Api.Security.PasswordRules.MinLength });
 
-    /// <summary>Rota refresh token y emite nuevo access token.</summary>
+    /// <summary>Rota el refresh token de la cookie y emite un access token nuevo.</summary>
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<LoginResponseDto>> Refresh([FromBody] RefreshTokenRequestDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult<LoginResponseDto>> Refresh(CancellationToken cancellationToken)
     {
-        var newRefreshToken = await _refreshTokenService.ValidateAndRotateRefreshTokenAsync(request.RefreshToken, null, cancellationToken);
+        var current = RefreshTokenCookie.Read(Request);
+        var newRefreshToken = current is null
+            ? null
+            : await _refreshTokenService.ValidateAndRotateRefreshTokenAsync(current, null, cancellationToken);
         if (newRefreshToken == null)
         {
+            RefreshTokenCookie.Delete(Response);
             return Unauthorized(new ProblemDetails
             {
                 Status = StatusCodes.Status401Unauthorized,
@@ -119,7 +125,8 @@ public class AuthController : ControllerBase
         // Una cuenta bloqueada no renueva la sesión aunque tenga un refresh token vigente.
         if (user is null || user.IsLockedOut(DateTime.UtcNow))
         {
-            await _refreshTokenService.RevokeRefreshTokenAsync(newRefreshToken.Token, cancellationToken: cancellationToken);
+            await _refreshTokenService.RevokeRefreshTokenAsync(newRefreshToken.Token, cancellationToken);
+            RefreshTokenCookie.Delete(Response);
             return Unauthorized(new ProblemDetails
             {
                 Status = StatusCodes.Status401Unauthorized,
@@ -171,18 +178,20 @@ public class AuthController : ControllerBase
         }
 
         var newAccessToken = _jwtTokenService.GenerateAccessToken(user, tenant, role, role.Permissions);
-        return Ok(new LoginResponseDto(newAccessToken, newRefreshToken.Token, user.Id, tenant.Id, user.Email, role.Name));
+        RefreshTokenCookie.Append(Response, newRefreshToken);
+        return Ok(new LoginResponseDto(newAccessToken, user.Id, tenant.Id, user.Email, role.Name));
     }
 
-    /// <summary>Revoca el refresh token de la sesión actual.</summary>
+    /// <summary>Revoca el refresh token de la sesión actual y borra la cookie.</summary>
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto? request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(request?.RefreshToken))
+        if (RefreshTokenCookie.Read(Request) is { } current)
         {
-            await _refreshTokenService.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken: cancellationToken);
+            await _refreshTokenService.RevokeRefreshTokenAsync(current, cancellationToken);
         }
+        RefreshTokenCookie.Delete(Response);
 
         return Ok(new { message = "Sesión cerrada correctamente." });
     }

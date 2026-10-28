@@ -75,13 +75,6 @@ public class JwtTokenService : IJwtTokenService
         return tokenHandler.WriteToken(token);
     }
 
-    public RefreshToken GenerateRefreshToken(Guid userId)
-    {
-        var randomBytes = RandomNumberGenerator.GetBytes(64);
-        var tokenString = Convert.ToBase64String(randomBytes);
-        return new RefreshToken(Guid.NewGuid(), userId, tokenString, DateTime.UtcNow.AddDays(7));
-    }
-
     public ClaimsPrincipal? ValidateToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token)) return null;

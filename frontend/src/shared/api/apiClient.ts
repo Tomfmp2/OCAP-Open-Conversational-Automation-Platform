@@ -1,12 +1,6 @@
 import { ApiError, type ApiRequestOptions } from "./types";
 import { redirectToLogin } from "./sessionRedirect";
-import {
-  clearAuthSession,
-  getAccessToken,
-  getRefreshToken,
-  getTenantId,
-  updateAccessToken,
-} from "./tokenStorage";
+import { clearAuthSession, getAccessToken, getTenantId, updateAccessToken } from "./tokenStorage";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
@@ -117,6 +111,8 @@ class ApiClient {
           method,
           headers: this.buildHeaders(customHeaders, body, skipAuth),
           signal: controller.signal,
+          // La cookie HttpOnly del refresh token (ruta /api/auth) solo viaja si el navegador envía credenciales.
+          credentials: "include",
         };
 
         if (body !== undefined) {
@@ -237,33 +233,44 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
-export async function defaultRefreshHandler(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+export interface RefreshedSession {
+  accessToken: string;
+  userId: string;
+  tenantId: string;
+  email: string;
+  roleName: string;
+}
 
-  try {
-    const response = await fetch(buildUrl("/api/auth/refresh"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Correlation-Id": generateId(),
-        "X-Request-Id": generateId(),
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+/**
+ * Canjea la cookie del refresh token por un access token nuevo. Cada canje rota la cookie y la API cierra la sesión
+ * si ve uno ya usado, así que entre pestañas se hace de a uno (Web Locks); en paralelo, la segunda pestaña enviaría
+ * la cookie anterior.
+ */
+export async function refreshSession(): Promise<RefreshedSession | null> {
+  const run = async (): Promise<RefreshedSession | null> => {
+    try {
+      const response = await fetch(buildUrl("/api/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Correlation-Id": generateId(), "X-Request-Id": generateId() },
+      });
+      if (!response.ok) return null;
+      const data = (await response.json()) as RefreshedSession;
+      updateAccessToken(data.accessToken);
+      return data;
+    } catch {
+      return null;
+    }
+  };
 
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as {
-      accessToken: string;
-      refreshToken?: string;
-    };
-
-    updateAccessToken(data.accessToken);
-    return data.accessToken;
-  } catch {
-    return null;
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("ocap-session-refresh", run);
   }
+  return run();
+}
+
+export async function defaultRefreshHandler(): Promise<string | null> {
+  return (await refreshSession())?.accessToken ?? null;
 }
 
 apiClient.setRefreshHandler(defaultRefreshHandler);

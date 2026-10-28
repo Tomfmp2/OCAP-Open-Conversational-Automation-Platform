@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.RateLimiting;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -116,6 +117,7 @@ public sealed class SetupController : ControllerBase
                 detail: "Inicia sesión manualmente con el correo y la contraseña que configuraste.");
         }
 
-        return Ok(new LoginResponseDto(session.AccessToken, session.RefreshToken, session.UserId, session.TenantId, session.Email, session.RoleName));
+        RefreshTokenCookie.Append(Response, session.RefreshToken!);
+        return Ok(new LoginResponseDto(session.AccessToken, session.UserId, session.TenantId, session.Email, session.RoleName));
     }
 }

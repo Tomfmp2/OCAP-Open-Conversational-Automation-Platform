@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using OCAP.Api.Models.Security;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
@@ -104,7 +105,8 @@ public class MfaController : ControllerBase
             });
         }
 
-        return Ok(new LoginResponseDto(result.AccessToken, result.RefreshToken, result.UserId, result.TenantId, result.Email, result.RoleName));
+        RefreshTokenCookie.Append(Response, result.RefreshToken!);
+        return Ok(new LoginResponseDto(result.AccessToken, result.UserId, result.TenantId, result.Email, result.RoleName));
     }
 
     [HttpPost("recovery-codes/regenerate")]

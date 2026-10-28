@@ -28,7 +28,7 @@ public class AuthenticateUserUseCaseTests
 
         var refresh = new Mock<IRefreshTokenService>();
         refresh.Setup(r => r.CreateRefreshTokenAsync(userId, It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new RefreshToken(Guid.NewGuid(), userId, "refresh-token", DateTime.UtcNow.AddDays(7)));
+            .ReturnsAsync(new IssuedRefreshToken("refresh-token", userId, DateTime.UtcNow.AddDays(7)));
 
         var jwtService = new JwtTokenService("SUPER_SECRET_KEY_FOR_SECURITY_TESTS_2026_OCAP_JWT");
         var auditService = new SecurityAuditService(NullLogger<SecurityAuditService>.Instance);
@@ -38,7 +38,7 @@ public class AuthenticateUserUseCaseTests
 
         result.Should().NotBeNull();
         result!.AccessToken.Should().NotBeNullOrEmpty();
-        result.RefreshToken.Should().Be("refresh-token");
+        result.RefreshToken!.Token.Should().Be("refresh-token");
         result.Email.Should().Be("admin@ocap.io");
         result.RoleName.Should().Be("Admin");
     }

@@ -57,7 +57,7 @@ lo ve quien tiene acceso al servidor (logs de la API), el mismo patrón que usan
 | Método | Ruta | Respuesta |
 | --- | --- | --- |
 | `GET` | `/api/setup/status` | `{ "required": true \| false }` |
-| `POST` | `/api/setup` | `{ setupCode, organizationName, adminName, adminEmail, adminPassword }` → sesión (`accessToken`, `refreshToken`, …) |
+| `POST` | `/api/setup` | `{ setupCode, organizationName, adminName, adminEmail, adminPassword }` → sesión (`accessToken`, …; el refresh token va en la cookie HttpOnly `ocap_refresh`) |
 
 Errores: `400` (validación por campo), `403` (código inválido), `409` (ya configurado).
 La contraseña debe tener al menos 12 caracteres con letras y números.

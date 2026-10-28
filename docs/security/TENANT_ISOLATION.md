@@ -19,7 +19,7 @@ OCAP aplica **aislamiento lógico por `TenantId`** en EF Core:
 
 ## IgnoreQueryFilters justificado
 
-- **Refresh tokens**: lookup por token opaco (`RefreshTokenService`) — el secreto es el aislante.
+- **Refresh tokens**: lookup por el SHA-256 del token opaco (`RefreshTokenService`) — el secreto es el aislante.
 - **Auth refresh**: carga de `UserIdentity` / `UserRole` / `Role` tras validar el refresh token.
 
 Cualquier otro `IgnoreQueryFilters` debe documentarse en el mismo sitio de uso.

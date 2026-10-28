@@ -24,42 +24,70 @@ public class IdentityFoundationTests
     [Fact]
     public async Task RefreshTokenService_CreatesRotatesAndRevokesTokens()
     {
-        // Arrange
         using var db = CreateDbContext();
         var service = new RefreshTokenService(db);
+        var (tenantId, userId) = await SeedUserAsync(db);
+
+        var token1 = await service.CreateRefreshTokenAsync(userId, TimeSpan.FromMinutes(30));
+        token1.UserId.Should().Be(userId);
+
+        var token2 = await service.ValidateAndRotateRefreshTokenAsync(token1.Token);
+        token2.Should().NotBeNull();
+        token2!.UserId.Should().Be(userId);
+        token2.Token.Should().NotBe(token1.Token);
+
+        var stored = await db.RefreshTokens.AsNoTracking().ToListAsync();
+        stored.Should().HaveCount(2).And.OnlyContain(t => t.TenantId == tenantId);
+        // La base solo tiene hashes: ninguno de los valores entregados aparece tal cual.
+        stored.Should().NotContain(t => t.TokenHash == token1.Token || t.TokenHash == token2.Token);
+        var old = stored.Single(t => t.TokenHash == RefreshToken.Hash(token1.Token));
+        old.IsRevoked.Should().BeTrue();
+        old.ReplacedByTokenHash.Should().Be(RefreshToken.Hash(token2.Token));
+        stored.Select(t => t.FamilyId).Distinct().Should().ContainSingle();
+
+        (await service.RevokeUserRefreshTokensAsync(userId)).Should().Be(1);
+        (await service.ValidateAndRotateRefreshTokenAsync(token2.Token)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RefreshTokenService_ReusingARotatedToken_RevokesTheWholeSession()
+    {
+        using var db = CreateDbContext();
+        var service = new RefreshTokenService(db);
+        var (_, userId) = await SeedUserAsync(db);
+
+        var stolen = await service.CreateRefreshTokenAsync(userId);
+        var legitimate = await service.ValidateAndRotateRefreshTokenAsync(stolen.Token);
+
+        // Quien copió el token original lo presenta después de la rotación: no obtiene sesión y la del usuario se cierra.
+        (await service.ValidateAndRotateRefreshTokenAsync(stolen.Token)).Should().BeNull();
+        (await service.ValidateAndRotateRefreshTokenAsync(legitimate!.Token)).Should().BeNull();
+        (await db.RefreshTokens.AsNoTracking().AnyAsync(t => !t.IsRevoked)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshTokenService_OtherSessionsOfTheUser_SurviveAReuse()
+    {
+        using var db = CreateDbContext();
+        var service = new RefreshTokenService(db);
+        var (_, userId) = await SeedUserAsync(db);
+
+        var laptop = await service.CreateRefreshTokenAsync(userId);
+        var phone = await service.CreateRefreshTokenAsync(userId);
+        await service.ValidateAndRotateRefreshTokenAsync(laptop.Token);
+        await service.ValidateAndRotateRefreshTokenAsync(laptop.Token);
+
+        (await service.ValidateAndRotateRefreshTokenAsync(phone.Token)).Should().NotBeNull();
+    }
+
+    private static async Task<(Guid TenantId, Guid UserId)> SeedUserAsync(OCAPDbContext db)
+    {
         var tenantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         db.Tenants.Add(new Tenant(tenantId, "Test", "test"));
         db.UserIdentities.Add(new UserIdentity(userId, tenantId, "rt@test.com", "hash", "salt", "RT User"));
         await db.SaveChangesAsync();
-
-        // Act - Create
-        var token1 = await service.CreateRefreshTokenAsync(userId, TimeSpan.FromMinutes(30));
-
-        // Assert
-        token1.Should().NotBeNull();
-        token1.UserId.Should().Be(userId);
-        token1.TenantId.Should().Be(tenantId);
-        token1.IsActive.Should().BeTrue();
-
-        // Act - Rotate
-        var token2 = await service.ValidateAndRotateRefreshTokenAsync(token1.Token);
-
-        // Assert
-        token2.Should().NotBeNull();
-        token2!.UserId.Should().Be(userId);
-        token2.Token.Should().NotBe(token1.Token);
-
-        var oldTokenInDb = await db.RefreshTokens.FirstAsync(t => t.Id == token1.Id);
-        oldTokenInDb.IsRevoked.Should().BeTrue();
-        oldTokenInDb.ReplacedByToken.Should().Be(token2.Token);
-
-        // Act - Revoke User All
-        var revokedCount = await service.RevokeUserRefreshTokensAsync(userId);
-        revokedCount.Should().Be(1);
-
-        var token2InDb = await db.RefreshTokens.FirstAsync(t => t.Id == token2.Id);
-        token2InDb.IsRevoked.Should().BeTrue();
+        return (tenantId, userId);
     }
 
     [Fact]

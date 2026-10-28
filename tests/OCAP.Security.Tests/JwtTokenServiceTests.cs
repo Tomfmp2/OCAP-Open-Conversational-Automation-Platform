@@ -27,20 +27,4 @@ public class JwtTokenServiceTests
         principal!.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value.Should().Be("user@test.io");
         principal.FindFirst("tenant_slug")?.Value.Should().Be("test-tenant");
     }
-
-    [Fact]
-    public void GenerateRefreshToken_ReturnsActiveRefreshToken()
-    {
-        // Arrange
-        var userId = Guid.NewGuid();
-
-        // Act
-        var refreshToken = _service.GenerateRefreshToken(userId);
-
-        // Assert
-        refreshToken.Should().NotBeNull();
-        refreshToken.Token.Should().NotBeNullOrEmpty();
-        refreshToken.IsActive.Should().BeTrue();
-        refreshToken.UserId.Should().Be(userId);
-    }
 }

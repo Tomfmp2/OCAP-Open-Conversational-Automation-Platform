@@ -8,7 +8,6 @@ export interface LoginRequest {
 
 export interface LoginResponse {
  accessToken: string;
- refreshToken: string;
  userId: string;
  tenantId: string;
  email: string;
@@ -51,18 +50,9 @@ export const authApi = {
  );
  },
 
- refresh(refreshToken: string): Promise<LoginResponse> {
- return apiClient.post<LoginResponse>(
- "/api/auth/refresh",
- { refreshToken },
- { skipAuth: true }
- );
- },
-
- logout(refreshToken?: string | null): Promise<{ message: string }> {
- return apiClient.post<{ message: string }>("/api/auth/logout", {
- refreshToken: refreshToken || undefined,
- });
+ /** La API revoca el refresh token de la cookie HttpOnly y la borra. */
+ logout(): Promise<{ message: string }> {
+ return apiClient.post<{ message: string }>("/api/auth/logout", undefined, { skipAuth: true, skipRetry: true });
  },
 
  getProfile(): Promise<ProfileResponse> {

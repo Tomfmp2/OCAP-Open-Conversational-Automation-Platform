@@ -14,7 +14,6 @@ interface TenantState {
   tenants: Tenant[];
   sidebarCollapsed: boolean;
   isLoadingTenants: boolean;
-  setActiveTenant: (tenant: Tenant) => void;
   toggleSidebar: () => void;
   syncFromAuth: (tenantId: string, fallbackName?: string) => void;
   fetchTenants: () => Promise<void>;
@@ -25,13 +24,6 @@ export const useTenantStore = create<TenantState>((set, get) => ({
   tenants: [],
   sidebarCollapsed: false,
   isLoadingTenants: false,
-
-  setActiveTenant: (tenant) => {
-    set({ activeTenant: tenant });
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ocap.tenantId", tenant.id);
-    }
-  },
 
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 

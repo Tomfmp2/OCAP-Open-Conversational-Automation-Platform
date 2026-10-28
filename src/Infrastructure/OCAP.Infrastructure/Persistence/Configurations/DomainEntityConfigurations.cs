@@ -202,11 +202,13 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
     {
         builder.ToTable("RefreshTokens");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.Token).IsRequired().HasMaxLength(512);
-        builder.Property(x => x.ReplacedByToken).HasMaxLength(512);
+        builder.Property(x => x.TokenHash).IsRequired().HasMaxLength(64);
+        builder.Property(x => x.ReplacedByTokenHash).HasMaxLength(64);
         builder.Ignore(x => x.IsExpired);
         builder.Ignore(x => x.IsActive);
-        builder.HasIndex(x => x.Token).IsUnique();
+        builder.Ignore(x => x.WasRotated);
+        builder.HasIndex(x => x.TokenHash).IsUnique();
+        builder.HasIndex(x => x.FamilyId);
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.TenantId);
         builder.HasIndex(x => new { x.TenantId, x.UserId });

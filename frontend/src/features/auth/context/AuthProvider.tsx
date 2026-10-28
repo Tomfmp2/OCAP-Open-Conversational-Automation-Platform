@@ -7,20 +7,14 @@ import {
  type LoginRequest,
  type LoginResponse,
 } from "@/features/auth/api/authApi";
-import {
- clearAuthSession,
- getAccessToken,
- getRefreshToken,
- getStoredUser,
- setAuthSession,
- updateAccessToken,
-} from "@/shared/api/tokenStorage";
+import { clearAuthSession, setAuthSession } from "@/shared/api/tokenStorage";
 import type { StoredUser } from "@/shared/api/types";
-import { apiClient, defaultRefreshHandler } from "@/shared/api/apiClient";
+import { apiClient, refreshSession } from "@/shared/api/apiClient";
 import { useTenantStore } from "@/shared/stores/useTenantStore";
 import { redirectToLogin } from "@/shared/api/sessionRedirect";
 import { permissionsFromToken } from "@/shared/api/jwt";
 
+// El access token dura 15 minutos: se renueva un poco antes con la cookie del refresh token.
 const REFRESH_INTERVAL_MS = 14 * 60 * 1000;
 // Permiso de plataforma que cumple todos los demás (igual que en la API).
 const FULL_ACCESS = "Admin.Full";
@@ -46,93 +40,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  const [isLoading, setIsLoading] = React.useState(true);
  const syncTenantFromAuth = useTenantStore((s) => s.syncFromAuth);
 
+ const adoptSession = React.useCallback(
+ async (result: LoginResponse) => {
+ // El perfil necesita el access token: primero una sesión provisional, luego la completa.
+ setAuthSession(result.accessToken, mapLoginToStoredUser(result));
+ const permissions = permissionsFromToken(result.accessToken);
+ const profile = await authApi.getProfile().catch(() => undefined);
+ const sessionUser = mapLoginToStoredUser(result, profile, permissions);
 
- const bootstrapSession = React.useCallback(async () => {
- const token = getAccessToken();
- const storedUser = getStoredUser();
-
- if (!token || !storedUser) {
- setUser(null);
- setIsLoading(false);
- return;
- }
-
- try {
- const profile = await authApi.getProfile();
- // Los permisos salen del JWT vigente: /api/roles solo lo puede leer quien administra la seguridad.
- const permissions = permissionsFromToken(token);
-
- const hydrated = mapLoginToStoredUser(
- {
- accessToken: token,
- refreshToken: "",
- userId: profile.id,
- tenantId: profile.tenantId,
- email: profile.email,
- roleName: storedUser.roleName,
+ setAuthSession(result.accessToken, sessionUser);
+ setUser(sessionUser);
+ syncTenantFromAuth(result.tenantId, profile?.fullName || result.email);
  },
- profile,
- permissions
+ [syncTenantFromAuth]
  );
-
- setUser(hydrated);
- syncTenantFromAuth(hydrated.tenantId, hydrated.fullName);
- } catch {
- clearAuthSession();
- setUser(null);
- } finally {
- setIsLoading(false);
- }
- }, [syncTenantFromAuth]);
 
  React.useEffect(() => {
- apiClient.setRefreshHandler(async () => {
- const stored = getStoredUser();
- const refreshToken = localStorage.getItem("ocap.refreshToken");
- if (!refreshToken) return null;
-
- try {
- const result = await authApi.refresh(refreshToken);
- updateAccessToken(result.accessToken);
- if (stored) {
- setAuthSession(
- {
- accessToken: result.accessToken,
- refreshToken: result.refreshToken,
- tenantId: result.tenantId,
- },
- {
- ...stored,
- tenantId: result.tenantId,
- roleName: result.roleName,
- permissions: permissionsFromToken(result.accessToken),
- }
- );
- }
- return result.accessToken;
- } catch {
- return null;
- }
- });
+ // Tras un 401 la API pide un access token nuevo; si la cookie ya no sirve, la sesión terminó.
+ apiClient.setRefreshHandler(async () => (await refreshSession())?.accessToken ?? null);
 
  let cancelled = false;
- // Bootstrap de sesión al montar: patrón estándar de hidratación auth
- // eslint-disable-next-line react-hooks/set-state-in-effect -- setState ocurre en callbacks async tras fetch
- void bootstrapSession().then(() => {
- if (cancelled) return;
- });
+ // Al cargar la página no hay nada en memoria: la cookie HttpOnly, si existe, recupera la sesión.
+ void (async () => {
+ const session = await refreshSession();
+ try {
+ if (session && !cancelled) await adoptSession(session);
+ } catch {
+ clearAuthSession();
+ } finally {
+ if (!cancelled) setIsLoading(false);
+ }
+ })();
 
  return () => {
  cancelled = true;
  };
- }, [bootstrapSession]);
+ }, [adoptSession]);
 
  React.useEffect(() => {
  if (!user) return;
 
  const interval = setInterval(async () => {
- const token = await defaultRefreshHandler();
- if (!token) {
+ if (!(await refreshSession())) {
  clearAuthSession();
  setUser(null);
  redirectToLogin();
@@ -141,37 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
  return () => clearInterval(interval);
  }, [user]);
-
- const adoptSession = React.useCallback(
- async (result: LoginResponse) => {
- const provisionalUser = mapLoginToStoredUser(result);
- setAuthSession(
- {
- accessToken: result.accessToken,
- refreshToken: result.refreshToken,
- tenantId: result.tenantId,
- },
- provisionalUser
- );
-
- const permissions = permissionsFromToken(result.accessToken);
- const profile = await authApi.getProfile().catch(() => undefined);
- const storedUser = mapLoginToStoredUser(result, profile, permissions);
-
- setAuthSession(
- {
- accessToken: result.accessToken,
- refreshToken: result.refreshToken,
- tenantId: result.tenantId,
- },
- storedUser
- );
-
- setUser(storedUser);
- syncTenantFromAuth(result.tenantId, profile?.fullName || result.email);
- },
- [syncTenantFromAuth]
- );
 
  const login = React.useCallback(
  async (credentials: LoginRequest) => {
@@ -191,9 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  );
 
  const logout = React.useCallback(async () => {
- const refreshToken = getRefreshToken();
  try {
- await authApi.logout(refreshToken);
+ await authApi.logout();
  } catch {
  // ignore logout errors
  } finally {

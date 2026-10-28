@@ -199,5 +199,5 @@ public class SetupEndpointTests
         SetupRequestValidator.ToSlug(name).Should().Be(expected);
     }
 
-    private sealed record SessionPayload(string AccessToken, string RefreshToken, Guid UserId, Guid TenantId, string Email, string RoleName);
+    private sealed record SessionPayload(string AccessToken, Guid UserId, Guid TenantId, string Email, string RoleName);
 }

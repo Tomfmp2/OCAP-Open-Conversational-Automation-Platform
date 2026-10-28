@@ -14,19 +14,9 @@ describe("authApi", () => {
  vi.mocked(apiClient.post).mockResolvedValue({ message: "ok" });
  });
 
- it("envía el refresh token al cerrar sesión", async () => {
- await authApi.logout("refresh-token-value");
+ it("cierra la sesión sin enviar tokens: la API usa la cookie HttpOnly", async () => {
+ await authApi.logout();
 
- expect(apiClient.post).toHaveBeenCalledWith("/api/auth/logout", {
- refreshToken: "refresh-token-value",
- });
- });
-
- it("no inventa un token cuando no está disponible", async () => {
- await authApi.logout(null);
-
- expect(apiClient.post).toHaveBeenCalledWith("/api/auth/logout", {
- refreshToken: undefined,
- });
+ expect(apiClient.post).toHaveBeenCalledWith("/api/auth/logout", undefined, { skipAuth: true, skipRetry: true });
  });
 });
