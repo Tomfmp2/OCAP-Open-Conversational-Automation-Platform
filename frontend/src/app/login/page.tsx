@@ -129,7 +129,7 @@ export default function LoginPage() {
 
         <Button
           type="submit"
-          size="lg"
+         
           loading={isSubmitting}
           className="mt-2 w-full"
         >

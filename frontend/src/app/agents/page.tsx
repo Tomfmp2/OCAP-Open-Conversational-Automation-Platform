@@ -1,119 +1,85 @@
 "use client";
 
 import React from "react";
-import { Bot, MessageSquareText, Plus, RefreshCw } from "lucide-react";
-import { DEFAULT_AGENT_ID, useAgents, useDeleteAgent, type Agent } from "@/features/agents/api/useAgentsData";
-import { AgentCard } from "@/features/agents/components/AgentCard";
+import { Plus } from "lucide-react";
+import { DEFAULT_AGENT_ID, useAgents, type Agent } from "@/features/agents/api/useAgentsData";
 import { AgentFormModal } from "@/features/agents/components/AgentFormModal";
 import { AgentTestPanel } from "@/features/agents/components/AgentTestPanel";
-import { AgentsSkeleton } from "@/features/agents/components/AgentsSkeleton";
-import { PageHeader } from "@/shared/components/ui/PageHeader";
-import { Button } from "@/shared/components/ui/Button";
-import { EmptyState } from "@/shared/components/ui/EmptyState";
-import { ErrorState } from "@/shared/components/ui/ErrorState";
-import { Surface } from "@/shared/components/ui/Surface";
-
-const DEFAULT_AGENT = { id: DEFAULT_AGENT_ID, name: "Agente de atención (por defecto)" };
+import { Badge, Button, ErrorState, ListSkeleton, Page, PageHeader } from "@/shared/components/ui";
 
 export default function AgentsPage() {
-  const { data: agents, isLoading, isError, error, refetch, isFetching } = useAgents();
-  const remove = useDeleteAgent();
+  const agents = useAgents();
   const [editing, setEditing] = React.useState<Agent | null>(null);
   const [formOpen, setFormOpen] = React.useState(false);
   const [testing, setTesting] = React.useState<{ id: string; name: string } | null>(null);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
-  if (isLoading) return <AgentsSkeleton />;
-  if (isError) {
-    return (
-      <div className="mx-auto max-w-7xl">
-        <ErrorState message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} />
-      </div>
-    );
-  }
-
-  const openCreate = () => {
-    setEditing(null);
+  const openForm = (agent: Agent | null) => {
+    setEditing(agent);
     setFormOpen(true);
   };
 
-  const confirmDelete = async (agent: Agent) => {
-    if (!window.confirm(`¿Eliminar el agente "${agent.name}"? Los canales que lo usen pasarán al agente por defecto.`)) return;
-    setDeleteError(null);
-    try {
-      await remove.mutateAsync(agent.id);
-    } catch (err: unknown) {
-      setDeleteError(err instanceof Error ? err.message : "No se pudo eliminar el agente.");
-    }
-  };
-
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
+    <Page>
       <PageHeader
         title="Agentes"
-        description="Agentes que responden a tus clientes en WhatsApp y Telegram. Asigna uno a cada canal en Canales."
-        icon={<Bot className="h-5 w-5 text-neutral-700" />}
+        description="Cada agente responde con sus propias instrucciones. Asígnalos a un canal en Canales."
         actions={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
-              <RefreshCw className="h-3.5 w-3.5" aria-hidden /> Actualizar
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-3.5 w-3.5" aria-hidden /> Crear agente
-            </Button>
-          </>
+          <Button onClick={() => openForm(null)}>
+            <Plus className="h-4 w-4" aria-hidden /> Crear agente
+          </Button>
         }
       />
 
-      <Surface className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-950">Agente de atención por defecto</h2>
-          <p className="text-xs text-neutral-600">
-            Responde en los canales que no tienen un agente asignado: amable, breve, usa tu base de conocimiento y
-            puede pasar la conversación a tu equipo.
-          </p>
-        </div>
-        <Button variant="secondary" size="sm" onClick={() => setTesting(DEFAULT_AGENT)}>
-          <MessageSquareText className="h-3.5 w-3.5" aria-hidden /> Probar
-        </Button>
-      </Surface>
-
-      {deleteError && (
-        <p role="alert" className="text-xs text-neutral-950">
-          {deleteError}
-        </p>
-      )}
-
-      {!agents || agents.length === 0 ? (
-        <EmptyState
-          title="Todavía no creaste agentes"
-          description="Crea uno con sus instrucciones (por ejemplo, Ventas o Soporte) y asígnalo a un canal."
-          action={
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4" aria-hidden /> Crear agente
-            </Button>
-          }
-        />
+      {agents.isLoading ? (
+        <ListSkeleton label="Cargando agentes" />
+      ) : agents.isError ? (
+        <ErrorState message={agents.error instanceof Error ? agents.error.message : undefined} onRetry={() => void agents.refetch()} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {agents.map((agent) => (
-            <AgentCard
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+          <AgentRow
+            name="Agente de atención"
+            summary="Responde en los canales sin un agente asignado. Usa tu conocimiento y puede pasar la conversación a tu equipo."
+            onTest={() => setTesting({ id: DEFAULT_AGENT_ID, name: "Agente de atención" })}
+          />
+          {agents.data?.map((agent) => (
+            <AgentRow
               key={agent.id}
-              agent={agent}
+              name={agent.name}
+              summary={agent.description || agent.systemPrompt}
+              inactive={agent.status !== "Active"}
               onTest={() => setTesting({ id: agent.id, name: agent.name })}
-              onEdit={() => {
-                setEditing(agent);
-                setFormOpen(true);
-              }}
-              onDelete={() => void confirmDelete(agent)}
-              deleting={remove.isPending && remove.variables === agent.id}
+              onEdit={() => openForm(agent)}
             />
           ))}
-        </div>
+        </ul>
       )}
 
       <AgentFormModal open={formOpen} agent={editing} onClose={() => setFormOpen(false)} />
       <AgentTestPanel agent={testing} onClose={() => setTesting(null)} />
-    </div>
+    </Page>
+  );
+}
+
+function AgentRow({ name, summary, inactive, onTest, onEdit }: { name: string; summary: string; inactive?: boolean; onTest: () => void; onEdit?: () => void }) {
+  return (
+    <li className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 text-sm font-medium text-neutral-950">
+          {name}
+          {inactive && <Badge>Inactivo</Badge>}
+        </p>
+        <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600">{summary}</p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={onTest} aria-label={`Probar ${name}`}>
+          Probar
+        </Button>
+        {onEdit && (
+          <Button variant="secondary" size="sm" onClick={onEdit} aria-label={`Editar ${name}`}>
+            Editar
+          </Button>
+        )}
+      </div>
+    </li>
   );
 }

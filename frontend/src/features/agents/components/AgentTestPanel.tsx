@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { AlertCircle, ArrowUp, Loader2, UserRound } from "lucide-react";
-import { Modal } from "@/shared/components/ui/Modal";
-import { Button } from "@/shared/components/ui/Button";
+import { ArrowUp, Loader2 } from "lucide-react";
+import { Button, FormError, Modal } from "@/shared/components/ui";
 import { testAgent, type AgentTestTurn } from "../api/useAgentsData";
 
 interface AgentTestPanelProps {
@@ -19,8 +18,8 @@ export function AgentTestPanel({ agent, onClose }: AgentTestPanelProps) {
       open={agent !== null}
       onClose={onClose}
       title={agent ? `Probar ${agent.name}` : "Probar agente"}
-      description="Escribe como lo haría un cliente. No se guarda nada ni se ejecutan herramientas."
-      className="max-w-xl"
+      description="Escribe como un cliente. No se guarda la conversación ni se ejecutan acciones."
+      className="sm:max-w-xl"
     >
       {agent && <TestChat key={agent.id} agentId={agent.id} />}
     </Modal>
@@ -60,9 +59,9 @@ function TestChat({ agentId }: { agentId: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="h-72 space-y-2 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-3" aria-live="polite">
+      <div className="h-[min(18rem,45dvh)] space-y-2 overflow-y-auto rounded-lg border border-neutral-200 bg-neutral-50 p-3" aria-live="polite">
         {turns.length === 0 && !pending && (
-          <p className="pt-24 text-center text-xs text-neutral-600">Escribe el primer mensaje del cliente.</p>
+          <p className="flex h-full items-center justify-center text-sm text-neutral-600">Escribe el primer mensaje.</p>
         )}
         {turns.map((turn, index) => (
           <p
@@ -75,23 +74,15 @@ function TestChat({ agentId }: { agentId: string }) {
           </p>
         ))}
         {pending && (
-          <p className="flex items-center gap-2 text-xs text-neutral-600">
-            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> Pensando…
+          <p className="flex items-center gap-2 text-sm text-neutral-600">
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> Escribiendo…
           </p>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {transferred && (
-        <p className="flex items-center gap-2 text-xs text-neutral-700">
-          <UserRound className="h-3.5 w-3.5" aria-hidden /> En un canal real, aquí la conversación pasaría a tu equipo en la bandeja.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="flex items-center gap-2 text-xs text-neutral-950">
-          <AlertCircle className="h-3.5 w-3.5" aria-hidden /> {error}
-        </p>
-      )}
+      {transferred && <p className="text-sm text-warning">Aquí la conversación pasaría a tu equipo, en Conversaciones.</p>}
+      <FormError error={error ? new Error(error) : null} />
 
       <form
         className="flex gap-2"
@@ -109,9 +100,9 @@ function TestChat({ agentId }: { agentId: string }) {
           onChange={(e) => setInput(e.target.value)}
           placeholder="¿A qué hora abren?"
           disabled={pending}
-          className="focus-ring w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm"
+          className="focus-ring h-9 min-w-0 flex-1 rounded-md border border-neutral-300 bg-white px-3 text-sm"
         />
-        <Button type="submit" size="sm" disabled={!input.trim()} loading={pending} aria-label="Enviar">
+        <Button type="submit" disabled={!input.trim()} loading={pending} aria-label="Enviar">
           <ArrowUp className="h-4 w-4" aria-hidden />
         </Button>
       </form>

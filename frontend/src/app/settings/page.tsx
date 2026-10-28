@@ -1,71 +1,52 @@
 "use client";
 
 import React from "react";
-import { Settings, RefreshCw } from "lucide-react";
-import { useSettingsData, SettingsConfig } from "@/features/settings/api/useSettingsData";
-import { SettingsForm } from "@/features/settings/components/SettingsForm";
-import { SettingsSkeleton } from "@/features/settings/components/SettingsSkeleton";
-import { Button, ErrorState, PageHeader } from "@/shared/components/ui";
+import { CheckCircle2 } from "lucide-react";
+import { useOrganization, useRenameOrganization } from "@/features/settings/api/useOrganization";
+import { Button, ErrorState, FormError, Input, Page, PageHeader, Section } from "@/shared/components/ui";
 
-export default function SettingsPage() {
- const {
- data: settings,
- isLoading,
- isError,
- error,
- refetch,
- isFetching,
- updateSettingsMutation,
- } = useSettingsData();
+export default function OrganizationPage() {
+  const organization = useOrganization();
 
- if (isLoading) {
- return <SettingsSkeleton />;
- }
+  return (
+    <Page>
+      <PageHeader title="Organización" />
+      {organization.isError ? (
+        <ErrorState onRetry={() => void organization.refetch()} />
+      ) : organization.data ? (
+        <NameForm key={organization.data.name} current={organization.data.name} />
+      ) : (
+        <div className="h-24 animate-pulse rounded-lg bg-neutral-100 motion-reduce:animate-none" role="status" aria-label="Cargando" />
+      )}
+    </Page>
+  );
+}
 
- if (isError || !settings) {
- return (
- <div className="mx-auto max-w-7xl">
- <ErrorState
- title="No se pudo cargar la configuración"
- message={error instanceof Error ? error.message : undefined}
- onRetry={() => void refetch()}
- />
- </div>
- );
- }
+function NameForm({ current }: { current: string }) {
+  const rename = useRenameOrganization();
+  const [name, setName] = React.useState(current);
+  const unchanged = name.trim() === current;
 
- const handleSave = async (newConfig: SettingsConfig) => {
- await updateSettingsMutation.mutateAsync(newConfig);
- };
-
- return (
- <div className="mx-auto max-w-7xl space-y-6">
- <PageHeader
- title="Ajustes"
- description="Preferencias del tenant, retención y comportamiento operativo."
- icon={<Settings className="h-5 w-5 text-neutral-600" />}
- actions={
- <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
- <RefreshCw className="h-3.5 w-3.5" />
- Actualizar
- </Button>
- }
- />
-
- <SettingsForm
- key={`${settings.tenantName}-${settings.timezone}-${settings.auditLogRetentionDays}`}
- settings={settings}
- onSave={handleSave}
- isSaving={updateSettingsMutation.isPending}
- saveSuccess={updateSettingsMutation.isSuccess}
- saveError={
- updateSettingsMutation.error instanceof Error
- ? updateSettingsMutation.error.message
- : updateSettingsMutation.isError
- ? "No se pudieron guardar los cambios."
- : undefined
- }
- />
- </div>
- );
+  return (
+    <Section title="Nombre" description="Se ve en el panel y en las invitaciones al equipo.">
+      <form
+        className="max-w-sm space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          rename.mutate(name.trim());
+        }}
+      >
+        <Input label="Nombre de la organización" required maxLength={256} value={name} onChange={(e) => setName(e.target.value)} />
+        <FormError error={rename.error} />
+        {rename.isSuccess && unchanged && (
+          <p role="status" className="flex items-center gap-2 text-sm text-success">
+            <CheckCircle2 className="h-4 w-4" aria-hidden /> Nombre guardado.
+          </p>
+        )}
+        <Button type="submit" loading={rename.isPending} disabled={unchanged || !name.trim()}>
+          Guardar nombre
+        </Button>
+      </form>
+    </Section>
+  );
 }

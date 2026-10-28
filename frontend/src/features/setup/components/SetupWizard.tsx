@@ -121,7 +121,7 @@ export function SetupWizard() {
             <li>· Cambia el proveedor o el modelo en <strong>IA y modelos</strong>.</li>
           </ul>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" onClick={() => router.replace("/")}>Ir al asistente</Button>
+            <Button onClick={() => router.replace("/")}>Ir al asistente</Button>
             <Link
               href="/channels"
               className="inline-flex items-center justify-center rounded-md border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-100 focus-ring"

@@ -133,7 +133,7 @@ export function AdminStep({ onCompleted }: AdminStepProps) {
         />
       </div>
 
-      <Button type="submit" size="lg" loading={submitting} className="w-full sm:w-auto">
+      <Button type="submit" loading={submitting} className="w-full sm:w-auto">
         {submitting ? "Creando cuenta…" : "Crear cuenta y continuar"}
       </Button>
     </form>

@@ -3,10 +3,7 @@
 import React from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button, Input } from "@/shared/components/ui";
-import {
-  PROVIDER_MODEL_PRESETS,
-  useIntelligenceData,
-} from "@/features/intelligence/api/useIntelligenceData";
+import { PROVIDER_MODEL_PRESETS, useAiModelActions } from "@/features/intelligence/api/useAiModels";
 
 const PROVIDERS = ["Gemini", "OpenAI", "Claude", "Ollama"] as const;
 type Provider = (typeof PROVIDERS)[number];
@@ -26,10 +23,10 @@ interface AiStepProps {
 
 /**
  * Paso 2 (opcional): conecta un proveedor de IA y lo prueba en el momento. Usa los mismos endpoints que
- * "IA y modelos", así que todo lo que se haga aquí se puede cambiar después desde el panel.
+ * "Modelos de IA", así que todo lo que se haga aquí se puede cambiar después desde el panel.
  */
 export function AiStep({ onNext }: AiStepProps) {
-  const { createProviderMutation, selectProviderMutation, testProviderMutation } = useIntelligenceData();
+  const { create: createProviderMutation, setActive: selectProviderMutation, test: testProviderMutation } = useAiModelActions();
   const [provider, setProvider] = React.useState<Provider>("Gemini");
   const [model, setModel] = React.useState(PROVIDER_MODEL_PRESETS.Gemini[0]);
   const [apiKey, setApiKey] = React.useState("");
@@ -72,7 +69,7 @@ export function AiStep({ onNext }: AiStepProps) {
       const detail = error instanceof Error && error.message ? ` (${error.message})` : "";
       setResult({
         ok: false,
-        message: `No se pudo conectar con ${provider}${detail}. Revisa la clave o el modelo; también puedes configurarlo después en «IA y modelos».`,
+        message: `No se pudo conectar con ${provider}${detail}. Revisa la clave o el modelo; también puedes configurarlo después en «Modelos de IA».`,
       });
     } finally {
       setSaving(false);

@@ -1,100 +1,75 @@
 "use client";
 
 import React from "react";
-import { MessageSquare, Plus, RefreshCw, Radio, CheckCircle2 } from "lucide-react";
-import { useChannelsData, ChannelConnectionDto } from "@/features/channels/api/useChannelsData";
-import { ChannelCard } from "@/features/channels/components/ChannelCard";
+import { Plus } from "lucide-react";
+import { useAgents } from "@/features/agents/api/useAgentsData";
+import { useChannels, type ChannelConnection } from "@/features/channels/api/useChannelsData";
 import { ChannelConnectModal } from "@/features/channels/components/ChannelConnectModal";
-import { ChannelsSkeleton } from "@/features/channels/components/ChannelsSkeleton";
-import { PageHeader } from "@/shared/components/ui/PageHeader";
-import { Button } from "@/shared/components/ui/Button";
-import { MetricCard } from "@/shared/components/ui/MetricCard";
-import { EmptyState } from "@/shared/components/ui/EmptyState";
-import { ErrorState } from "@/shared/components/ui/ErrorState";
+import { ChannelSettings } from "@/features/channels/components/ChannelSettings";
+import { Badge, Button, EmptyState, ErrorState, ListSkeleton, Page, PageHeader } from "@/shared/components/ui";
 
 export default function ChannelsPage() {
- const {
- data: channels,
- isLoading,
- isError,
- error,
- refetch,
- isFetching,
- testConnectionMutation,
- } = useChannelsData();
- const [modalOpen, setModalOpen] = React.useState(false);
- const [testingId, setTestingId] = React.useState<string | null>(null);
+  const channels = useChannels();
+  const agents = useAgents();
+  const [connecting, setConnecting] = React.useState(false);
+  const agentName = (id: string | null) => (id ? agents.data?.find((a) => a.id === id)?.name : undefined) ?? "Agente de atención";
 
- if (isLoading) {
- return <ChannelsSkeleton />;
- }
+  return (
+    <Page>
+      <PageHeader
+        title="Canales"
+        description="Por dónde te escriben tus clientes. En cada canal eliges qué agente responde."
+        actions={
+          <Button onClick={() => setConnecting(true)}>
+            <Plus className="h-4 w-4" aria-hidden /> Conectar canal
+          </Button>
+        }
+      />
 
- if (isError) {
- return (
- <div className="mx-auto max-w-7xl">
- <ErrorState
- message={error instanceof Error ? error.message : undefined}
- onRetry={() => void refetch()}
- />
- </div>
- );
- }
+      {channels.isLoading ? (
+        <ListSkeleton label="Cargando canales" />
+      ) : channels.isError ? (
+        <ErrorState message={channels.error instanceof Error ? channels.error.message : undefined} onRetry={() => void channels.refetch()} />
+      ) : !channels.data?.length ? (
+        <EmptyState
+          title="Todavía no conectaste ningún canal"
+          description="Conecta WhatsApp, un bot de Telegram o un chat para tu sitio web."
+          action={<Button onClick={() => setConnecting(true)}>Conectar canal</Button>}
+        />
+      ) : (
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+          {channels.data.map((channel) => (
+            <ChannelRow key={channel.id} channel={channel} responder={channel.widget ? undefined : agentName(channel.agentId)} />
+          ))}
+        </ul>
+      )}
 
- const handleTest = (id: string) => {
- setTestingId(id);
- testConnectionMutation.mutate(id, {
- onSettled: () => setTestingId(null),
- });
- };
+      <ChannelConnectModal open={connecting} onClose={() => setConnecting(false)} />
+    </Page>
+  );
+}
 
- const channelList = channels || [];
- const connectedCount = channelList.filter((c) =>
- ["connected", "online"].includes(c.status.toLowerCase())
- ).length;
+function ChannelRow({ channel, responder }: { channel: ChannelConnection; responder?: string }) {
+  const [open, setOpen] = React.useState(false);
 
- return (
- <div className="mx-auto max-w-7xl space-y-6">
- <PageHeader
- title="Canales"
- description="Conexiones reales entre OCAP y tus canales de entrada."
- icon={<Radio className="h-5 w-5 text-neutral-700" />}
- actions={
- <>
- <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
- <RefreshCw className="h-3.5 w-3.5" /> Actualizar
- </Button>
- <Button size="sm" onClick={() => setModalOpen(true)}>
- <Plus className="h-3.5 w-3.5" /> Conectar canal
- </Button>
- </>
- }
- />
-
- <div className="grid gap-4 sm:grid-cols-2">
- <MetricCard title="Canales configurados" value={channelList.length} icon={MessageSquare} tone="info" />
- <MetricCard title="Conexiones activas" value={connectedCount} icon={CheckCircle2} tone="success" />
- </div>
-
- {channelList.length === 0 ? (
- <EmptyState
- title="No hay canales configurados"
- description="Conecta un proveedor cuando tengas sus credenciales disponibles."
- action={<Button size="sm" onClick={() => setModalOpen(true)}><Plus className="h-4 w-4" /> Conectar canal</Button>}
- />
- ) : (
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {channelList.map((channel: ChannelConnectionDto) => (
- <ChannelCard
- key={channel.id}
- channel={channel}
- onTest={handleTest}
- isTesting={testingId === channel.id}
- />
- ))}
- </div>
- )}
-
- <ChannelConnectModal open={modalOpen} onClose={() => setModalOpen(false)} />
- </div>
- );
+  return (
+    <li className="flex items-center gap-4 px-4 py-3 sm:px-5">
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="truncate text-sm font-medium text-neutral-950">{channel.name}</span>
+          {channel.status === "Pending" && <Badge tone="warning">Falta escanear el QR</Badge>}
+          {channel.status === "Disconnected" && <Badge tone="danger">Desconectado</Badge>}
+        </p>
+        <p className="truncate text-sm text-neutral-600">
+          {channel.provider}
+          {channel.accountIdentifier && `, ${channel.accountIdentifier}`}
+          {responder && `. Responde: ${responder}`}
+        </p>
+      </div>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)} aria-label={`Configurar ${channel.name}`}>
+        Configurar
+      </Button>
+      <ChannelSettings channel={channel} open={open} onClose={() => setOpen(false)} />
+    </li>
+  );
 }

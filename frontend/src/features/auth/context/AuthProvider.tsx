@@ -10,7 +10,6 @@ import {
 import { clearAuthSession, setAuthSession } from "@/shared/api/tokenStorage";
 import type { StoredUser } from "@/shared/api/types";
 import { apiClient, refreshSession } from "@/shared/api/apiClient";
-import { useTenantStore } from "@/shared/stores/useTenantStore";
 import { redirectToLogin } from "@/shared/api/sessionRedirect";
 import { permissionsFromToken } from "@/shared/api/jwt";
 
@@ -38,7 +37,6 @@ const AuthContext = React.createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
  const [user, setUser] = React.useState<StoredUser | null>(null);
  const [isLoading, setIsLoading] = React.useState(true);
- const syncTenantFromAuth = useTenantStore((s) => s.syncFromAuth);
 
  const adoptSession = React.useCallback(
  async (result: LoginResponse) => {
@@ -50,9 +48,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
  setAuthSession(result.accessToken, sessionUser);
  setUser(sessionUser);
- syncTenantFromAuth(result.tenantId, profile?.fullName || result.email);
  },
- [syncTenantFromAuth]
+ []
  );
 
  React.useEffect(() => {

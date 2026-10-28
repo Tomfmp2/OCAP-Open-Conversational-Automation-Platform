@@ -48,7 +48,7 @@ describe("ConversationDetail", () => {
     render(<ConversationDetail conversation={conversation()} />);
 
     expect(screen.getByText("¿Tienen pan integral?")).toBeInTheDocument();
-    expect(screen.getByText("Agente")).toBeInTheDocument();
+    expect(screen.getByText(/^Agente, /)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /tomar conversación/i }));
     expect(actions.takeOver.mutate).toHaveBeenCalledOnce();
   });
@@ -66,8 +66,8 @@ describe("ConversationDetail", () => {
     render(<ConversationDetail conversation={conversation()} />);
 
     await user.type(screen.getByLabelText("Respuesta"), "Recién horneado");
-    await user.click(screen.getByRole("button", { name: /enviar respuesta/i }));
-    expect(actions.reply.mutateAsync).toHaveBeenCalledWith("Recién horneado");
+    await user.click(screen.getByRole("button", { name: "Enviar" }));
+    expect(actions.reply.mutate).toHaveBeenCalledWith("Recién horneado", expect.anything());
   });
 
   it("sin canal de respuesta no muestra el cuadro de texto", () => {

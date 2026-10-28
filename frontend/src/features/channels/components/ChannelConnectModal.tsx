@@ -1,177 +1,115 @@
 "use client";
 
 import React from "react";
-import { X, QrCode, Key, ShieldCheck, AlertCircle, Loader2, MessageSquare } from "lucide-react";
+import { Button, FormError, Input, Modal } from "@/shared/components/ui";
+import { cn } from "@/shared/utils/cn";
 import { useConnectChannelMutation } from "../api/useChannelsData";
 import { WhatsAppLinkPanel } from "./WhatsAppLinkPanel";
 
-type ProviderOption = "Telegram" | "WhatsApp" | "WebChat";
+type Provider = "WhatsApp" | "Telegram" | "WebChat";
 
-interface ChannelConnectModalProps {
-  open: boolean;
-  onClose: () => void;
-}
+const PROVIDERS: Array<{ id: Provider; description: string }> = [
+  { id: "WhatsApp", description: "Vincula un número escaneando un QR." },
+  { id: "Telegram", description: "Conecta un bot con su token." },
+  { id: "WebChat", description: "Un chat para tu sitio web." },
+];
 
-export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps) {
-  const [selectedProvider, setSelectedProvider] = React.useState<ProviderOption>("Telegram");
+export function ChannelConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [provider, setProvider] = React.useState<Provider>("WhatsApp");
   const [displayName, setDisplayName] = React.useState("");
   const [botToken, setBotToken] = React.useState("");
-  const [widgetTitle, setWidgetTitle] = React.useState("Asistente OCAP");
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const connect = useConnectChannelMutation();
 
-  const connectMutation = useConnectChannelMutation();
-  // Al cerrarse se limpia el error (ajuste durante el render).
-  const [wasOpen, setWasOpen] = React.useState(open);
-  if (wasOpen !== open) {
-    setWasOpen(open);
-    if (!open) setErrorMessage(null);
-  }
-
-  if (!open) return null;
-
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    try {
-      await connectMutation.mutateAsync({
-        provider: selectedProvider,
-        displayName: displayName.trim(),
-        botToken: selectedProvider === "Telegram" ? botToken.trim() : undefined,
-        widgetTitle: selectedProvider === "WebChat" ? widgetTitle.trim() : undefined,
-      });
-
-      setDisplayName("");
-      setBotToken("");
-      onClose();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error al conectar con la API de Canales.";
-      setErrorMessage(msg);
-    }
+  const close = () => {
+    setDisplayName("");
+    setBotToken("");
+    connect.reset();
+    onClose();
   };
 
-  const pending = connectMutation.isPending;
-  const isWhatsApp = selectedProvider === "WhatsApp";
-
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-neutral-700" />
-            <h2 className="text-base font-bold text-neutral-950">Conectar canal</h2>
-          </div>
-          <button type="button" onClick={onClose} className="text-neutral-600 hover:text-neutral-600">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <form onSubmit={(e) => void handleConnect(e)} className="p-6 space-y-5">
-          {errorMessage && (
-            <div className="p-3 bg-white border-2 border-neutral-950 rounded-md flex items-center gap-2 text-xs text-neutral-950">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs font-semibold text-neutral-700 block mb-2">Proveedor disponible</label>
-            <div className="grid grid-cols-3 gap-2">
-              {(
-                [
-                  { id: "Telegram" as const, icon: Key },
-                  { id: "WhatsApp" as const, icon: QrCode },
-                  { id: "WebChat" as const, icon: MessageSquare },
-                ] as const
-              ).map(({ id, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedProvider(id);
-                    setErrorMessage(null);
+    <Modal open={open} onClose={close} title="Conectar canal">
+      <div className="space-y-5">
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-neutral-800">Tipo de canal</legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {PROVIDERS.map((option) => (
+              <label
+                key={option.id}
+                className={cn(
+                  "cursor-pointer rounded-lg border p-3 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-neutral-950",
+                  provider === option.id ? "border-neutral-950 bg-neutral-50" : "border-neutral-200 hover:border-neutral-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="channel-provider"
+                  value={option.id}
+                  checked={provider === option.id}
+                  onChange={() => {
+                    setProvider(option.id);
+                    connect.reset();
                   }}
-                  className={`p-3 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1.5 transition-all ${
-                    selectedProvider === id
-                      ? "border-neutral-950 bg-neutral-100 text-neutral-800"
-                      : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-300"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{id}</span>
-                </button>
-              ))}
-            </div>
+                  className="sr-only"
+                />
+                <span className="block text-sm font-medium text-neutral-950">{option.id}</span>
+                <span className="mt-0.5 block text-xs text-neutral-600">{option.description}</span>
+              </label>
+            ))}
           </div>
+        </fieldset>
 
-          {isWhatsApp && <WhatsAppLinkPanel active={open} onLinked={onClose} />}
-
-          {!isWhatsApp && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-neutral-700 block">Nombre visible</label>
-              <input
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder={selectedProvider === "Telegram" ? "Bot de soporte" : "WebChat Portal"}
-                className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-950 placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-950"
-              />
-            </div>
-          )}
-
-          {selectedProvider === "Telegram" && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-neutral-700 block">Bot API Token</label>
-              <input
+        {provider === "WhatsApp" ? (
+          <WhatsAppLinkPanel active={open} onLinked={close} />
+        ) : (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              connect.mutate(
+                {
+                  provider,
+                  displayName: displayName.trim(),
+                  botToken: provider === "Telegram" ? botToken.trim() : undefined,
+                  widgetTitle: provider === "WebChat" ? displayName.trim() : undefined,
+                },
+                { onSuccess: close }
+              );
+            }}
+          >
+            <Input
+              label="Nombre"
+              hint={provider === "WebChat" ? "También es el título que ven tus visitantes en el chat." : "Solo lo ves tú, en el panel."}
+              required
+              maxLength={60}
+              placeholder={provider === "Telegram" ? "Bot de soporte" : "Atención en la web"}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
+            {provider === "Telegram" && (
+              <Input
+                label="Token del bot"
+                hint="Te lo da @BotFather en Telegram al crear el bot."
                 type="password"
                 required
-                placeholder="123456789:ABCdef..."
+                autoComplete="off"
+                placeholder="123456789:ABC…"
                 value={botToken}
                 onChange={(e) => setBotToken(e.target.value)}
-                className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-950 font-mono focus:outline-none focus:ring-1 focus:ring-neutral-950"
               />
-            </div>
-          )}
-
-          {selectedProvider === "WebChat" && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-neutral-700 block">Título del widget</label>
-              <input
-                type="text"
-                value={widgetTitle}
-                onChange={(e) => setWidgetTitle(e.target.value)}
-                className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-950"
-              />
-              <p className="text-xs text-neutral-600">
-                Tras conectar, prueba el widget en /channels/webchat.
-              </p>
-            </div>
-          )}
-
-          {!isWhatsApp && (
-            <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={pending}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-100 disabled:opacity-50"
-              >
+            )}
+            <FormError error={connect.error} />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" onClick={close}>
                 Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={pending}
-                className="px-4 py-2 rounded-lg bg-neutral-950 hover:bg-neutral-900 text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{pending ? "Conectando..." : "Guardar y conectar"}</span>
-              </button>
+              </Button>
+              <Button type="submit" loading={connect.isPending}>
+                Conectar
+              </Button>
             </div>
-          )}
-
-        </form>
+          </form>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -20,6 +20,12 @@ test.beforeAll(() => {
   }
 });
 
+/** En pantallas chicas el menú está en un panel que hay que abrir. */
+async function openMenu(page: Page) {
+  const button = page.getByRole("button", { name: "Abrir menú" });
+  if (await button.isVisible()) await button.click();
+}
+
 async function login(page: Page) {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Iniciar sesión" })).toBeVisible();
@@ -41,15 +47,16 @@ test("login, navegación principal y logout", async ({ page }) => {
   expect(response?.headers()["x-powered-by"]).toBeUndefined();
 
   await login(page);
-  await expect(page.getByRole("heading", { name: /En qué puedo ayudarte/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /En qué te ayudo/i })).toBeVisible();
 
-  for (const route of ["/inbox", "/channels", "/channels/webchat", "/intelligence", "/agents", "/knowledge", "/settings"]) {
+  for (const route of ["/inbox", "/channels", "/intelligence", "/agents", "/knowledge", "/team", "/settings", "/account"]) {
     await page.goto(route);
     await expect(page).toHaveURL(new RegExp(`${route.replace(/\//g, "\\/")}$`));
     await expect(page.locator("main")).toBeVisible();
   }
 
-  await page.getByTitle("Cerrar sesión").click();
+  await openMenu(page);
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(cspViolations).toEqual([]);
 });
@@ -83,66 +90,69 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   // Escritorio y móvil comparten organización, que admite un WebChat y una configuración por proveedor: va en uno solo.
   test.skip(testInfo.project.name.includes("mobile"), "Usa recursos únicos por organización");
   const provider = "Claude";
-  const providerName = `${provider} e2e ${Date.now()}`;
+  // Texto de la fila (proveedor y modelo por defecto): el estado vacío también nombra a Claude.
+  const modelRow = "Claude, claude-sonnet-5-5";
   const channelName = `Web e2e ${Date.now()}`;
   page.on("dialog", (dialog) => void dialog.accept());
   await login(page);
 
   // Registrar el proveedor (la key va cifrada al vault; no se valida contra el proveedor al guardar).
   await page.goto("/intelligence");
-  await page.getByRole("button", { name: "Registrar proveedor" }).first().click();
-  await page.getByRole("button", { name: provider, exact: true }).click();
-  await page.getByLabel("Nombre visible").fill(providerName);
+  await page.getByRole("button", { name: "Agregar modelo" }).first().click();
+  await page.getByLabel("Proveedor").selectOption(provider);
   await page.getByLabel("API key").fill("sk-e2e-no-real");
-  await page.getByRole("button", { name: "Guardar en vault" }).click();
-  await expect(page.getByText(providerName)).toBeVisible();
+  await page.getByRole("button", { name: "Agregar", exact: true }).click();
+  await expect(page.getByText(modelRow).first()).toBeVisible();
 
   // Canal web: se crea, se renombra y se elimina desde su tarjeta.
   await page.goto("/channels");
   await page.getByRole("button", { name: "Conectar canal" }).first().click();
-  await page.getByRole("button", { name: "WebChat" }).click();
-  await page.getByPlaceholder("WebChat Portal").fill(channelName);
-  await page.getByRole("button", { name: "Guardar y conectar" }).click();
+  await page.getByText("WebChat", { exact: true }).click();
+  await page.getByLabel("Nombre").fill(channelName);
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
   // En un stack recién levantado la primera conexión puede tardar más que la espera por defecto.
-  await expect(page.getByRole("heading", { name: channelName })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(channelName, { exact: true })).toBeVisible({ timeout: 15_000 });
 
-  await page.getByRole("button", { name: `Editar ${channelName}` }).click();
-  await page.getByLabel("Nombre", { exact: true }).fill(`${channelName} ventas`);
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByRole("heading", { name: `${channelName} ventas` })).toBeVisible();
+  await page.getByRole("button", { name: `Configurar ${channelName}` }).click();
+  const settings = page.getByRole("dialog");
+  await settings.getByLabel("Nombre", { exact: true }).fill(`${channelName} ventas`);
+  await settings.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(settings.getByRole("heading", { name: `${channelName} ventas` })).toBeVisible();
 
-  await page.getByRole("button", { name: `Eliminar ${channelName} ventas` }).click();
-  await page.getByRole("button", { name: "Eliminar canal" }).click();
-  await expect(page.getByRole("heading", { name: `${channelName} ventas` })).toHaveCount(0);
+  await settings.getByRole("button", { name: "Eliminar canal" }).click();
+  await settings.getByRole("button", { name: "Eliminar canal" }).click();
+  await expect(page.getByText(`${channelName} ventas`, { exact: true })).toHaveCount(0);
 
   // Eliminar el proveedor deja la organización como estaba.
   await page.goto("/intelligence");
-  await page.getByRole("button", { name: `Eliminar ${providerName}` }).click();
-  await expect(page.getByText(providerName)).toHaveCount(0);
+  await expect(page.getByText(modelRow)).toBeVisible();
+  await page.getByRole("button", { name: `Editar ${provider}` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
+  await expect(page.getByText(modelRow)).toHaveCount(0);
 });
 
 test("WebChat: configurar el widget en el panel, incrustarlo en el sitio de un cliente y conversar", async ({ page }, testInfo) => {
   // Una organización admite un solo WebChat: corre solo en escritorio y después del test de canales.
   test.skip(testInfo.project.name.includes("mobile"), "Usa recursos únicos por organización");
   const channelName = `Web widget ${Date.now()}`;
-  const title = "Soporte Tienda";
   await login(page);
 
   await page.goto("/channels");
   await page.getByRole("button", { name: "Conectar canal" }).first().click();
-  await page.getByRole("button", { name: "WebChat" }).click();
-  await page.getByPlaceholder("WebChat Portal").fill(channelName);
-  await page.getByRole("button", { name: "Guardar y conectar" }).click();
-  await expect(page.getByRole("heading", { name: channelName })).toBeVisible({ timeout: 15_000 });
+  await page.getByText("WebChat", { exact: true }).click();
+  await page.getByLabel("Nombre").fill(channelName);
+  await page.getByRole("button", { name: "Conectar", exact: true }).click();
+  await expect(page.getByText(channelName, { exact: true })).toBeVisible({ timeout: 15_000 });
 
   // Desde el panel: título, dominio autorizado y el código para pegar.
-  await page.getByRole("button", { name: `Insertar ${channelName} en tu sitio` }).click();
-  const dialog = page.getByRole("dialog", { name: "Chat en tu sitio web" });
-  await dialog.getByLabel("Título del chat").fill(title);
+  await page.getByRole("button", { name: `Configurar ${channelName}` }).click();
+  const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Sitios donde se puede usar").fill(clientSite);
   const snippet = (await dialog.locator("code").textContent())!;
-  await dialog.getByRole("button", { name: "Guardar" }).click();
-  await expect(dialog).toBeHidden();
+  await dialog.getByRole("button", { name: "Guardar sitios" }).click();
+  await expect(dialog.getByText("Guardado")).toBeVisible();
+  await dialog.getByRole("button", { name: "Listo" }).click();
   // El panel lo genera con su propio origen; en la prueba el sitio cliente lo pide por la red interna.
   const embed = snippet.replace(/src="[^"]*\/ocap-webchat\.js"/, `src="${testInfo.project.use.baseURL}/ocap-webchat.js"`);
 
@@ -154,7 +164,7 @@ test("WebChat: configurar el widget en el panel, incrustarlo en el sitio de un c
   );
   await site.goto(`${clientSite}/`);
   await site.getByRole("button", { name: "Abrir chat" }).click();
-  await expect(site.getByRole("dialog", { name: title })).toBeVisible();
+  await expect(site.getByRole("dialog", { name: channelName })).toBeVisible();
   await site.getByRole("textbox", { name: "Mensaje" }).fill("Hola, ¿hacen envíos?");
   await site.keyboard.press("Enter");
   const log = site.getByRole("log");
@@ -170,9 +180,10 @@ test("WebChat: configurar el widget en el panel, incrustarlo en el sitio de un c
   // Deja la organización como estaba.
   page.on("dialog", (d) => void d.accept());
   await page.goto("/channels");
-  await page.getByRole("button", { name: `Eliminar ${channelName}` }).click();
-  await page.getByRole("button", { name: "Eliminar canal" }).click();
-  await expect(page.getByRole("heading", { name: channelName })).toHaveCount(0);
+  await page.getByRole("button", { name: `Configurar ${channelName}` }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Eliminar canal" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Eliminar canal" }).click();
+  await expect(page.getByText(channelName, { exact: true })).toHaveCount(0);
 });
 
 test("equipo: invitar a un operador, aceptar el enlace y ver solo lo suyo", async ({ page, browser }, testInfo) => {
@@ -207,6 +218,7 @@ test("equipo: invitar a un operador, aceptar el enlace y ver solo lo suyo", asyn
   await expect(operator).toHaveURL(/\/$/);
 
   // Solo ve el asistente y la bandeja; Canales por URL dice que no tiene acceso.
+  await openMenu(operator);
   await expect(operator.getByRole("link", { name: "Conversaciones" }).first()).toBeVisible();
   await expect(operator.getByRole("link", { name: "Canales" })).toHaveCount(0);
   await operator.goto("/channels");

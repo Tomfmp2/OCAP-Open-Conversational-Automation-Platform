@@ -97,7 +97,7 @@ function AcceptForm() {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
         />
-        <Button type="submit" size="lg" loading={submitting} className="mt-2 w-full">
+        <Button type="submit" loading={submitting} className="mt-2 w-full">
           Guardar contraseña
         </Button>
       </form>

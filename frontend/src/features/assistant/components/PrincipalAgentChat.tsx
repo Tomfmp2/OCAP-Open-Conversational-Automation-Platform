@@ -15,10 +15,10 @@ function greetingForHour(hour: number) {
 }
 
 const SUGGESTIONS = [
-  { label: "Canales", prompt: "¿Qué canales tengo conectados?", icon: MessageSquare },
-  { label: "Correo", prompt: "Envía un correo de prueba a mi dirección", icon: Mail },
-  { label: "IA", prompt: "¿Qué proveedor de IA estoy usando ahora?", icon: Cpu },
-  { label: "Conocimiento", prompt: "¿Qué bases de conocimiento tengo?", icon: BookOpen },
+  { label: "¿Qué canales tengo conectados?", prompt: "¿Qué canales tengo conectados?", icon: MessageSquare },
+  { label: "¿Qué modelo de IA uso?", prompt: "¿Qué proveedor de IA estoy usando ahora?", icon: Cpu },
+  { label: "¿Qué documentos tengo?", prompt: "¿Qué bases de conocimiento tengo?", icon: BookOpen },
+  { label: "Envíame un correo de prueba", prompt: "Envía un correo de prueba a mi dirección", icon: Mail },
 ] as const;
 
 interface PrincipalAgentChatProps {
@@ -98,22 +98,21 @@ export function PrincipalAgentChat({
   if (hero && isEmpty) {
     return (
       <div
-        className={`relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden overflow-y-auto rounded-[2rem] border border-neutral-200/70 px-4 py-10 shadow-[0_1px_3px_rgba(10,10,10,0.04)] ${className}`}
+        className={`relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-8 ${className}`}
       >
         <div className="ocap-hero-ambient pointer-events-none absolute inset-0" aria-hidden />
 
         <div className="ocap-hero-enter relative z-[1] flex w-full max-w-2xl flex-col items-center text-center">
-          <AssistantOrb size={120} state={orbState} className="ocap-mark mb-10" />
+          <AssistantOrb size={112} state={orbState} className="ocap-mark mb-8" />
 
           <p className="text-sm font-medium text-neutral-600">
             {greeting}, {displayName}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-[2.6rem] sm:leading-tight">
-            ¿En qué puedo <span className="text-neutral-600">ayudarte hoy?</span>
+            ¿En qué te ayudo?
           </h1>
-          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-neutral-600">
-            {title === "OCAP" ? "Soy el agente principal de OCAP" : title}: conozco tus canales, tu IA, tu correo y tu
-            base de conocimiento.
+          <p className="mt-3 max-w-md text-base leading-relaxed text-neutral-600">
+            Pregúntame por tus conversaciones, canales, correo o documentos.
           </p>
 
           <div className="mt-10 w-full">{composer}</div>
@@ -125,7 +124,7 @@ export function PrincipalAgentChat({
                 <button
                   type="button"
                   onClick={() => sendText(prompt)}
-                  className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(10,10,10,0.04)] backdrop-blur transition-colors hover:border-neutral-400 hover:text-neutral-950"
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-sm text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-950"
                 >
                   <Icon className="h-3.5 w-3.5 text-neutral-600" aria-hidden />
                   {label}

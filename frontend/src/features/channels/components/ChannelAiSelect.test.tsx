@@ -29,7 +29,7 @@ describe("ChannelAiSelect", () => {
     render(<ChannelAiSelect connectionId="ch1" aiProviderConfigId={null} />);
 
     expect(screen.queryByRole("option", { name: /Claude/ })).not.toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("IA que usa"), "g1");
+    await user.selectOptions(screen.getByLabelText("Modelo de IA"), "g1");
     expect(assign.mutate).toHaveBeenCalledWith({ connectionId: "ch1", aiProviderConfigId: "g1" });
   });
 
@@ -37,7 +37,7 @@ describe("ChannelAiSelect", () => {
     const user = userEvent.setup();
     render(<ChannelAiSelect connectionId="ch1" aiProviderConfigId="g1" />);
 
-    await user.selectOptions(screen.getByLabelText("IA que usa"), "");
+    await user.selectOptions(screen.getByLabelText("Modelo de IA"), "");
     expect(assign.mutate).toHaveBeenCalledWith({ connectionId: "ch1", aiProviderConfigId: null });
   });
 });

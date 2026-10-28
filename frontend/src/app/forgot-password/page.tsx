@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
         }}
       >
         <Input id="email" label="Email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Button type="submit" size="lg" loading={submitting || options.isLoading} className="mt-2 w-full">
+        <Button type="submit" loading={submitting || options.isLoading} className="mt-2 w-full">
           Enviar enlace
         </Button>
       </form>

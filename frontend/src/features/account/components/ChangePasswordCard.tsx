@@ -1,11 +1,9 @@
 "use client";
 
 import React from "react";
-import { CheckCircle2, KeyRound } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { passwordProblem } from "@/features/auth/api/passwordApi";
-import { Button } from "@/shared/components/ui/Button";
-import { Input } from "@/shared/components/ui/Input";
-import { Surface } from "@/shared/components/ui/Surface";
+import { Button, FormError, Input, Section } from "@/shared/components/ui";
 import { useAccountActions } from "../api/useAccount";
 
 export function ChangePasswordCard() {
@@ -16,16 +14,12 @@ export function ChangePasswordCard() {
   const [problem, setProblem] = React.useState<string | null>(null);
 
   return (
-    <Surface className="space-y-4">
-      <div className="flex items-center gap-2">
-        <KeyRound className="h-4 w-4 text-neutral-600" aria-hidden />
-        <h2 className="text-sm font-semibold text-neutral-950">Contraseña</h2>
-      </div>
+    <Section title="Contraseña" description="Al menos 12 caracteres, con letras y números.">
       <form
-        className="grid gap-3 sm:grid-cols-3"
+        className="max-w-sm space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          const issue = passwordProblem(next) ?? (next !== confirm ? "Las contraseñas no coinciden." : null);
+          const issue = passwordProblem(next) ?? (next !== confirm ? "Las contraseñas nuevas no coinciden." : null);
           setProblem(issue);
           if (issue) return;
           changePassword.mutate(
@@ -40,26 +34,19 @@ export function ChangePasswordCard() {
           );
         }}
       >
-        <Input id="current-password" label="Actual" type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
-        <Input id="next-password" label="Nueva" type="password" autoComplete="new-password" required value={next} onChange={(e) => setNext(e.target.value)} />
-        <Input id="confirm-next-password" label="Repite la nueva" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-          <Button type="submit" size="sm" loading={changePassword.isPending}>
-            Cambiar contraseña
-          </Button>
-          <p className="text-xs text-neutral-600">Al menos 12 caracteres, con letras y números.</p>
-        </div>
-        {(problem || changePassword.isError) && (
-          <p role="alert" className="text-xs text-neutral-950 sm:col-span-3">
-            {problem ?? (changePassword.error instanceof Error ? changePassword.error.message : "No se pudo cambiar.")}
-          </p>
-        )}
+        <Input label="Contraseña actual" type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
+        <Input label="Nueva contraseña" type="password" autoComplete="new-password" required value={next} onChange={(e) => setNext(e.target.value)} />
+        <Input label="Repite la nueva contraseña" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <FormError error={problem ? new Error(problem) : changePassword.error} />
         {changePassword.isSuccess && !problem && (
-          <p role="status" className="flex items-center gap-1.5 text-xs text-neutral-700 sm:col-span-3">
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Contraseña actualizada.
+          <p role="status" className="flex items-center gap-2 text-sm text-success">
+            <CheckCircle2 className="h-4 w-4" aria-hidden /> Contraseña cambiada.
           </p>
         )}
+        <Button type="submit" loading={changePassword.isPending}>
+          Cambiar contraseña
+        </Button>
       </form>
-    </Surface>
+    </Section>
   );
 }

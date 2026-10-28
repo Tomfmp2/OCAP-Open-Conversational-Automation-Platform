@@ -1,67 +1,79 @@
 "use client";
 
 import React from "react";
-import { ArrowLeft, Inbox } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useInbox } from "@/features/inbox/api/useInbox";
 import { ConversationList } from "@/features/inbox/components/ConversationList";
 import { ConversationDetail } from "@/features/inbox/components/ConversationDetail";
-import { PageHeader } from "@/shared/components/ui/PageHeader";
-import { EmptyState } from "@/shared/components/ui/EmptyState";
-import { ErrorState } from "@/shared/components/ui/ErrorState";
-import { Button } from "@/shared/components/ui/Button";
+import { EmptyState, ErrorState, ListSkeleton, Segmented } from "@/shared/components/ui";
 import { cn } from "@/shared/utils/cn";
 
+type Filter = "all" | "team";
+
+/** Bandeja a pantalla completa: lista y conversación lado a lado; en móvil, una u otra. */
 export default function InboxPage() {
-  const [onlyHuman, setOnlyHuman] = React.useState(false);
+  const [filter, setFilter] = React.useState<Filter>("all");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const inbox = useInbox(onlyHuman);
+  const inbox = useInbox(filter === "team");
   const selected = inbox.data?.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <div className="mx-auto flex h-full max-w-7xl flex-col gap-4">
-      <PageHeader
-        title="Conversaciones"
-        description="Lo que escriben tus clientes por WhatsApp y Telegram. Toma una conversación para responder tú."
-        icon={<Inbox className="h-5 w-5 text-neutral-700" />}
-      />
-
-      <div className="flex gap-2" role="group" aria-label="Filtro">
-        <Button size="sm" variant={onlyHuman ? "secondary" : "primary"} aria-pressed={!onlyHuman} onClick={() => setOnlyHuman(false)}>
-          Todas
-        </Button>
-        <Button size="sm" variant={onlyHuman ? "primary" : "secondary"} aria-pressed={onlyHuman} onClick={() => setOnlyHuman(true)}>
-          Atiende el equipo
-        </Button>
-      </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <header className={cn("flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 bg-white px-4 py-3 sm:px-6", selected && "hidden md:flex")}>
+        <h1 className="text-xl font-semibold tracking-tight text-neutral-950">Conversaciones</h1>
+        <Segmented
+          label="Mostrar"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: "Todas" },
+            { value: "team", label: "Atiende el equipo" },
+          ]}
+        />
+      </header>
 
       {inbox.isError ? (
-        <ErrorState message={inbox.error instanceof Error ? inbox.error.message : undefined} onRetry={() => void inbox.refetch()} />
+        <div className="p-4 sm:p-6">
+          <ErrorState message={inbox.error instanceof Error ? inbox.error.message : undefined} onRetry={() => void inbox.refetch()} />
+        </div>
       ) : inbox.isLoading ? (
-        <p className="text-sm text-neutral-600">Cargando conversaciones…</p>
-      ) : !inbox.data || inbox.data.length === 0 ? (
-        <EmptyState
-          title={onlyHuman ? "Ninguna conversación espera a tu equipo" : "Todavía no hay conversaciones"}
-          description="Cuando un cliente escriba a un canal conectado, aparecerá aquí."
-        />
+        <div className="p-4 sm:p-6">
+          <ListSkeleton label="Cargando conversaciones" />
+        </div>
+      ) : !inbox.data?.length ? (
+        <div className="p-4 sm:p-6">
+          <EmptyState
+            title={filter === "team" ? "Ninguna conversación espera a tu equipo" : "Todavía no hay conversaciones"}
+            description={
+              filter === "team"
+                ? "Aquí aparecen las que el agente pasa a una persona o las que tomas tú."
+                : "Cuando un cliente escriba a uno de tus canales, la conversación aparecerá aquí."
+            }
+          />
+        </div>
       ) : (
-        <div className="grid min-h-[32rem] flex-1 grid-cols-1 overflow-hidden rounded-md border border-neutral-200 bg-white md:grid-cols-[20rem_1fr]">
+        <div className="grid min-h-0 flex-1 grid-cols-1 bg-white md:grid-cols-[20rem_minmax(0,1fr)]">
           <div className={cn("min-h-0 overflow-y-auto border-neutral-200 md:border-r", selected && "hidden md:block")}>
             <ConversationList conversations={inbox.data} selectedId={selectedId} onSelect={setSelectedId} />
           </div>
           <div className={cn("min-h-0", !selected && "hidden md:block")}>
             {selected ? (
-              <div className="flex h-full flex-col">
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(null)}
-                  className="focus-ring flex items-center gap-1 px-4 pt-3 text-xs text-neutral-600 md:hidden"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Conversaciones
-                </button>
-                <ConversationDetail key={selected.id} conversation={selected} />
-              </div>
+              <ConversationDetail
+                key={selected.id}
+                conversation={selected}
+                backButton={
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="focus-ring -ml-2 rounded-md p-2 text-neutral-700 hover:bg-neutral-100 md:hidden"
+                    aria-label="Volver a la lista"
+                  >
+                    <ArrowLeft className="h-4 w-4" aria-hidden />
+                  </button>
+                }
+              />
             ) : (
-              <p className="flex h-full items-center justify-center p-6 text-sm text-neutral-600">Elige una conversación.</p>
+              <p className="flex h-full items-center justify-center p-6 text-sm text-neutral-600">Elige una conversación de la lista.</p>
             )}
           </div>
         </div>

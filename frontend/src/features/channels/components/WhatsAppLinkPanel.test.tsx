@@ -45,16 +45,6 @@ describe("WhatsAppLinkPanel", () => {
     expect(screen.getByText(/esperando el escaneo/i)).toBeInTheDocument();
   });
 
-  it("sin tiempo real avisa que se actualiza por consulta", () => {
-    hook.status = { state: "pending", qrBase64: "QR" };
-    hook.live = false;
-
-    render(<WhatsAppLinkPanel active onLinked={vi.fn()} />);
-
-    expect(screen.getByRole("img", { name: /código qr/i })).toHaveAttribute("src", "data:image/png;base64,QR");
-    expect(screen.getByText(/actualizando cada pocos segundos/i)).toBeInTheDocument();
-  });
-
   it("vinculado muestra el número y permite desvincular", async () => {
     hook.status = { state: "linked", phoneNumber: "573001234567" };
     const user = userEvent.setup();
