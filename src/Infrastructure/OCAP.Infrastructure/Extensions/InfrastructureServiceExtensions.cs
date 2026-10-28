@@ -35,6 +35,7 @@ public static class InfrastructureServiceExtensions
         // Audit Trail Interceptor
         services.AddSingleton(sp => new AuditSaveChangesInterceptor(sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()));
         services.AddScoped<TenantSaveChangesInterceptor>();
+        services.AddScoped<TenantRlsConnectionInterceptor>();
 
         if (useInMemory)
         {
@@ -53,12 +54,13 @@ public static class InfrastructureServiceExtensions
             {
                 var audit = sp.GetRequiredService<AuditSaveChangesInterceptor>();
                 var tenant = sp.GetRequiredService<TenantSaveChangesInterceptor>();
+                var rls = sp.GetRequiredService<TenantRlsConnectionInterceptor>();
                 options.UseNpgsql(connectionString, b =>
                        {
                            b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName);
                            b.UseVector();
                        })
-                       .AddInterceptors(audit, tenant);
+                       .AddInterceptors(audit, tenant, rls);
             });
         }
 
@@ -141,19 +143,29 @@ public static class InfrastructureServiceExtensions
         return services;
     }
 
-    public static async Task ApplyMigrationsAsync(this IServiceProvider serviceProvider)
+    /// <summary>
+    /// Migra el esquema, aplica las políticas RLS y, si Database:AppRole está configurado, crea o actualiza el rol sin
+    /// privilegios con el que corre la API. Necesita la conexión del dueño de la base (en Docker, el contenedor
+    /// ocap-migrate); la API con el rol limitado arranca con Database:ApplyMigrationsOnStartup=false.
+    /// </summary>
+    public static async Task ApplyMigrationsAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
-        
-        // Auto Migration Strategy
-        if (context.Database.IsRelational())
+        if (!context.Database.IsRelational()) return;
+
+        if ((await context.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
         {
-            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-            if (pendingMigrations.Any())
-            {
-                await context.Database.MigrateAsync();
-            }
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+
+        await RowLevelSecurity.ApplyPoliciesAsync(context, cancellationToken);
+
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var appRole = configuration["Database:AppRole"];
+        if (!string.IsNullOrWhiteSpace(appRole))
+        {
+            await RowLevelSecurity.ProvisionAppRoleAsync(context, appRole, configuration["Database:AppPassword"] ?? string.Empty, cancellationToken);
         }
     }
 }

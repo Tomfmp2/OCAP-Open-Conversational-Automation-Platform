@@ -1,3 +1,68 @@
+# Configuración común de la API y de su migrador (misma imagen).
+x-api-environment: &api-environment
+  ConnectionStrings__Redis: "redis:6379"
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
+  Jwt__SecretKey: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
+  VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
+  Security__Vault__MasterKey: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
+  # Variable propia del stack: ASPNETCORE_ENVIRONMENT del .env es la del modo desarrollo (ocap-dev.sh), y en
+  # Docker Development expondría Swagger y los mensajes internos de error y apagaría el límite global.
+  ASPNETCORE_ENVIRONMENT: ${OCAP_API_ENVIRONMENT:-Production}
+  # En Docker la base es siempre el Postgres del stack, aunque el .env (o ASPNETCORE_ENVIRONMENT=Development)
+  # pida memoria: con UseInMemory los datos se perdían en cada reinicio. La memoria es solo para ocap-dev.sh.
+  UseInMemory: "false"
+  Knowledge__UseInMemory: "false"
+  Knowledge__VectorStore: "PgVector"
+  # Como ASPNETCORE_ENVIRONMENT: EVENTBUS_PROVIDER del .env es la del modo desarrollo (puede ser InMemory). En
+  # Docker los eventos pasan por el RabbitMQ del stack (o NATS con OCAP_EVENTBUS_PROVIDER=Nats), nunca por memoria.
+  EventBus__Provider: ${OCAP_EVENTBUS_PROVIDER:-RabbitMQ}
+  EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}@rabbitmq:5672/"
+  EventBus__NatsUrl: "nats://nats:4222"
+  EventBus__ImmediateDispatch: "false"
+  EventBus__EnableOutbox: "true"
+  OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
+  OpenTelemetry__ServiceName: "OCAP.Api"
+  Storage__Provider: ${STORAGE_PROVIDER:-Local}
+  Storage__RootPath: /app/storage
+  # Opcional: sin estas dos variables no hay admin por defecto y el panel pide la configuración inicial.
+  Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
+  Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+  Bootstrap__AdminName: ${BOOTSTRAP_ADMIN_NAME:-}
+  Bootstrap__TenantName: ${BOOTSTRAP_TENANT_NAME:-}
+  Bootstrap__TenantSlug: ${BOOTSTRAP_TENANT_SLUG:-}
+  # Idioma de las respuestas del asistente del panel (lo elige ocap install: es | en).
+  Assistant__Language: ${OCAP_LANGUAGE:-es}
+  Google__ClientId: ${Google__ClientId:-}
+  Google__ClientSecret: ${Google__ClientSecret:-}
+  Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
+  # Google simulado guarda correos y eventos en memoria y los pierde al reiniciar: solo para ocap-dev.sh.
+  Google__UseInMemory: "false"
+  AiProviders__OpenAI__ApiKey: ${AiProviders__OpenAI__ApiKey:-}
+  AiProviders__OpenAI__ModelName: ${AiProviders__OpenAI__ModelName:-gpt-4o}
+  AiProviders__Gemini__ApiKey: ${AiProviders__Gemini__ApiKey:-}
+  AiProviders__Gemini__ModelName: ${AiProviders__Gemini__ModelName:-gemini-1.5-flash}
+  AiProviders__Claude__ApiKey: ${AiProviders__Claude__ApiKey:-}
+  AiProviders__Claude__ModelName: ${AiProviders__Claude__ModelName:-claude-sonnet-5-5}
+  AiProviders__Ollama__BaseUrl: ${AiProviders__Ollama__BaseUrl:-http://host.docker.internal:11434}
+  AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
+  Telegram__BotToken: ${Telegram__BotToken:-}
+  # WhatsApp por QR: la API habla con Evolution por la red interna y Evolution llama al webhook de la API.
+  WhatsApp__BaseUrl: http://evolution-api:8080
+  WhatsApp__ApiKey: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
+  WhatsApp__WebhookUrl: http://ocap-api:5000/api/webhooks/whatsapp
+  # Opcional: sin él, las firmas del webhook se derivan de EVOLUTION_API_KEY.
+  WhatsApp__WebhookSecret: ${WHATSAPP_WEBHOOK_SECRET:-}
+  Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
+  # Enlaces de invitación y recuperación enviados por correo.
+  App__PublicPanelUrl: ${PUBLIC_PANEL_URL:-http://localhost:3000}
+  # Correo opcional: sin SMTP_HOST los enlaces se copian desde Ajustes → Equipo.
+  Email__Smtp__Host: ${SMTP_HOST:-}
+  Email__Smtp__Port: ${SMTP_PORT:-587}
+  Email__Smtp__Username: ${SMTP_USERNAME:-}
+  Email__Smtp__Password: ${SMTP_PASSWORD:-}
+  Email__Smtp__From: ${SMTP_FROM:-}
+  Email__Smtp__UseSsl: ${SMTP_USE_SSL:-true}
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -101,78 +166,24 @@ services:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
+    # La misma imagen sirve a ocap-migrate: se construye una vez.
+    image: ocap-api:local
     container_name: ocap-api
     restart: always
     environment:
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}"
-      ConnectionStrings__Redis: "redis:6379"
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      Jwt__SecretKey: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      Security__Vault__MasterKey: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      # Variable propia del stack: ASPNETCORE_ENVIRONMENT del .env es la del modo desarrollo (ocap-dev.sh), y en
-      # Docker Development expondría Swagger y los mensajes internos de error y apagaría el límite global.
-      ASPNETCORE_ENVIRONMENT: ${OCAP_API_ENVIRONMENT:-Production}
-      # En Docker la base es siempre el Postgres del stack, aunque el .env (o ASPNETCORE_ENVIRONMENT=Development)
-      # pida memoria: con UseInMemory los datos se perdían en cada reinicio. La memoria es solo para ocap-dev.sh.
-      UseInMemory: "false"
-      Knowledge__UseInMemory: "false"
-      Knowledge__VectorStore: "PgVector"
-      # Como ASPNETCORE_ENVIRONMENT: EVENTBUS_PROVIDER del .env es la del modo desarrollo (puede ser InMemory). En
-      # Docker los eventos pasan por el RabbitMQ del stack (o NATS con OCAP_EVENTBUS_PROVIDER=Nats), nunca por memoria.
-      EventBus__Provider: ${OCAP_EVENTBUS_PROVIDER:-RabbitMQ}
-      EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}@rabbitmq:5672/"
-      EventBus__NatsUrl: "nats://nats:4222"
-      EventBus__ImmediateDispatch: "false"
-      EventBus__EnableOutbox: "true"
-      OpenTelemetry__OtlpEndpoint: "http://jaeger:4317"
-      OpenTelemetry__ServiceName: "OCAP.Api"
-      Storage__Provider: ${STORAGE_PROVIDER:-Local}
-      Storage__RootPath: /app/storage
-      # Opcional: sin estas dos variables no hay admin por defecto y el panel pide la configuración inicial.
-      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
-      Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      Bootstrap__AdminName: ${BOOTSTRAP_ADMIN_NAME:-}
-      Bootstrap__TenantName: ${BOOTSTRAP_TENANT_NAME:-}
-      Bootstrap__TenantSlug: ${BOOTSTRAP_TENANT_SLUG:-}
-      # Idioma de las respuestas del asistente del panel (lo elige ocap install: es | en).
-      Assistant__Language: ${OCAP_LANGUAGE:-es}
-      Google__ClientId: ${Google__ClientId:-}
-      Google__ClientSecret: ${Google__ClientSecret:-}
-      Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
-      # Google simulado guarda correos y eventos en memoria y los pierde al reiniciar: solo para ocap-dev.sh.
-      Google__UseInMemory: "false"
-      AiProviders__OpenAI__ApiKey: ${AiProviders__OpenAI__ApiKey:-}
-      AiProviders__OpenAI__ModelName: ${AiProviders__OpenAI__ModelName:-gpt-4o}
-      AiProviders__Gemini__ApiKey: ${AiProviders__Gemini__ApiKey:-}
-      AiProviders__Gemini__ModelName: ${AiProviders__Gemini__ModelName:-gemini-1.5-flash}
-      AiProviders__Claude__ApiKey: ${AiProviders__Claude__ApiKey:-}
-      AiProviders__Claude__ModelName: ${AiProviders__Claude__ModelName:-claude-sonnet-5-5}
-      AiProviders__Ollama__BaseUrl: ${AiProviders__Ollama__BaseUrl:-http://host.docker.internal:11434}
-      AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
-      Telegram__BotToken: ${Telegram__BotToken:-}
-      # WhatsApp por QR: la API habla con Evolution por la red interna y Evolution llama al webhook de la API.
-      WhatsApp__BaseUrl: http://evolution-api:8080
-      WhatsApp__ApiKey: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
-      WhatsApp__WebhookUrl: http://ocap-api:5000/api/webhooks/whatsapp
-      # Opcional: sin él, las firmas del webhook se derivan de EVOLUTION_API_KEY.
-      WhatsApp__WebhookSecret: ${WHATSAPP_WEBHOOK_SECRET:-}
-      Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
-      # Enlaces de invitación y recuperación enviados por correo.
-      App__PublicPanelUrl: ${PUBLIC_PANEL_URL:-http://localhost:3000}
-      # Correo opcional: sin SMTP_HOST los enlaces se copian desde Ajustes → Equipo.
-      Email__Smtp__Host: ${SMTP_HOST:-}
-      Email__Smtp__Port: ${SMTP_PORT:-587}
-      Email__Smtp__Username: ${SMTP_USERNAME:-}
-      Email__Smtp__Password: ${SMTP_PASSWORD:-}
-      Email__Smtp__From: ${SMTP_FROM:-}
-      Email__Smtp__UseSsl: ${SMTP_USE_SSL:-true}
+      <<: *api-environment
+      # La API usa un rol sin superusuario, sin BYPASSRLS y sin permisos de esquema (lo crea ocap-migrate): una
+      # inyección SQL no puede leer otras organizaciones ni tocar la estructura de la base.
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${OCAP_DB_APP_USER:-ocap_app};Password=${OCAP_DB_APP_PASSWORD:?Falta OCAP_DB_APP_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}"
+      Database__ApplyMigrationsOnStartup: "false"
     ports:
       - "${OCAP_BIND_ADDRESS:-127.0.0.1}:${API_HOST_PORT:-5000}:5000"
     volumes:
       - api_storage:/app/storage
     depends_on:
       storage-permissions:
+        condition: service_completed_successfully
+      ocap-migrate:
         condition: service_completed_successfully
       postgres:
         condition: service_healthy
@@ -188,6 +199,25 @@ services:
       timeout: 5s
       retries: 8
       start_period: 45s
+
+  # Una vez por arranque: migra el esquema, aplica las políticas RLS y crea o actualiza el rol de la API. Es el único
+  # contenedor con la contraseña del dueño de la base.
+  ocap-migrate:
+    image: ocap-api:local
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: ocap-migrate
+    command: ["--migrate"]
+    restart: "no"
+    environment:
+      <<: *api-environment
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ocap_db};Username=${POSTGRES_USER:-ocap_user};Password=${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}"
+      Database__AppRole: ${OCAP_DB_APP_USER:-ocap_app}
+      Database__AppPassword: ${OCAP_DB_APP_PASSWORD:?Falta OCAP_DB_APP_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # La API corre sin root (usuario app, UID 1654): ajusta una vez el volumen que versiones anteriores creaban como root.
   storage-permissions:

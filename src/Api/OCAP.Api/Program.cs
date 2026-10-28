@@ -80,8 +80,20 @@ builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
-// Aplica migraciones pendientes de EF Core antes de aceptar tráfico.
-await app.Services.ApplyMigrationsAsync();
+// `--migrate`: solo migra, aplica RLS y crea el rol de la API, y termina (contenedor ocap-migrate, con la conexión
+// del dueño de la base). La API en Docker corre con un rol limitado que no puede cambiar el esquema.
+if (args.Contains("--migrate"))
+{
+    await app.Services.ApplyMigrationsAsync();
+    Log.Information("Migraciones, políticas RLS y rol de la API aplicados.");
+    return;
+}
+
+// En desarrollo y pruebas la misma API migra al arrancar.
+if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
+{
+    await app.Services.ApplyMigrationsAsync();
+}
 
 // Configuración del pipeline HTTP — el orden importa para la seguridad.
 

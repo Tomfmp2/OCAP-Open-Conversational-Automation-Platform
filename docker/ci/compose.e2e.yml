@@ -7,6 +7,7 @@ services:
   nats: { container_name: ocap-ci-nats, ports: !reset [] }
   evolution-api: { container_name: ocap-ci-evolution-api, ports: !reset [] }
   storage-permissions: { container_name: ocap-ci-storage-permissions }
+  ocap-migrate: { container_name: ocap-ci-migrate, image: ocap-ci-api:local }
   # Escritorio y móvil inician sesión muchas veces por minuto desde la misma IP (el contenedor de Playwright).
-  ocap-api: { container_name: ocap-ci-api, ports: !reset [], environment: { RateLimiting__AuthPermitLimit: "100" } }
+  ocap-api: { container_name: ocap-ci-api, image: ocap-ci-api:local, ports: !reset [], environment: { RateLimiting__AuthPermitLimit: "100" } }
   ocap-frontend: { container_name: ocap-ci-frontend, ports: !reset [] }
