@@ -315,6 +315,7 @@ services:
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/ocap-proxy.conf:/etc/nginx/ocap-proxy.conf:ro
+    networks: [default, edge]
     depends_on:
       - ocap-api
       - ocap-frontend
@@ -335,8 +336,19 @@ services:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    # IP fija: Nginx solo cree el X-Forwarded-For que llega desde esta dirección.
+    networks:
+      edge:
+        ipv4_address: 172.31.250.2
     depends_on:
       - nginx
+
+# Red solo entre Caddy y Nginx: con una IP conocida para Caddy, la IP real del cliente llega a los límites por IP.
+networks:
+  edge:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/29
 
 volumes:
   postgres_data:
