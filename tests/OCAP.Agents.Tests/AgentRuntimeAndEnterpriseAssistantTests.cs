@@ -7,7 +7,6 @@ using OCAP.Agents.Abstractions.Models;
 using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Abstractions.Providers;
 using OCAP.Agents.Application.Services;
-using OCAP.Agents.Application.UseCases;
 using Xunit;
 
 namespace OCAP.Agents.Tests;
@@ -82,36 +81,6 @@ public class AgentRuntimeAndEnterpriseAssistantTests
 
         // Assert
         agentId.Should().Be(EnterpriseAssistantAgent.EnterpriseAssistantAgentId);
-    }
-
-    [Fact]
-    public async Task ProcessAgentMessageUseCase_Should_Delegate_To_AgentRuntime_When_Present()
-    {
-        // Arrange
-        var mockProvider = new MockLanguageModelProvider("Ollama", "Procesado localmente con Ollama");
-        var selector = new SingleProviderSelector(mockProvider);
-        var agent = CreateAssistant(selector);
-        var runtime = new AgentRuntime(agent, NullLogger<AgentRuntime>.Instance);
-        var resolver = new AgentResolver();
-
-        var agentRepoMock = new Mock<IAgentRepository>();
-        var contextRepoMock = new Mock<IConversationContextRepository>();
-        var actionDispatcherMock = new Mock<IActionDispatcher>();
-
-        var useCase = new ProcessAgentMessageUseCase(
-            agentRepoMock.Object,
-            contextRepoMock.Object,
-            new RuleBasedIntentResolver(),
-            actionDispatcherMock.Object,
-            NullLogger<ProcessAgentMessageUseCase>.Instance,
-            resolver,
-            runtime);
-
-        // Act
-        var result = await useCase.ExecuteAsync(Guid.NewGuid(), "Analizar reporte", Guid.NewGuid(), Guid.NewGuid());
-
-        // Assert
-        result.Should().Be("Procesado localmente con Ollama");
     }
 
     [Fact]

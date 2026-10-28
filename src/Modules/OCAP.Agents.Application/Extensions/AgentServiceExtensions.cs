@@ -3,7 +3,6 @@ using OCAP.Agents.Abstractions.Contracts;
 using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Abstractions.Providers;
 using OCAP.Agents.Application.Services;
-using OCAP.Agents.Application.UseCases;
 using OCAP.Security.Abstractions;
 using OCAP.Tools.Abstractions;
 
@@ -29,9 +28,7 @@ public static class AgentServiceExtensions
         });
         // Scoped: consulta las herramientas habilitadas del agente en la organización de la petición.
         services.AddScoped<IPermissionValidator, AgentToolPermissionValidator>();
-        services.AddScoped<IIntentResolver, RuleBasedIntentResolver>();
         services.AddScoped<IActionDispatcher, ActionDispatcher>();
-        services.AddScoped<ProcessAgentMessageUseCase>();
 
         // CAP-03: Agent Runtime & Enterprise Assistant Agent Core
         services.AddScoped<IAgentResolver, AgentResolver>();
@@ -40,7 +37,6 @@ public static class AgentServiceExtensions
         services.AddScoped<ChannelAgentRunner>();
         services.AddScoped<IAgentRuntime, AgentRuntime>();
         services.AddScoped<ILanguageModelProviderSelector, DefaultLanguageModelProviderSelector>();
-        services.AddSingleton<IConversationContextRepository, InMemoryConversationContextRepository>();
 
         return services;
     }
