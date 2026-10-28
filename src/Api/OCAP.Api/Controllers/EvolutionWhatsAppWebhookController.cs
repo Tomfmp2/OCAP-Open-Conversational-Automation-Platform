@@ -1,10 +1,10 @@
+using OCAP.Core.Events.Distributed;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using OCAP.Api.Hubs;
 using OCAP.Api.Services;
@@ -31,14 +31,13 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
     /// <summary>Evento de SignalR que escucha el panel mientras se vincula WhatsApp.</summary>
     public const string LinkUpdatedEvent = "WhatsAppLinkUpdated";
 
-    private static readonly TimeSpan DeduplicationWindow = TimeSpan.FromHours(6);
 
     private readonly WhatsAppSettings _settings;
     private readonly WhatsAppLinkService _link;
     private readonly ChannelConversationService _conversations;
     private readonly EvolutionApiClient _evolution;
     private readonly IHubContext<EventsHub> _hub;
-    private readonly IMemoryCache _processedMessages;
+    private readonly IInboxStore _inbox;
     private readonly ILogger<EvolutionWhatsAppWebhookController> _logger;
     private readonly IEventBus? _eventBus;
 
@@ -48,7 +47,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
         ChannelConversationService conversations,
         EvolutionApiClient evolution,
         IHubContext<EventsHub> hub,
-        IMemoryCache processedMessages,
+        IInboxStore inbox,
         ILogger<EvolutionWhatsAppWebhookController> logger,
         IEventBus? eventBus = null)
     {
@@ -57,7 +56,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
         _conversations = conversations;
         _evolution = evolution;
         _hub = hub;
-        _processedMessages = processedMessages;
+        _inbox = inbox;
         _logger = logger;
         _eventBus = eventBus;
     }
@@ -130,8 +129,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
     {
         // Evolution reintenta un webhook si tarda o falla: el mismo mensaje no debe responderse dos veces.
         var deduplicationKey = $"whatsapp-message:{message.Instance}:{message.MessageId}";
-        if (_processedMessages.TryGetValue(deduplicationKey, out _)) return;
-        _processedMessages.Set(deduplicationKey, true, DeduplicationWindow);
+        if (!await _inbox.TryClaimAsync(deduplicationKey, WebhookInbox.ConsumerGroup, cancellationToken)) return;
 
         var connection = await _link.FindConnectionAsync(tenantId, cancellationToken);
         if (connection is null)

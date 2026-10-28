@@ -1,7 +1,8 @@
+using OCAP.Api.Services;
+using OCAP.Core.Events.Distributed;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Caching.Memory;
 using OCAP.Api.DTOs.Responses;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.WhatsApp.DTOs;
@@ -21,7 +22,7 @@ public class WhatsAppWebhookController : ControllerBase
     private readonly IChannelConnectionManager _connections;
     private readonly IConversationResponder _responder;
     private readonly WhatsAppApiClient _cloudClient;
-    private readonly IMemoryCache _processedMessages;
+    private readonly IInboxStore _inbox;
     private readonly ILogger<WhatsAppWebhookController> _logger;
 
     public WhatsAppWebhookController(
@@ -29,14 +30,14 @@ public class WhatsAppWebhookController : ControllerBase
         IChannelConnectionManager connections,
         IConversationResponder responder,
         WhatsAppApiClient cloudClient,
-        IMemoryCache processedMessages,
+        IInboxStore inbox,
         ILogger<WhatsAppWebhookController> logger)
     {
         _validator = validator;
         _connections = connections;
         _responder = responder;
         _cloudClient = cloudClient;
-        _processedMessages = processedMessages;
+        _inbox = inbox;
         _logger = logger;
     }
 
@@ -134,8 +135,7 @@ public class WhatsAppWebhookController : ControllerBase
         }
 
         var key = $"whatsapp-cloud-message:{message.Metadata.GetValueOrDefault("MessageId")}";
-        if (_processedMessages.TryGetValue(key, out _)) return;
-        _processedMessages.Set(key, true, TimeSpan.FromHours(6));
+        if (!await _inbox.TryClaimAsync(key, WebhookInbox.ConsumerGroup, cancellationToken)) return;
 
         var tenantId = connection[0].TenantId;
         HttpTenantContext.UseTrustedTenant(HttpContext, tenantId);

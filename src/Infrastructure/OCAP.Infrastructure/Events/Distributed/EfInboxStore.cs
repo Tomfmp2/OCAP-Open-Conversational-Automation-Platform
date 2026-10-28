@@ -25,4 +25,23 @@ public class EfInboxStore : IInboxStore
         _dbContext.InboxMessages.Add(msg);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> TryClaimAsync(string messageId, string consumerGroup, CancellationToken cancellationToken = default)
+    {
+        if (await HasBeenProcessedAsync(messageId, consumerGroup, cancellationToken)) return false;
+
+        var entry = _dbContext.InboxMessages.Add(new InboxMessage(Guid.NewGuid(), messageId, consumerGroup));
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // Otra petición lo registró entre la consulta y el insert. Se desacopla para no reintentarlo en el
+            // siguiente SaveChanges del mismo contexto.
+            entry.State = EntityState.Detached;
+            return false;
+        }
+    }
 }

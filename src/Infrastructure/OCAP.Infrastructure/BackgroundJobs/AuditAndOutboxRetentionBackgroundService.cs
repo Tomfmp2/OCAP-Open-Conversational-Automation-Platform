@@ -107,12 +107,28 @@ public class AuditAndOutboxRetentionBackgroundService : BackgroundService
             totalOutboxMessagesDeleted = await PurgeOutboxMessagesInBatchesAsync(dbContext, outboxCutoffDate, options.BatchSize, cancellationToken);
         }
 
+        if (options.EnableOutboxPurge && options.InboxRetentionDays > 0)
+        {
+            var inboxCutoffDate = DateTime.UtcNow.AddDays(-options.InboxRetentionDays);
+            var inboxDeleted = dbContext.Database.IsRelational()
+                ? await dbContext.InboxMessages.Where(m => m.ProcessedAtUtc < inboxCutoffDate).ExecuteDeleteAsync(cancellationToken)
+                : await RemoveInMemoryAsync(dbContext, inboxCutoffDate, cancellationToken);
+            _logger.LogInformation("Retention: purged {InboxCount} InboxMessages older than {InboxDays} days.", inboxDeleted, options.InboxRetentionDays);
+        }
+
         _logger.LogInformation(
             "Retention Summary: Purged {AuditCount} expired AuditLogs (Cutoff: {AuditDays} days) and {OutboxCount} processed OutboxMessages (Cutoff: {OutboxDays} days).",
             totalAuditLogsDeleted,
             options.AuditLogRetentionDays,
             totalOutboxMessagesDeleted,
             options.OutboxRetentionDays);
+    }
+
+    private static async Task<int> RemoveInMemoryAsync(OCAPDbContext dbContext, DateTime cutoffDate, CancellationToken cancellationToken)
+    {
+        var expired = await dbContext.InboxMessages.Where(m => m.ProcessedAtUtc < cutoffDate).ToListAsync(cancellationToken);
+        dbContext.InboxMessages.RemoveRange(expired);
+        return await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<int> PurgeAuditLogsInBatchesAsync(

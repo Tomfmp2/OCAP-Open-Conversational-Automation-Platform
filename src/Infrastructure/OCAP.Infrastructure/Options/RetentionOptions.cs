@@ -10,6 +10,8 @@ public class RetentionOptions
 
     public int AuditLogRetentionDays { get; set; } = 30;
     public int OutboxRetentionDays { get; set; } = 7;
+    // Los reintentos de eventos y webhooks llegan en minutos u horas: una semana basta para la idempotencia.
+    public int InboxRetentionDays { get; set; } = 7;
     public int BatchSize { get; set; } = 500;
     public int ExecutionIntervalHours { get; set; } = 24;
     public bool EnableAuditPurge { get; set; } = true;
