@@ -28,7 +28,7 @@ export function MetricCard({
             {value}
           </p>
           {subtitle && (
-            <p className="mt-1 text-[11px] text-neutral-500">{subtitle}</p>
+            <p className="mt-1 text-xs text-neutral-500">{subtitle}</p>
           )}
         </div>
         {Icon && (

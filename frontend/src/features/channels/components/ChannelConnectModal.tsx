@@ -143,7 +143,7 @@ export function ChannelConnectModal({ open, onClose }: ChannelConnectModalProps)
                 onChange={(e) => setWidgetTitle(e.target.value)}
                 className="w-full bg-neutral-100 border border-neutral-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-950"
               />
-              <p className="text-[10px] text-neutral-500">
+              <p className="text-xs text-neutral-500">
                 Tras conectar, prueba el widget en /channels/webchat.
               </p>
             </div>

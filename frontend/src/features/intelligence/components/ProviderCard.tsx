@@ -31,6 +31,12 @@ interface ProviderCardProps {
   testResult?: string | null;
 }
 
+const HEALTH_TEXT: Record<TenantProviderConfig["healthStatus"], string> = {
+  Healthy: "Disponible",
+  Unhealthy: "Sin respuesta",
+  Unknown: "Sin comprobar",
+};
+
 export function ProviderCard({
   provider,
   onTest,
@@ -83,7 +89,7 @@ export function ProviderCard({
               {provider.providerName} · {provider.modelName || "sin modelo"}
             </p>
             {provider.baseUrl && (
-              <p className="mt-0.5 truncate font-mono text-[11px] text-neutral-400">
+              <p className="mt-0.5 truncate font-mono text-xs text-neutral-500">
                 {provider.baseUrl}
               </p>
             )}
@@ -100,25 +106,25 @@ export function ProviderCard({
           ) : (
             <Badge tone="neutral">Deshabilitado</Badge>
           )}
-          <Badge tone={healthTone}>{provider.healthStatus}</Badge>
+          <Badge tone={healthTone}>{HEALTH_TEXT[provider.healthStatus]}</Badge>
         </div>
       </div>
 
       {isCatalogOnly && (
-        <p className="text-[11px] leading-relaxed text-neutral-500">
+        <p className="text-xs leading-relaxed text-neutral-500">
           Viene del registry/.env. Pulsa <strong>Registrar</strong> para poder editar modelo,
           API key y activarlo por tenant.
         </p>
       )}
 
       {testResult && (
-        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 font-mono text-[11px] text-neutral-700">
+        <p className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 font-mono text-xs text-neutral-700">
           {testResult}
         </p>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-        <span className="font-mono text-[11px] text-neutral-500">
+        <span className="font-mono text-xs text-neutral-500">
           {provider.lastPingMs > 0
             ? `${provider.lastPingMs} ms`
             : "Sin latencia"}

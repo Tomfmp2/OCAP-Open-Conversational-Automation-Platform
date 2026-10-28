@@ -59,7 +59,7 @@ export function ChatComposer({
         rows={expanded ? 2 : 1}
         placeholder="Pregúntame cualquier cosa…"
         disabled={pending}
-        className="block w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-relaxed text-neutral-950 placeholder:text-neutral-400 focus:outline-none disabled:opacity-60"
+        className="block w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-relaxed text-neutral-950 placeholder:text-neutral-500 focus:outline-none disabled:opacity-60"
       />
 
       <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-2">
@@ -75,7 +75,7 @@ export function ChatComposer({
               <RotateCcw className="h-4 w-4" aria-hidden />
             </button>
           )}
-          <span className="truncate pl-2 text-[11px] text-neutral-400">
+          <span className="truncate pl-2 text-xs text-neutral-500">
             {description}
             {providerUsed && <span className="font-mono"> · {providerUsed}</span>}
           </span>

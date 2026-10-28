@@ -42,7 +42,7 @@ export default function SecurityPage() {
       <PageHeader
         title="Seguridad"
         description="Roles, permisos y visibilidad disponible del vault para el tenant activo."
-        icon={<ShieldCheck className="h-5 w-5 text-violet-400" />}
+        icon={<ShieldCheck className="h-5 w-5 text-neutral-700" />}
         actions={
           <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
             <RefreshCw className="h-3.5 w-3.5" />
@@ -81,23 +81,23 @@ export default function SecurityPage() {
 
         <div className="grid gap-6 xl:grid-cols-2">
           <Surface variant="glass" className="space-y-3">
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-              <h2 className="text-sm font-semibold text-zinc-100">Usuarios del tenant</h2>
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+              <h2 className="text-sm font-semibold text-neutral-950">Usuarios del tenant</h2>
               <Badge tone="neutral">{users.length}</Badge>
             </div>
             {users.length === 0 ? (
-              <p className="text-xs text-zinc-500">La API no devolvió usuarios.</p>
+              <p className="text-xs text-neutral-500">La API no devolvió usuarios.</p>
             ) : (
               users.slice(0, 8).map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 p-3"
+                  className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-semibold text-zinc-200">
+                    <p className="truncate text-xs font-semibold text-neutral-900">
                       {user.fullName || user.email}
                     </p>
-                    <p className="truncate text-[11px] text-zinc-500">{user.email}</p>
+                    <p className="truncate text-xs text-neutral-500">{user.email}</p>
                   </div>
                   <Badge tone={user.isActive ? "success" : "neutral"}>
                     {user.isActive ? "Activo" : "Inactivo"}
@@ -108,25 +108,25 @@ export default function SecurityPage() {
           </Surface>
 
           <Surface variant="glass" className="space-y-3" id="sessions">
-            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
-              <h2 className="text-sm font-semibold text-zinc-100">
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
+              <h2 className="text-sm font-semibold text-neutral-950">
                 Sesiones y permisos
               </h2>
               <Badge tone="neutral">{permissions.length} permisos</Badge>
             </div>
             {sessions.length === 0 ? (
-              <p className="text-xs text-zinc-500">La API no devolvió sesiones.</p>
+              <p className="text-xs text-neutral-500">La API no devolvió sesiones.</p>
             ) : (
               sessions.slice(0, 8).map((session) => (
                 <div
                   key={session.id}
-                  className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950/60 p-3"
+                  className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 p-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-mono text-[11px] text-zinc-300">
+                    <p className="truncate font-mono text-xs text-neutral-700">
                       {session.ipAddress || "IP no reportada"}
                     </p>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-xs text-neutral-500">
                       {new Date(session.loginAtUtc).toLocaleString()}
                     </p>
                   </div>

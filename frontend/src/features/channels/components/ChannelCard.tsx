@@ -27,7 +27,7 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
           <div>
             <h3 className="text-sm font-semibold text-neutral-950">{channel.name}</h3>
             <p className="font-mono text-xs text-neutral-500">{channel.accountIdentifier}</p>
-            <p className="mt-0.5 text-[11px] text-neutral-500">{channel.provider}</p>
+            <p className="mt-0.5 text-xs text-neutral-500">{channel.provider}</p>
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export function ChannelCard({ channel, onTest, isTesting }: ChannelCardProps) {
       )}
 
       <div className="flex items-center justify-between border-t border-neutral-100 pt-2">
-        <span className="font-mono text-[11px] text-neutral-500">
+        <span className="font-mono text-xs text-neutral-500">
           {channel.latencyMs > 0
             ? `Latencia: ${channel.latencyMs} ms`
             : "Latencia no disponible"}

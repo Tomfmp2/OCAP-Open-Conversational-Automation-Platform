@@ -52,14 +52,14 @@ export function WebhookManager({
 
   return (
     <Surface variant="glass" glow className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4">
         <div className="flex items-center gap-2">
-          <div className="rounded-xl bg-violet-500/10 p-2 text-violet-400">
+          <div className="rounded-xl bg-neutral-100 p-2 text-neutral-700">
             <Radio className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">Webhooks</h2>
-            <p className="text-[11px] text-zinc-500">Entregas de eventos a servicios externos.</p>
+            <h2 className="text-sm font-semibold text-neutral-950">Webhooks</h2>
+            <p className="text-xs text-neutral-500">Entregas de eventos a servicios externos.</p>
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setIsOpen(true)} disabled={!onCreate}>
@@ -78,12 +78,12 @@ export function WebhookManager({
           {webhooks.map((webhook) => (
           <div
             key={webhook.id}
-            className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4"
+            className="rounded-xl border border-neutral-200 bg-neutral-50 p-4"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-zinc-100">{webhook.name}</p>
-                <p className="mt-1 truncate font-mono text-xs text-zinc-400">{webhook.url}</p>
+                <p className="text-sm font-semibold text-neutral-950">{webhook.name}</p>
+                <p className="mt-1 truncate font-mono text-xs text-neutral-600">{webhook.url}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge tone={statusTone(webhook.status)}>
@@ -92,7 +92,7 @@ export function WebhookManager({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="px-2 text-red-400"
+                  className="px-2 text-danger"
                   disabled={!onDelete || isDeleting}
                   onClick={() => void onDelete?.(webhook.id)}
                   aria-label={`Eliminar ${webhook.name}`}

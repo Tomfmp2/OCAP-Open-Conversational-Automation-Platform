@@ -38,7 +38,7 @@ export default function MonitoringPage() {
       <PageHeader
         title="Monitorización"
         description="Telemetría del sistema y actividad de auditoría reportadas por la API."
-        icon={<Activity className="h-5 w-5 text-blue-400" />}
+        icon={<Activity className="h-5 w-5 text-neutral-700" />}
         actions={
           <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
             <RefreshCw className="h-3.5 w-3.5" />

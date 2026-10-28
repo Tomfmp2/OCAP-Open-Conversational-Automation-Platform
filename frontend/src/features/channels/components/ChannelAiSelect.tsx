@@ -17,7 +17,7 @@ export function ChannelAiSelect({ connectionId, aiProviderConfigId }: ChannelAiS
 
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-[11px] font-medium text-neutral-600">
+      <label htmlFor={id} className="block text-xs font-medium text-neutral-600">
         IA que usa
       </label>
       <select
@@ -36,7 +36,7 @@ export function ChannelAiSelect({ connectionId, aiProviderConfigId }: ChannelAiS
         ))}
       </select>
       {options.data?.length === 0 && (
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-xs text-neutral-500">
           Sin proveedores registrados:{" "}
           <Link href="/intelligence" className="underline underline-offset-2 hover:text-neutral-950">
             agrega uno en IA y modelos
@@ -45,7 +45,7 @@ export function ChannelAiSelect({ connectionId, aiProviderConfigId }: ChannelAiS
         </p>
       )}
       {assign.isError && (
-        <p role="alert" className="text-[11px] text-neutral-950">
+        <p role="alert" className="text-xs text-neutral-950">
           {assign.error instanceof Error ? assign.error.message : "No se pudo asignar la IA."}
         </p>
       )}

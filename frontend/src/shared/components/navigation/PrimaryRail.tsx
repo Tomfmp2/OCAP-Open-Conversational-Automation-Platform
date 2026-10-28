@@ -20,7 +20,7 @@ export function PrimaryRail() {
     <aside className="z-30 flex w-14 shrink-0 flex-col items-center border-r border-neutral-200 bg-white py-4 select-none">
       <Link
         href="/"
-        className="mb-6 flex h-9 w-9 items-center justify-center rounded-md bg-neutral-950 text-[11px] font-semibold tracking-tight text-white"
+        className="mb-6 flex h-9 w-9 items-center justify-center rounded-md bg-neutral-950 text-xs font-semibold tracking-tight text-white"
         title="OCAP"
       >
         O

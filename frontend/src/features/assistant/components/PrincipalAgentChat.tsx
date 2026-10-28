@@ -109,7 +109,7 @@ export function PrincipalAgentChat({
             {greeting}, {displayName}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-[2.6rem] sm:leading-tight">
-            ¿En qué puedo <span className="text-neutral-400">ayudarte hoy?</span>
+            ¿En qué puedo <span className="text-neutral-500">ayudarte hoy?</span>
           </h1>
           <p className="mt-3 max-w-md text-[15px] leading-relaxed text-neutral-500">
             {title === "OCAP" ? "Soy el agente principal de OCAP" : title}: conozco tus canales, tu IA, tu correo y tu
@@ -145,7 +145,7 @@ export function PrincipalAgentChat({
           <AssistantOrb size={36} state={orbState} />
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h1>
-            <p className="text-[11px] text-neutral-500" aria-live="polite">
+            <p className="text-xs text-neutral-500" aria-live="polite">
               {pending ? "Pensando…" : revealingId ? "Respondiendo…" : description}
             </p>
           </div>
@@ -154,7 +154,7 @@ export function PrincipalAgentChat({
           type="button"
           onClick={resetSession}
           disabled={pending}
-          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-950 disabled:opacity-40"
+          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-950 disabled:opacity-40"
         >
           <RotateCcw className="h-3 w-3" aria-hidden />
           Nueva conversación

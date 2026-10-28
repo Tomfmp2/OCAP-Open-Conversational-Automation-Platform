@@ -45,7 +45,7 @@ export default function DeveloperPage() {
       <PageHeader
         title="Espacio de desarrollo"
         description="Credenciales y entregas de eventos para integrar servicios con OCAP."
-        icon={<Code2 className="h-5 w-5 text-blue-400" />}
+        icon={<Code2 className="h-5 w-5 text-neutral-700" />}
         actions={
           <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}>
             <RefreshCw className="h-3.5 w-3.5" />

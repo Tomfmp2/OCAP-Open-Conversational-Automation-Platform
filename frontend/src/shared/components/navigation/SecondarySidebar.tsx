@@ -31,7 +31,7 @@ export function SecondarySidebar() {
             <p className="truncate text-xs font-semibold text-neutral-950">
               {activeTenant?.name ?? "OCAP"}
             </p>
-            <p className="truncate text-[10px] text-neutral-500">
+            <p className="truncate text-xs text-neutral-500">
               {user?.email ?? "Sin sesión"}
             </p>
           </div>
@@ -39,7 +39,7 @@ export function SecondarySidebar() {
       </div>
 
       <div className="flex-1 space-y-1 overflow-y-auto p-3">
-        <p className="px-2 pb-2 text-[10px] font-semibold tracking-wider text-neutral-500 uppercase">
+        <p className="px-2 pb-2 text-xs font-semibold tracking-wider text-neutral-500 uppercase">
           {submenu.label}
         </p>
         {submenu.items.map((item) => {

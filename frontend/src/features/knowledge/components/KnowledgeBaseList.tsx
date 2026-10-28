@@ -51,8 +51,8 @@ export function KnowledgeBaseList({
  }`}
  >
  <p className="text-xs font-semibold text-neutral-950">{kb.name}</p>
- <p className="text-[10px] text-neutral-500 mt-0.5 line-clamp-1">{kb.description || "—"}</p>
- <div className="flex items-center gap-3 mt-2 text-[10px] text-neutral-500">
+ <p className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{kb.description || "—"}</p>
+ <div className="flex items-center gap-3 mt-2 text-xs text-neutral-500">
  <span className="flex items-center gap-1">
  <FileText className="w-3 h-3" /> {kb.documentCount} docs
  </span>

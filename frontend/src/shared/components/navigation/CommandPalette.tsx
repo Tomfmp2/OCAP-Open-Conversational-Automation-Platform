@@ -48,7 +48,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             placeholder="Buscar módulos…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-neutral-950 placeholder:text-neutral-400 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-neutral-950 placeholder:text-neutral-500 focus:outline-none"
           />
           <button
             type="button"
@@ -74,7 +74,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               >
                 <div>
                   <p className="text-xs font-semibold text-neutral-950">{item.label}</p>
-                  <p className="text-[10px] text-neutral-500">{item.category}</p>
+                  <p className="text-xs text-neutral-500">{item.category}</p>
                 </div>
                 <ArrowRight className="h-3.5 w-3.5 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>

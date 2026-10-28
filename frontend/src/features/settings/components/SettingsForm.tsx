@@ -34,7 +34,7 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
                 <h2 className="text-sm font-semibold text-neutral-950">
                   Configuración del tenant
                 </h2>
-                <p className="text-[11px] text-neutral-500">
+                <p className="text-xs text-neutral-500">
                   Preferencias persistidas por la API.
                 </p>
               </div>
@@ -119,7 +119,7 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
                 />
                 <span>
                   <span className="block text-sm font-medium text-neutral-900">{label}</span>
-                  <span className="mt-0.5 block text-[11px] text-neutral-500">
+                  <span className="mt-0.5 block text-xs text-neutral-500">
                     {description}
                   </span>
                 </span>

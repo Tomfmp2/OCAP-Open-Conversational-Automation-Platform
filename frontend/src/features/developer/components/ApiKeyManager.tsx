@@ -38,14 +38,14 @@ export function ApiKeyManager({
 
   return (
     <Surface variant="glass" glow className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 pb-4">
         <div className="flex items-center gap-2">
-          <div className="rounded-xl bg-blue-500/10 p-2 text-blue-400">
+          <div className="rounded-xl bg-neutral-100 p-2 text-neutral-700">
             <Key className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-zinc-100">Claves de API</h2>
-            <p className="text-[11px] text-zinc-500">Credenciales de acceso programático.</p>
+            <h2 className="text-sm font-semibold text-neutral-950">Claves de API</h2>
+            <p className="text-xs text-neutral-500">Credenciales de acceso programático.</p>
           </div>
         </div>
         <Button size="sm" onClick={() => setIsOpen(true)} disabled={!onCreate}>
@@ -64,22 +64,22 @@ export function ApiKeyManager({
           {keys.map((key) => (
           <div
             key={key.id}
-            className="flex flex-col justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 sm:flex-row sm:items-center"
+            className="flex flex-col justify-between gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center"
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="truncate text-sm font-semibold text-zinc-100">{key.name}</p>
+                <p className="truncate text-sm font-semibold text-neutral-950">{key.name}</p>
                 <Badge tone={key.status === "active" ? "success" : "neutral"}>
                   {key.status === "active" ? "Activa" : "Revocada"}
                 </Badge>
               </div>
-              <p className="mt-1 font-mono text-xs text-zinc-500">{key.keyPrefix}</p>
-              <p className="mt-1 text-[11px] text-zinc-500">Último uso: {key.lastUsed}</p>
+              <p className="mt-1 font-mono text-xs text-neutral-500">{key.keyPrefix}</p>
+              <p className="mt-1 text-xs text-neutral-500">Último uso: {key.lastUsed}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="text-red-400 hover:text-red-300"
+              className="text-danger hover:text-danger/80"
               disabled={!onRevoke || key.status === "revoked" || isRevoking}
               onClick={() => void onRevoke?.(key.id)}
               aria-label={`Revocar ${key.name}`}

@@ -96,9 +96,9 @@ function AgentForm({ agent, onDone }: { agent: Agent | null; onDone: () => void 
           placeholder={PROMPT_EXAMPLE}
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
-          className="focus-ring w-full rounded-md border border-neutral-300 bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400"
+          className="focus-ring w-full rounded-md border border-neutral-300 bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-500"
         />
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-xs text-neutral-500">
           Además usa el historial de la conversación y tu base de conocimiento, y puede pasar la conversación a una persona.
         </p>
       </div>
@@ -121,7 +121,7 @@ function AgentForm({ agent, onDone }: { agent: Agent | null; onDone: () => void 
             </span>
           </label>
         ))}
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-xs text-neutral-500">
           Solo aparecen acciones seguras frente a clientes (agendar, registrar datos); actúan de verdad, así que habilita
           solo las necesarias. Leer o enviar correos del negocio no se ofrece a los agentes de canal.
         </p>

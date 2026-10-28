@@ -43,7 +43,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-neutral-950">{conversation.contactName}</h2>
-          <p className="text-[11px] text-neutral-500">
+          <p className="text-xs text-neutral-500">
             {conversation.channel}
             {conversation.externalContactId ? ` · ${conversation.externalContactId}` : ""}
           </p>
@@ -70,7 +70,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
           const fromContact = message.sender === "User";
           return (
             <div key={message.id} className={cn("flex flex-col gap-0.5", fromContact ? "items-start" : "items-end")}>
-              {!fromContact && <span className="text-[10px] text-neutral-500">{SENDER_LABEL[message.sender]}</span>}
+              {!fromContact && <span className="text-xs text-neutral-500">{SENDER_LABEL[message.sender]}</span>}
               <p
                 className={cn(
                   "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
@@ -91,7 +91,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
         {conversation.handledByHuman ? (
           <Badge tone="warning">Atiende tu equipo: el agente no responde en esta conversación</Badge>
         ) : (
-          <p className="text-[11px] text-neutral-500">Responde el agente. Si escribes, tomas la conversación.</p>
+          <p className="text-xs text-neutral-500">Responde el agente. Si escribes, tomas la conversación.</p>
         )}
         {conversation.canReply ? (
           <form

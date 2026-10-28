@@ -29,7 +29,7 @@ export function AgentCard({ agent, onTest, onEdit, onDelete, deleting }: AgentCa
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-neutral-600">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
         <Wrench className="h-3.5 w-3.5" aria-hidden />
         {agent.enabledTools.length === 0 ? "Sin herramientas" : agent.enabledTools.map((t) => <Badge key={t}>{t}</Badge>)}
       </div>

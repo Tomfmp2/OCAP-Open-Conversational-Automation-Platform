@@ -12,6 +12,14 @@ interface TopbarProps {
   compact?: boolean;
 }
 
+// La API responde en inglés (Healthy/Degraded/Unhealthy): el panel lo muestra en español.
+const HEALTH_TEXT: Record<string, string> = {
+  healthy: "en línea",
+  ok: "en línea",
+  degraded: "degradada",
+  unhealthy: "sin conexión",
+};
+
 export function Topbar({ compact = false }: TopbarProps) {
   const { user, logout, isAuthenticated } = useAuth();
   const [commandPaletteOpen, setCommandPaletteOpen] = React.useState(false);
@@ -74,7 +82,7 @@ export function Topbar({ compact = false }: TopbarProps) {
                 <Search className="h-3.5 w-3.5 text-neutral-400" />
                 <span>Buscar…</span>
               </span>
-              <kbd className="hidden rounded border border-neutral-300 bg-white px-1.5 py-0.5 font-mono text-[10px] text-neutral-600 sm:inline-block">
+              <kbd className="hidden rounded border border-neutral-300 bg-white px-1.5 py-0.5 font-mono text-xs text-neutral-600 sm:inline-block">
                 Ctrl K
               </kbd>
             </button>
@@ -82,13 +90,13 @@ export function Topbar({ compact = false }: TopbarProps) {
           {compact && (
             <div>
               <p className="text-sm font-semibold text-neutral-950">OCAP</p>
-              <p className="text-[11px] text-neutral-500">Instalación</p>
+              <p className="text-xs text-neutral-500">Instalación</p>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge tone={healthTone} className="hidden sm:inline-flex">API {healthLabel}</Badge>
+          <Badge tone={healthTone} className="hidden sm:inline-flex">API {HEALTH_TEXT[healthLabel.toLowerCase()] ?? healthLabel}</Badge>
 
           {isAuthenticated && (
             <>
@@ -106,7 +114,7 @@ export function Topbar({ compact = false }: TopbarProps) {
                   <p className="text-xs leading-none font-semibold text-neutral-950">
                     {user?.fullName || user?.roleName || "Usuario"}
                   </p>
-                  <p className="text-[10px] leading-tight text-neutral-500">
+                  <p className="text-xs leading-tight text-neutral-500">
                     {user?.email || "—"}
                   </p>
                 </div>

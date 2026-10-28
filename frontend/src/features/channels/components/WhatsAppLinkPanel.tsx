@@ -34,11 +34,11 @@ export function WhatsAppLinkPanel({ active, onLinked }: WhatsAppLinkPanelProps) 
 
       {status?.state === "linked" && (
         <div className="space-y-3">
-          <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+          <p className="flex items-center gap-2 text-sm font-medium text-success">
             <CheckCircle2 className="h-5 w-5" aria-hidden />
             WhatsApp vinculado{status.phoneNumber ? ` · +${status.phoneNumber}` : ""}
           </p>
-          <p className="text-[11px] leading-relaxed text-neutral-600">
+          <p className="text-xs leading-relaxed text-neutral-600">
             El asistente ya responde los chats individuales de este número. Los grupos y estados se ignoran.
           </p>
           <div className="flex justify-end gap-2 border-t border-neutral-200 pt-3">
@@ -54,7 +54,7 @@ export function WhatsAppLinkPanel({ active, onLinked }: WhatsAppLinkPanelProps) 
 
       {status?.state === "unlinked" && (
         <div className="space-y-3">
-          <p className="text-[11px] leading-relaxed text-neutral-600">
+          <p className="text-xs leading-relaxed text-neutral-600">
             Se mostrará un QR. En tu teléfono abre WhatsApp → Dispositivos vinculados → Vincular un dispositivo y
             escanéalo. No necesitas cuenta de WhatsApp Business ni Meta Cloud API.
           </p>
@@ -92,7 +92,7 @@ export function WhatsAppLinkPanel({ active, onLinked }: WhatsAppLinkPanelProps) 
               Código de vinculación: <span className="font-mono font-semibold">{status.pairingCode}</span>
             </p>
           )}
-          <p className="flex items-center justify-center gap-2 text-[11px] text-neutral-500">
+          <p className="flex items-center justify-center gap-2 text-xs text-neutral-500">
             <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
             Esperando el escaneo{live ? "" : " (actualizando cada pocos segundos)"}
           </p>

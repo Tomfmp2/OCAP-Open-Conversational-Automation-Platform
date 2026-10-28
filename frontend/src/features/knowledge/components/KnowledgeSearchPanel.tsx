@@ -86,8 +86,8 @@ export function KnowledgeSearchPanel({ onSearch, isSearching, error }: Knowledge
  className="p-3 rounded-lg bg-neutral-50 border border-neutral-200 text-xs"
  >
  <div className="flex items-center justify-between mb-1">
- <span className="font-mono text-[10px] text-neutral-500">{r.documentId}</span>
- <span className="text-[10px] font-semibold text-neutral-700">Score: {r.score?.toFixed(3)}</span>
+ <span className="font-mono text-xs text-neutral-500">{r.documentId}</span>
+ <span className="text-xs font-semibold text-neutral-700">Score: {r.score?.toFixed(3)}</span>
  </div>
  <p className="text-neutral-700 line-clamp-3">{r.content}</p>
  </div>

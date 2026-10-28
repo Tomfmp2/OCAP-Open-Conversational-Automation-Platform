@@ -17,7 +17,7 @@ export function ChannelAgentSelect({ connectionId, agentId }: ChannelAgentSelect
 
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-[11px] font-medium text-neutral-600">
+      <label htmlFor={id} className="block text-xs font-medium text-neutral-600">
         Agente que responde
       </label>
       <select
@@ -35,7 +35,7 @@ export function ChannelAgentSelect({ connectionId, agentId }: ChannelAgentSelect
         ))}
       </select>
       {assign.isError && (
-        <p role="alert" className="text-[11px] text-neutral-950">
+        <p role="alert" className="text-xs text-neutral-950">
           {assign.error instanceof Error ? assign.error.message : "No se pudo asignar el agente."}
         </p>
       )}

@@ -37,7 +37,7 @@ export function RoleSelect({
           </option>
         ))}
       </select>
-      <p id={`${id}-help`} className="text-[11px] text-neutral-500">
+      <p id={`${id}-help`} className="text-xs text-neutral-500">
         {ROLE_LABELS[value].description}
       </p>
     </div>
