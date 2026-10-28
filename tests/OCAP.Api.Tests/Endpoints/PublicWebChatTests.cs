@@ -30,8 +30,8 @@ public class PublicWebChatTests
         (await admin.PostAsync($"/api/inbox/{conversation.Id}/takeover", null)).EnsureSuccessStatusCode();
         (await admin.PostAsJsonAsync($"/api/inbox/{conversation.Id}/reply", new { text = "Sí, a todo el país." })).EnsureSuccessStatusCode();
 
-        var messages = await visitor.GetFromJsonAsync<List<WidgetMessage>>($"/api/public/webchat/{key}/sessions/{session}/messages");
-        messages!.Select(m => m.From).Should().ContainInOrder("visitor", "agent", "operator");
+        var messages = (await visitor.GetFromJsonAsync<List<WidgetMessage>>($"/api/public/webchat/{key}/sessions/{session}/messages"))!;
+        messages.Select(m => m.From).Should().ContainInOrder("visitor", "agent", "operator");
         messages.Last().Text.Should().Be("Sí, a todo el país.");
 
         // Otra sesión no ve esa conversación.
