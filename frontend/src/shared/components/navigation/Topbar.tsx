@@ -76,7 +76,7 @@ export function Topbar({ compact = false }: TopbarProps) {
             <button
               type="button"
               onClick={() => setCommandPaletteOpen(true)}
-              className="flex w-52 items-center justify-between gap-2 rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-900 sm:w-64"
+              className="flex w-52 items-center justify-between gap-2 rounded-md border border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-900 sm:w-64"
             >
               <span className="flex items-center gap-2">
                 <Search className="h-3.5 w-3.5 text-neutral-400" />
@@ -90,7 +90,7 @@ export function Topbar({ compact = false }: TopbarProps) {
           {compact && (
             <div>
               <p className="text-sm font-semibold text-neutral-950">OCAP</p>
-              <p className="text-xs text-neutral-500">Instalación</p>
+              <p className="text-xs text-neutral-600">Instalación</p>
             </div>
           )}
         </div>
@@ -114,7 +114,7 @@ export function Topbar({ compact = false }: TopbarProps) {
                   <p className="text-xs leading-none font-semibold text-neutral-950">
                     {user?.fullName || user?.roleName || "Usuario"}
                   </p>
-                  <p className="text-xs leading-tight text-neutral-500">
+                  <p className="text-xs leading-tight text-neutral-600">
                     {user?.email || "—"}
                   </p>
                 </div>
@@ -122,7 +122,7 @@ export function Topbar({ compact = false }: TopbarProps) {
               <button
                 type="button"
                 onClick={() => void logout()}
-                className="focus-ring rounded-md p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
+                className="focus-ring rounded-md p-2 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
                 title="Cerrar sesión"
                 aria-label="Cerrar sesión"
               >

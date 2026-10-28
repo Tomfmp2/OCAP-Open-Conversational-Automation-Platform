@@ -86,7 +86,7 @@ export default function SecurityPage() {
               <Badge tone="neutral">{users.length}</Badge>
             </div>
             {users.length === 0 ? (
-              <p className="text-xs text-neutral-500">La API no devolvió usuarios.</p>
+              <p className="text-xs text-neutral-600">La API no devolvió usuarios.</p>
             ) : (
               users.slice(0, 8).map((user) => (
                 <div
@@ -97,7 +97,7 @@ export default function SecurityPage() {
                     <p className="truncate text-xs font-semibold text-neutral-900">
                       {user.fullName || user.email}
                     </p>
-                    <p className="truncate text-xs text-neutral-500">{user.email}</p>
+                    <p className="truncate text-xs text-neutral-600">{user.email}</p>
                   </div>
                   <Badge tone={user.isActive ? "success" : "neutral"}>
                     {user.isActive ? "Activo" : "Inactivo"}
@@ -115,7 +115,7 @@ export default function SecurityPage() {
               <Badge tone="neutral">{permissions.length} permisos</Badge>
             </div>
             {sessions.length === 0 ? (
-              <p className="text-xs text-neutral-500">La API no devolvió sesiones.</p>
+              <p className="text-xs text-neutral-600">La API no devolvió sesiones.</p>
             ) : (
               sessions.slice(0, 8).map((session) => (
                 <div
@@ -126,7 +126,7 @@ export default function SecurityPage() {
                     <p className="truncate font-mono text-xs text-neutral-700">
                       {session.ipAddress || "IP no reportada"}
                     </p>
-                    <p className="text-xs text-neutral-500">
+                    <p className="text-xs text-neutral-600">
                       {new Date(session.loginAtUtc).toLocaleString()}
                     </p>
                   </div>

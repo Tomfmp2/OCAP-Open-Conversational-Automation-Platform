@@ -35,7 +35,7 @@ export function KnowledgeUploadPanel({
  </div>
 
  {!selectedKb ? (
- <p className="text-xs text-neutral-500">Seleccione una base de conocimiento para subir documentos.</p>
+ <p className="text-xs text-neutral-600">Seleccione una base de conocimiento para subir documentos.</p>
  ) : (
  <>
  {error && (
@@ -45,7 +45,7 @@ export function KnowledgeUploadPanel({
  </div>
  )}
 
- <p className="text-xs text-neutral-500">
+ <p className="text-xs text-neutral-600">
  Destino: <span className="font-semibold text-neutral-700">{selectedKb.name}</span>
  </p>
 
@@ -64,8 +64,8 @@ export function KnowledgeUploadPanel({
  </div>
 
  <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed border-neutral-300 rounded-xl cursor-pointer hover:border-neutral-950 transition-colors">
- <Upload className="w-6 h-6 text-neutral-500" />
- <span className="text-xs text-neutral-500">
+ <Upload className="w-6 h-6 text-neutral-600" />
+ <span className="text-xs text-neutral-600">
  {isUploading ? "Subiendo..." : "PDF, DOCX, MD, CSV, JSON, HTML, TXT"}
  </span>
  {isUploading && <Loader2 className="w-4 h-4 animate-spin text-neutral-700" />}

@@ -59,7 +59,7 @@ export function WebhookManager({
           </div>
           <div>
             <h2 className="text-sm font-semibold text-neutral-950">Webhooks</h2>
-            <p className="text-xs text-neutral-500">Entregas de eventos a servicios externos.</p>
+            <p className="text-xs text-neutral-600">Entregas de eventos a servicios externos.</p>
           </div>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setIsOpen(true)} disabled={!onCreate}>

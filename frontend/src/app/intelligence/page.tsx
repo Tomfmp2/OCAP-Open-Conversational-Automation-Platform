@@ -178,12 +178,12 @@ export default function IntelligencePage() {
       {runtime && (
         <Surface className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-neutral-600">
               Runtime activo
             </p>
             <p className="mt-0.5 font-mono text-sm text-neutral-950">
               {runtime.activeProvider} / {runtime.activeModel}
-              <span className="ml-2 text-xs text-neutral-500">({runtime.status})</span>
+              <span className="ml-2 text-xs text-neutral-600">({runtime.status})</span>
             </p>
           </div>
         </Surface>

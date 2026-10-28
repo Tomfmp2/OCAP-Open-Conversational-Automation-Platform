@@ -12,7 +12,7 @@ export default function AccountPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
-        icon={<UserRound className="h-5 w-5 text-neutral-500" aria-hidden />}
+        icon={<UserRound className="h-5 w-5 text-neutral-600" aria-hidden />}
         title="Mi cuenta"
         description={user ? `${user.fullName} · ${user.email}` : undefined}
       />

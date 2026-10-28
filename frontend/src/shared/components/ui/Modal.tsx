@@ -60,13 +60,13 @@ export function Modal({
           <div>
             <h2 className="text-sm font-semibold text-neutral-950">{title}</h2>
             {description && (
-              <p className="mt-0.5 text-xs text-neutral-500">{description}</p>
+              <p className="mt-0.5 text-xs text-neutral-600">{description}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+            className="rounded-md p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
             aria-label="Cerrar"
           >
             <X className="h-4 w-4" />

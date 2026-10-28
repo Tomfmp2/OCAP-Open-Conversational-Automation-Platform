@@ -62,7 +62,7 @@ function TestChat({ agentId }: { agentId: string }) {
     <div className="space-y-3">
       <div className="h-72 space-y-2 overflow-y-auto rounded-md border border-neutral-200 bg-neutral-50 p-3" aria-live="polite">
         {turns.length === 0 && !pending && (
-          <p className="pt-24 text-center text-xs text-neutral-500">Escribe el primer mensaje del cliente.</p>
+          <p className="pt-24 text-center text-xs text-neutral-600">Escribe el primer mensaje del cliente.</p>
         )}
         {turns.map((turn, index) => (
           <p
@@ -75,7 +75,7 @@ function TestChat({ agentId }: { agentId: string }) {
           </p>
         ))}
         {pending && (
-          <p className="flex items-center gap-2 text-xs text-neutral-500">
+          <p className="flex items-center gap-2 text-xs text-neutral-600">
             <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> Pensando…
           </p>
         )}

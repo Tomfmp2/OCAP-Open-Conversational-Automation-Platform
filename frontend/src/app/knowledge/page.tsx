@@ -39,7 +39,7 @@ export default function KnowledgePage() {
 
  if (isLoading) {
  return (
- <div className="mx-auto max-w-7xl p-12 text-center text-sm text-neutral-500">
+ <div className="mx-auto max-w-7xl p-12 text-center text-sm text-neutral-600">
  Cargando bases de conocimiento...
  </div>
  );
@@ -110,7 +110,7 @@ export default function KnowledgePage() {
  key={job.id}
  className="flex items-center justify-between p-2 rounded-lg bg-neutral-50 text-xs"
  >
- <span className="font-mono text-neutral-500">{job.type || job.id}</span>
+ <span className="font-mono text-neutral-600">{job.type || job.id}</span>
  <Badge tone={job.status === "Failed" ? "danger" : job.status === "Completed" ? "success" : "info"}>{job.status}</Badge>
  </div>
  ))}

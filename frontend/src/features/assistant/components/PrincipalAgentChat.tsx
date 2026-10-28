@@ -105,13 +105,13 @@ export function PrincipalAgentChat({
         <div className="ocap-hero-enter relative z-[1] flex w-full max-w-2xl flex-col items-center text-center">
           <AssistantOrb size={120} state={orbState} className="ocap-mark mb-10" />
 
-          <p className="text-sm font-medium text-neutral-500">
+          <p className="text-sm font-medium text-neutral-600">
             {greeting}, {displayName}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-[2.6rem] sm:leading-tight">
-            ¿En qué puedo <span className="text-neutral-500">ayudarte hoy?</span>
+            ¿En qué puedo <span className="text-neutral-600">ayudarte hoy?</span>
           </h1>
-          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-neutral-500">
+          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-neutral-600">
             {title === "OCAP" ? "Soy el agente principal de OCAP" : title}: conozco tus canales, tu IA, tu correo y tu
             base de conocimiento.
           </p>
@@ -127,7 +127,7 @@ export function PrincipalAgentChat({
                   onClick={() => sendText(prompt)}
                   className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-neutral-700 shadow-[0_1px_2px_rgba(10,10,10,0.04)] backdrop-blur transition-colors hover:border-neutral-400 hover:text-neutral-950"
                 >
-                  <Icon className="h-3.5 w-3.5 text-neutral-500" aria-hidden />
+                  <Icon className="h-3.5 w-3.5 text-neutral-600" aria-hidden />
                   {label}
                 </button>
               </li>
@@ -145,7 +145,7 @@ export function PrincipalAgentChat({
           <AssistantOrb size={36} state={orbState} />
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h1>
-            <p className="text-xs text-neutral-500" aria-live="polite">
+            <p className="text-xs text-neutral-600" aria-live="polite">
               {pending ? "Pensando…" : revealingId ? "Respondiendo…" : description}
             </p>
           </div>

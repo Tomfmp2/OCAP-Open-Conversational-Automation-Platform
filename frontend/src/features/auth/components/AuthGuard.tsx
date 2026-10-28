@@ -40,7 +40,7 @@ export function AuthGuard({
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-neutral-50">
-        <div className="text-sm text-neutral-500">Cargando sesión…</div>
+        <div className="text-sm text-neutral-600">Cargando sesión…</div>
       </div>
     );
   }
@@ -59,7 +59,7 @@ export function AuthGuard({
       <div className="flex h-full w-full items-center justify-center bg-neutral-50 p-6">
         <div className="text-center">
           <h1 className="text-lg font-semibold text-neutral-950">Acceso denegado</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-neutral-600">
             No tienes los permisos necesarios para ver esta sección.
           </p>
         </div>

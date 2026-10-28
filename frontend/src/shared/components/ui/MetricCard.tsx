@@ -23,12 +23,12 @@ export function MetricCard({
     <Surface className={cn(className)} padding="md">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-neutral-500">{title}</p>
+          <p className="text-xs font-medium text-neutral-600">{title}</p>
           <p className="mt-2 font-mono text-3xl font-medium tracking-tight text-neutral-950">
             {value}
           </p>
           {subtitle && (
-            <p className="mt-1 text-xs text-neutral-500">{subtitle}</p>
+            <p className="mt-1 text-xs text-neutral-600">{subtitle}</p>
           )}
         </div>
         {Icon && (

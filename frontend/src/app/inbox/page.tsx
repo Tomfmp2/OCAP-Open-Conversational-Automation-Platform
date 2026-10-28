@@ -37,7 +37,7 @@ export default function InboxPage() {
       {inbox.isError ? (
         <ErrorState message={inbox.error instanceof Error ? inbox.error.message : undefined} onRetry={() => void inbox.refetch()} />
       ) : inbox.isLoading ? (
-        <p className="text-sm text-neutral-500">Cargando conversaciones…</p>
+        <p className="text-sm text-neutral-600">Cargando conversaciones…</p>
       ) : !inbox.data || inbox.data.length === 0 ? (
         <EmptyState
           title={onlyHuman ? "Ninguna conversación espera a tu equipo" : "Todavía no hay conversaciones"}
@@ -61,7 +61,7 @@ export default function InboxPage() {
                 <ConversationDetail key={selected.id} conversation={selected} />
               </div>
             ) : (
-              <p className="flex h-full items-center justify-center p-6 text-sm text-neutral-500">Elige una conversación.</p>
+              <p className="flex h-full items-center justify-center p-6 text-sm text-neutral-600">Elige una conversación.</p>
             )}
           </div>
         </div>

@@ -25,7 +25,7 @@ export function AuditLogViewer({ logs }: AuditLogViewerProps) {
         </div>
 
         <div className="flex items-center gap-1.5 text-xs">
-          <Filter className="mr-1 h-3.5 w-3.5 text-neutral-500" />
+          <Filter className="mr-1 h-3.5 w-3.5 text-neutral-600" />
           {(["all", "info", "warning", "error"] as const).map((lvl) => (
             <button
               type="button"
@@ -54,7 +54,12 @@ export function AuditLogViewer({ logs }: AuditLogViewerProps) {
           }
         />
       ) : (
-        <div className="max-h-80 space-y-2 overflow-y-auto font-mono text-xs">
+        <div
+          role="region"
+          aria-label="Eventos de auditoría"
+          tabIndex={0}
+          className="focus-ring max-h-80 space-y-2 overflow-y-auto rounded-md font-mono text-xs"
+        >
           {filteredLogs.map((log) => (
           <div
             key={log.id}
@@ -72,14 +77,14 @@ export function AuditLogViewer({ logs }: AuditLogViewerProps) {
               ) : log.level === "warning" || log.level === "warn" ? (
                 <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" aria-label="Aviso" />
               ) : (
-                <Info className="w-4 h-4 text-neutral-500 shrink-0 mt-0.5" aria-label="Información" />
+                <Info className="w-4 h-4 text-neutral-600 shrink-0 mt-0.5" aria-label="Información" />
               )}
               <div className="min-w-0">
                 <span className="text-xs font-bold uppercase tracking-wider text-neutral-600">[{log.source}]</span>
                 <p className="text-xs leading-relaxed mt-0.5">{log.message}</p>
               </div>
             </div>
-            <span className="text-xs text-neutral-500 shrink-0">{log.timestamp}</span>
+            <span className="text-xs text-neutral-600 shrink-0">{log.timestamp}</span>
           </div>
           ))}
         </div>

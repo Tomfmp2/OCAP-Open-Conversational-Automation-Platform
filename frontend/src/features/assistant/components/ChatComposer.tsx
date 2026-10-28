@@ -75,7 +75,7 @@ export function ChatComposer({
               <RotateCcw className="h-4 w-4" aria-hidden />
             </button>
           )}
-          <span className="truncate pl-2 text-xs text-neutral-500">
+          <span className="truncate pl-2 text-xs text-neutral-600">
             {description}
             {providerUsed && <span className="font-mono"> · {providerUsed}</span>}
           </span>

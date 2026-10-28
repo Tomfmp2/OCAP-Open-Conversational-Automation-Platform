@@ -18,7 +18,7 @@ export function PageHeader({ title, description, actions, icon }: PageHeaderProp
           </h1>
         </div>
         {description && (
-          <p className="mt-1 max-w-2xl text-sm text-neutral-500">{description}</p>
+          <p className="mt-1 max-w-2xl text-sm text-neutral-600">{description}</p>
         )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -43,7 +43,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 px-4 py-3">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-neutral-950">{conversation.contactName}</h2>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-neutral-600">
             {conversation.channel}
             {conversation.externalContactId ? ` · ${conversation.externalContactId}` : ""}
           </p>
@@ -61,7 +61,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-neutral-50 px-4 py-4">
         {messages.isLoading && (
-          <p className="flex items-center gap-2 text-xs text-neutral-500">
+          <p className="flex items-center gap-2 text-xs text-neutral-600">
             <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> Cargando mensajes…
           </p>
         )}
@@ -70,7 +70,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
           const fromContact = message.sender === "User";
           return (
             <div key={message.id} className={cn("flex flex-col gap-0.5", fromContact ? "items-start" : "items-end")}>
-              {!fromContact && <span className="text-xs text-neutral-500">{SENDER_LABEL[message.sender]}</span>}
+              {!fromContact && <span className="text-xs text-neutral-600">{SENDER_LABEL[message.sender]}</span>}
               <p
                 className={cn(
                   "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
@@ -91,7 +91,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
         {conversation.handledByHuman ? (
           <Badge tone="warning">Atiende tu equipo: el agente no responde en esta conversación</Badge>
         ) : (
-          <p className="text-xs text-neutral-500">Responde el agente. Si escribes, tomas la conversación.</p>
+          <p className="text-xs text-neutral-600">Responde el agente. Si escribes, tomas la conversación.</p>
         )}
         {conversation.canReply ? (
           <form
@@ -123,7 +123,7 @@ export function ConversationDetail({ conversation }: ConversationDetailProps) {
             </Button>
           </form>
         ) : (
-          <p className="text-xs text-neutral-500">Este canal no permite responder desde el panel.</p>
+          <p className="text-xs text-neutral-600">Este canal no permite responder desde el panel.</p>
         )}
         {error && (
           <p role="alert" className="flex items-center gap-2 text-xs text-neutral-950">

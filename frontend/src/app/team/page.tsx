@@ -19,7 +19,7 @@ export default function TeamPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        icon={<Users className="h-5 w-5 text-neutral-500" aria-hidden />}
+        icon={<Users className="h-5 w-5 text-neutral-600" aria-hidden />}
         title="Equipo"
         description="Quién entra al panel y qué puede hacer. Los operadores atienden la bandeja; los administradores configuran todo."
         actions={

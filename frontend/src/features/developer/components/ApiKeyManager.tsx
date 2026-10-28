@@ -45,7 +45,7 @@ export function ApiKeyManager({
           </div>
           <div>
             <h2 className="text-sm font-semibold text-neutral-950">Claves de API</h2>
-            <p className="text-xs text-neutral-500">Credenciales de acceso programático.</p>
+            <p className="text-xs text-neutral-600">Credenciales de acceso programático.</p>
           </div>
         </div>
         <Button size="sm" onClick={() => setIsOpen(true)} disabled={!onCreate}>
@@ -73,8 +73,8 @@ export function ApiKeyManager({
                   {key.status === "active" ? "Activa" : "Revocada"}
                 </Badge>
               </div>
-              <p className="mt-1 font-mono text-xs text-neutral-500">{key.keyPrefix}</p>
-              <p className="mt-1 text-xs text-neutral-500">Último uso: {key.lastUsed}</p>
+              <p className="mt-1 font-mono text-xs text-neutral-600">{key.keyPrefix}</p>
+              <p className="mt-1 text-xs text-neutral-600">Último uso: {key.lastUsed}</p>
             </div>
             <Button
               variant="ghost"

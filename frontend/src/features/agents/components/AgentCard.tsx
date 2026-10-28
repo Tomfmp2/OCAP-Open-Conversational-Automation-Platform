@@ -24,7 +24,7 @@ export function AgentCard({ agent, onTest, onEdit, onDelete, deleting }: AgentCa
             <h3 className="text-sm font-semibold text-neutral-950">{agent.name}</h3>
             <Badge tone={agent.status === "Active" ? "success" : "neutral"}>{agent.status === "Active" ? "Activo" : agent.status}</Badge>
           </div>
-          {agent.description && <p className="mt-0.5 text-xs text-neutral-500">{agent.description}</p>}
+          {agent.description && <p className="mt-0.5 text-xs text-neutral-600">{agent.description}</p>}
           <p className="mt-2 line-clamp-3 text-xs text-neutral-700">{agent.systemPrompt}</p>
         </div>
       </div>

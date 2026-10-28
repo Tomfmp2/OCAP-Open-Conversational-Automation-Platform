@@ -96,7 +96,7 @@ export default function LoginPage() {
                 setCode("");
                 setError(null);
               }}
-              className="focus-ring text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-950"
+              className="focus-ring text-xs text-neutral-600 underline underline-offset-2 hover:text-neutral-950"
             >
               Usar otra cuenta
             </button>
@@ -141,7 +141,7 @@ export default function LoginPage() {
       {!mfaToken && (
         <Link
           href="/forgot-password"
-          className="focus-ring mt-4 self-start text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-950"
+          className="focus-ring mt-4 self-start text-xs text-neutral-600 underline underline-offset-2 hover:text-neutral-950"
         >
           ¿Olvidaste tu contraseña?
         </Link>

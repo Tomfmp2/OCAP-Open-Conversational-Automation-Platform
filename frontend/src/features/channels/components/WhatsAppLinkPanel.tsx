@@ -92,7 +92,7 @@ export function WhatsAppLinkPanel({ active, onLinked }: WhatsAppLinkPanelProps) 
               Código de vinculación: <span className="font-mono font-semibold">{status.pairingCode}</span>
             </p>
           )}
-          <p className="flex items-center justify-center gap-2 text-xs text-neutral-500">
+          <p className="flex items-center justify-center gap-2 text-xs text-neutral-600">
             <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden />
             Esperando el escaneo{live ? "" : " (actualizando cada pocos segundos)"}
           </p>

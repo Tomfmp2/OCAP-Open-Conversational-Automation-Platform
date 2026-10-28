@@ -9,7 +9,7 @@ export default function SetupPage() {
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <span className="text-sm font-semibold tracking-tight">OCAP</span>
-          <span className="text-xs text-neutral-500">Configuración inicial</span>
+          <span className="text-xs text-neutral-600">Configuración inicial</span>
         </div>
       </header>
 

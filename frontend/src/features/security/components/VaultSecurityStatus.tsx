@@ -12,7 +12,7 @@ export function VaultSecurityStatus() {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-neutral-950">Vault de credenciales</h2>
-            <p className="text-xs text-neutral-500">Información reportada por el servicio de seguridad.</p>
+            <p className="text-xs text-neutral-600">Información reportada por el servicio de seguridad.</p>
           </div>
         </div>
         <Badge tone="neutral">Sin telemetría</Badge>
@@ -22,7 +22,7 @@ export function VaultSecurityStatus() {
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-neutral-700" />
         <div>
           <p className="text-sm font-medium text-neutral-900">Métricas no disponibles</p>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+          <p className="mt-1 text-xs leading-relaxed text-neutral-600">
             La API actual no expone el estado verificable, la rotación de claves ni el número de
             secretos del vault. No se muestran estimaciones.
           </p>

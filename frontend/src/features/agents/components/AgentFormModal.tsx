@@ -98,15 +98,15 @@ function AgentForm({ agent, onDone }: { agent: Agent | null; onDone: () => void 
           onChange={(e) => setSystemPrompt(e.target.value)}
           className="focus-ring w-full rounded-md border border-neutral-300 bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-500"
         />
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-600">
           Además usa el historial de la conversación y tu base de conocimiento, y puede pasar la conversación a una persona.
         </p>
       </div>
 
       <fieldset className="space-y-2">
         <legend className="text-xs font-medium tracking-wide text-neutral-700">Herramientas</legend>
-        {available.isLoading && <p className="text-xs text-neutral-500">Cargando herramientas…</p>}
-        {available.data?.length === 0 && <p className="text-xs text-neutral-500">No hay herramientas disponibles.</p>}
+        {available.isLoading && <p className="text-xs text-neutral-600">Cargando herramientas…</p>}
+        {available.data?.length === 0 && <p className="text-xs text-neutral-600">No hay herramientas disponibles.</p>}
         {available.data?.map((tool) => (
           <label key={tool.name} className="flex items-start gap-2 text-xs text-neutral-800">
             <input
@@ -117,11 +117,11 @@ function AgentForm({ agent, onDone }: { agent: Agent | null; onDone: () => void 
             />
             <span>
               <span className="font-medium">{tool.name}</span>
-              <span className="block text-neutral-500">{tool.description}</span>
+              <span className="block text-neutral-600">{tool.description}</span>
             </span>
           </label>
         ))}
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-600">
           Solo aparecen acciones seguras frente a clientes (agendar, registrar datos); actúan de verdad, así que habilita
           solo las necesarias. Leer o enviar correos del negocio no se ofrece a los agentes de canal.
         </p>

@@ -34,7 +34,7 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
                 <h2 className="text-sm font-semibold text-neutral-950">
                   Configuración del tenant
                 </h2>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-neutral-600">
                   Preferencias persistidas por la API.
                 </p>
               </div>
@@ -49,7 +49,7 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
           {saveError && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-md border-2 border-neutral-950 bg-white p-3 text-xs text-neutral-950"
+              className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger-subtle p-3 text-xs text-danger"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {saveError}
@@ -65,10 +65,11 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
               className="cursor-not-allowed opacity-70"
             />
             <div className="space-y-2">
-              <label className="block text-xs font-medium tracking-wide text-neutral-700">
+              <label htmlFor="settings-locale" className="block text-xs font-medium tracking-wide text-neutral-700">
                 Idioma predeterminado
               </label>
               <select
+                id="settings-locale"
                 value={form.defaultLocale}
                 onChange={(e) =>
                   setForm({
@@ -119,7 +120,7 @@ export function SettingsForm({ settings, onSave, isSaving, saveSuccess, saveErro
                 />
                 <span>
                   <span className="block text-sm font-medium text-neutral-900">{label}</span>
-                  <span className="mt-0.5 block text-xs text-neutral-500">
+                  <span className="mt-0.5 block text-xs text-neutral-600">
                     {description}
                   </span>
                 </span>

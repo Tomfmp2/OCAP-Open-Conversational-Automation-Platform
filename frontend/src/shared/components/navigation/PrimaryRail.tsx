@@ -38,7 +38,7 @@ export function PrimaryRail() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group relative flex h-10 w-10 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950",
+                "group relative flex h-10 w-10 items-center justify-center rounded-md text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950",
                 isActive && "bg-neutral-950 text-white hover:bg-neutral-800 hover:text-white"
               )}
               title={item.label}
@@ -61,7 +61,7 @@ export function PrimaryRail() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group relative flex h-10 w-10 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950",
+                "group relative flex h-10 w-10 items-center justify-center rounded-md text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950",
                 isActive && "bg-neutral-950 text-white hover:bg-neutral-800 hover:text-white"
               )}
               title={item.label}

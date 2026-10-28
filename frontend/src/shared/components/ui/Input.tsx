@@ -15,7 +15,9 @@ export function Input({
   id,
   ...props
 }: InputProps) {
-  const inputId = id || props.name;
+  // Sin id ni name la etiqueta quedaría suelta y el lector de pantalla no nombraría el campo.
+  const generatedId = React.useId();
+  const inputId = id || props.name || generatedId;
   // El error y la ayuda se asocian al campo para que los lectores de pantalla los anuncien.
   const messageId = inputId && (error || hint) ? `${inputId}-message` : undefined;
 
@@ -35,15 +37,15 @@ export function Input({
         aria-describedby={messageId}
         className={cn(
           "w-full rounded-md border bg-white px-3.5 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-500 focus-ring",
-          error ? "border-neutral-950" : "border-neutral-300",
+          error ? "border-danger" : "border-neutral-300",
           className
         )}
         {...props}
       />
       {error ? (
-        <p id={messageId} className="text-xs font-medium text-neutral-950">{error}</p>
+        <p id={messageId} className="text-xs font-medium text-danger">{error}</p>
       ) : hint ? (
-        <p id={messageId} className="text-xs text-neutral-500">{hint}</p>
+        <p id={messageId} className="text-xs text-neutral-600">{hint}</p>
       ) : null}
     </div>
   );

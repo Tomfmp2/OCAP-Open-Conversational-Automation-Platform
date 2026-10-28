@@ -85,11 +85,11 @@ export function ProviderCard({
                 <Badge tone="warning">Sin config tenant</Badge>
               )}
             </div>
-            <p className="mt-0.5 font-mono text-xs text-neutral-500">
+            <p className="mt-0.5 font-mono text-xs text-neutral-600">
               {provider.providerName} · {provider.modelName || "sin modelo"}
             </p>
             {provider.baseUrl && (
-              <p className="mt-0.5 truncate font-mono text-xs text-neutral-500">
+              <p className="mt-0.5 truncate font-mono text-xs text-neutral-600">
                 {provider.baseUrl}
               </p>
             )}
@@ -111,7 +111,7 @@ export function ProviderCard({
       </div>
 
       {isCatalogOnly && (
-        <p className="text-xs leading-relaxed text-neutral-500">
+        <p className="text-xs leading-relaxed text-neutral-600">
           Viene del registry/.env. Pulsa <strong>Registrar</strong> para poder editar modelo,
           API key y activarlo por tenant.
         </p>
@@ -124,7 +124,7 @@ export function ProviderCard({
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-        <span className="font-mono text-xs text-neutral-500">
+        <span className="font-mono text-xs text-neutral-600">
           {provider.lastPingMs > 0
             ? `${provider.lastPingMs} ms`
             : "Sin latencia"}

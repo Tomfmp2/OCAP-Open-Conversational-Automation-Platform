@@ -18,7 +18,7 @@ export function ChangePasswordCard() {
   return (
     <Surface className="space-y-4">
       <div className="flex items-center gap-2">
-        <KeyRound className="h-4 w-4 text-neutral-500" aria-hidden />
+        <KeyRound className="h-4 w-4 text-neutral-600" aria-hidden />
         <h2 className="text-sm font-semibold text-neutral-950">Contraseña</h2>
       </div>
       <form
@@ -47,7 +47,7 @@ export function ChangePasswordCard() {
           <Button type="submit" size="sm" loading={changePassword.isPending}>
             Cambiar contraseña
           </Button>
-          <p className="text-xs text-neutral-500">Al menos 12 caracteres, con letras y números.</p>
+          <p className="text-xs text-neutral-600">Al menos 12 caracteres, con letras y números.</p>
         </div>
         {(problem || changePassword.isError) && (
           <p role="alert" className="text-xs text-neutral-950 sm:col-span-3">

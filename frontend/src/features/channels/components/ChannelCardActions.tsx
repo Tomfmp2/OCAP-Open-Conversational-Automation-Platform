@@ -30,7 +30,7 @@ export function ChannelCardActions({ channel }: { channel: ChannelConnection }) 
           onClick={() => setMode("rename")}
           aria-label={`Editar ${channel.name}`}
           title="Editar nombre"
-          className="focus-ring rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
+          className="focus-ring rounded-md p-1.5 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -39,7 +39,7 @@ export function ChannelCardActions({ channel }: { channel: ChannelConnection }) 
           onClick={() => setMode("delete")}
           aria-label={`Eliminar ${channel.name}`}
           title="Eliminar canal"
-          className="focus-ring rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
+          className="focus-ring rounded-md p-1.5 text-neutral-600 transition-colors hover:bg-neutral-100 hover:text-neutral-950"
         >
           <Trash2 className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -96,7 +96,7 @@ function DeleteConfirm({ channel, onDone }: { channel: ChannelConnection; onDone
   return (
     <div className="space-y-4">
       <p className="text-sm text-neutral-700">{deleteConsequence(channel)}</p>
-      <p className="text-xs text-neutral-500">Las conversaciones ya recibidas se conservan en la bandeja.</p>
+      <p className="text-xs text-neutral-600">Las conversaciones ya recibidas se conservan en la bandeja.</p>
       <ErrorLine error={remove.error} />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>

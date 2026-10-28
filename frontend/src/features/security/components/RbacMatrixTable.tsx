@@ -17,7 +17,7 @@ export function RbacMatrixTable({ roles }: RbacMatrixTableProps) {
           </div>
           <div>
             <h2 className="text-sm font-semibold text-neutral-950">Roles y permisos</h2>
-            <p className="text-xs text-neutral-500">Matriz RBAC del tenant activo.</p>
+            <p className="text-xs text-neutral-600">Matriz RBAC del tenant activo.</p>
           </div>
         </div>
         <Badge tone="info">{roles.length} roles</Badge>
@@ -32,7 +32,7 @@ export function RbacMatrixTable({ roles }: RbacMatrixTableProps) {
             <p className="font-semibold text-neutral-950">{role.name}</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {role.permissions.length === 0 ? (
-                <span className="text-xs text-neutral-500">Sin permisos asignados</span>
+                <span className="text-xs text-neutral-600">Sin permisos asignados</span>
               ) : (
                 role.permissions.map((permission) => (
                   <Badge key={permission} tone="info" className="font-mono normal-case">

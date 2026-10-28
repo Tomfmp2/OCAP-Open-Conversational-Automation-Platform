@@ -44,13 +44,13 @@ function StepIndicator({ current }: { current: StepId }) {
             <span
               className={
                 state === "next"
-                  ? "flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 text-neutral-500"
+                  ? "flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 text-neutral-600"
                   : "flex h-6 w-6 items-center justify-center rounded-full bg-neutral-950 text-neutral-50"
               }
             >
               {state === "done" ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> : index + 1}
             </span>
-            <span className={state === "next" ? "text-neutral-500" : "font-medium text-neutral-950"}>
+            <span className={state === "next" ? "text-neutral-600" : "font-medium text-neutral-950"}>
               {step.title}
             </span>
             {index < STEPS.length - 1 && <span className="h-px w-6 bg-neutral-300" aria-hidden />}
@@ -84,7 +84,7 @@ export function SetupWizard() {
 
   if (status.isLoading || alreadyConfigured) {
     return (
-      <div className="flex items-center gap-2 text-sm text-neutral-500" role="status">
+      <div className="flex items-center gap-2 text-sm text-neutral-600" role="status">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Comprobando la instalación…
       </div>
     );
@@ -108,7 +108,7 @@ export function SetupWizard() {
 
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{copy.title}</h1>
-        <p className="max-w-xl text-sm leading-relaxed text-neutral-500">{copy.description}</p>
+        <p className="max-w-xl text-sm leading-relaxed text-neutral-600">{copy.description}</p>
       </div>
 
       {step === "admin" && <AdminStep onCompleted={handleAdminCreated} />}

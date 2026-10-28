@@ -61,7 +61,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
         <div className="max-h-80 space-y-1 overflow-y-auto p-2">
           {filtered.length === 0 ? (
-            <p className="p-4 text-center text-xs text-neutral-500">
+            <p className="p-4 text-center text-xs text-neutral-600">
               No hay resultados para &quot;{query}&quot;
             </p>
           ) : (
@@ -74,7 +74,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               >
                 <div>
                   <p className="text-xs font-semibold text-neutral-950">{item.label}</p>
-                  <p className="text-xs text-neutral-500">{item.category}</p>
+                  <p className="text-xs text-neutral-600">{item.category}</p>
                 </div>
                 <ArrowRight className="h-3.5 w-3.5 text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100" />
               </button>

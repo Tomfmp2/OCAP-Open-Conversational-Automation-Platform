@@ -17,11 +17,11 @@ export function AuthScreen({ title, description, children }: { title: string; de
       <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-12">
         <div className="mb-10">
           <p className="text-3xl font-semibold tracking-tight">OCAP</p>
-          <p className="mt-1 text-sm text-neutral-500">Open Conversational Automation Platform</p>
+          <p className="mt-1 text-sm text-neutral-600">Open Conversational Automation Platform</p>
         </div>
 
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-2 text-sm text-neutral-500">{description}</p>}
+        {description && <p className="mt-2 text-sm text-neutral-600">{description}</p>}
         {children}
       </div>
     </div>

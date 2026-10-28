@@ -42,7 +42,7 @@ export function CreateKnowledgeBaseModal({
  <BookOpen className="w-5 h-5 text-neutral-700" />
  <h2 className="text-base font-bold text-neutral-950">Nueva Base de Conocimiento</h2>
  </div>
- <button type="button" onClick={onClose} className="text-neutral-500 hover:text-neutral-800">
+ <button type="button" onClick={onClose} className="text-neutral-600 hover:text-neutral-800">
  <X className="w-4 h-4" />
  </button>
  </div>
@@ -103,7 +103,7 @@ export function CreateKnowledgeBaseModal({
  </div>
 
  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-200">
- <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs text-neutral-500">
+ <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-xs text-neutral-600">
  Cancelar
  </button>
  <button

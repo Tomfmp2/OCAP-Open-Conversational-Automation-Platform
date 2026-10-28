@@ -36,7 +36,7 @@ export function ChannelAiSelect({ connectionId, aiProviderConfigId }: ChannelAiS
         ))}
       </select>
       {options.data?.length === 0 && (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-600">
           Sin proveedores registrados:{" "}
           <Link href="/intelligence" className="underline underline-offset-2 hover:text-neutral-950">
             agrega uno en IA y modelos

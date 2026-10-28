@@ -35,7 +35,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate text-sm font-semibold text-neutral-950">{conversation.contactName}</span>
-              <span className="shrink-0 text-xs text-neutral-500">{formatTime(conversation.lastActivityAt)}</span>
+              <span className="shrink-0 text-xs text-neutral-600">{formatTime(conversation.lastActivityAt)}</span>
             </span>
             <span className="truncate text-xs text-neutral-600">
               {conversation.lastSender && SENDER_PREFIX[conversation.lastSender]}

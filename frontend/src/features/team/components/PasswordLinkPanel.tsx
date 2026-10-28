@@ -40,7 +40,7 @@ export function PasswordLinkPanel({ link, recipient }: { link: PasswordLink; rec
           {copied ? "Copiado" : "Copiar"}
         </Button>
       </div>
-      <p className="text-xs text-neutral-500">Sirve una sola vez y vence el {expires}. Generar otro invalida este.</p>
+      <p className="text-xs text-neutral-600">Sirve una sola vez y vence el {expires}. Generar otro invalida este.</p>
     </div>
   );
 }

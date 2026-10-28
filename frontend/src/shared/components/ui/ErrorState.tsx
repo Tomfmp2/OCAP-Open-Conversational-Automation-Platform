@@ -22,7 +22,7 @@ export function ErrorState({
     >
       <AlertCircle className="mx-auto mb-3 h-6 w-6 text-neutral-950" />
       <h3 className="text-sm font-semibold text-neutral-950">{title}</h3>
-      <p className="mx-auto mt-1 max-w-md text-xs text-neutral-500">{message}</p>
+      <p className="mx-auto mt-1 max-w-md text-xs text-neutral-600">{message}</p>
       {onRetry && (
         <div className="mt-4 flex justify-center">
           <Button type="button" size="sm" onClick={onRetry}>

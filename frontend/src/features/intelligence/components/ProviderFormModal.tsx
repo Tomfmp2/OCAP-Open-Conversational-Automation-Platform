@@ -205,7 +205,7 @@ export function ProviderFormModal({
                   className={`rounded border px-2 py-1 font-mono text-xs ${
                     modelName === m
                       ? "border-neutral-950 bg-neutral-100 text-neutral-950"
-                      : "border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                      : "border-neutral-200 text-neutral-600 hover:border-neutral-400"
                   }`}
                 >
                   {m}

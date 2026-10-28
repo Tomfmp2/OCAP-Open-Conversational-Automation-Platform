@@ -31,7 +31,7 @@ export function MfaCard() {
     <Surface className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-neutral-500" aria-hidden />
+          <ShieldCheck className="h-4 w-4 text-neutral-600" aria-hidden />
           <h2 className="text-sm font-semibold text-neutral-950">Verificación en dos pasos</h2>
         </div>
         {status.data && <Badge tone={status.data.enabled ? "success" : "neutral"}>{status.data.enabled ? "Activa" : "Inactiva"}</Badge>}

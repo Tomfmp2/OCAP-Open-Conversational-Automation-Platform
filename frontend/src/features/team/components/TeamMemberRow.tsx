@@ -39,13 +39,13 @@ export function TeamMemberRow({ member, isSelf }: { member: TeamMember; isSelf: 
             </Badge>
           )}
         </div>
-        <p className="truncate text-xs text-neutral-500">{member.email}</p>
+        <p className="truncate text-xs text-neutral-600">{member.email}</p>
         <ErrorText error={error} />
       </div>
 
       <div className="flex flex-wrap items-end gap-2 sm:justify-end">
         {isSelf ? (
-          <p className="text-xs text-neutral-500">{ROLE_LABELS[member.role].label}</p>
+          <p className="text-xs text-neutral-600">{ROLE_LABELS[member.role].label}</p>
         ) : (
           <>
             <div className="w-40">
