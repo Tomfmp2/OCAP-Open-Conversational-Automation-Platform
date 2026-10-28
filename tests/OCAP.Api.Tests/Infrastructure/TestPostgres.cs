@@ -62,8 +62,7 @@ public static class TestPostgres
         {
             if (_container is null)
             {
-                var container = new PostgreSqlBuilder()
-                    .WithImage("pgvector/pgvector:pg16")
+                var container = new PostgreSqlBuilder("pgvector/pgvector:pg16")
                     .WithDatabase("postgres")
                     .Build();
                 await container.StartAsync();
