@@ -45,6 +45,10 @@ public static partial class ApiServiceExtensions
                 .AddStandardResilienceHandler();
         }
 
+        // La conexión OAuth (pantalla de Integraciones) existe aunque Calendar/Gmail/Sheets estén simulados.
+        services.AddHttpClient<OCAP.Api.Services.GoogleOAuthClient>();
+        services.AddScoped<OCAP.Api.Services.GoogleOAuthConnectionStore>();
+
         // Registrar Google Tools en DI
         services.AddTransient<ITool, CreateCalendarEventTool>();
         services.AddTransient<ITool, SendEmailTool>();
