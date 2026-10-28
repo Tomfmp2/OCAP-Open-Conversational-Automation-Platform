@@ -118,7 +118,9 @@ services:
       UseInMemory: "false"
       Knowledge__UseInMemory: "false"
       Knowledge__VectorStore: "PgVector"
-      EventBus__Provider: ${EVENTBUS_PROVIDER:-RabbitMQ}
+      # Como ASPNETCORE_ENVIRONMENT: EVENTBUS_PROVIDER del .env es la del modo desarrollo (puede ser InMemory). En
+      # Docker los eventos pasan por el RabbitMQ del stack (o NATS con OCAP_EVENTBUS_PROVIDER=Nats), nunca por memoria.
+      EventBus__Provider: ${OCAP_EVENTBUS_PROVIDER:-RabbitMQ}
       EventBus__ConnectionString: "amqp://${RABBITMQ_USER:-ocap}:${RABBITMQ_PASSWORD:?Falta RABBITMQ_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}@rabbitmq:5672/"
       EventBus__NatsUrl: "nats://nats:4222"
       EventBus__ImmediateDispatch: "false"
@@ -138,7 +140,8 @@ services:
       Google__ClientId: ${Google__ClientId:-}
       Google__ClientSecret: ${Google__ClientSecret:-}
       Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
-      Google__UseInMemory: ${Google__UseInMemory:-false}
+      # Google simulado guarda correos y eventos en memoria y los pierde al reiniciar: solo para ocap-dev.sh.
+      Google__UseInMemory: "false"
       AiProviders__OpenAI__ApiKey: ${AiProviders__OpenAI__ApiKey:-}
       AiProviders__OpenAI__ModelName: ${AiProviders__OpenAI__ModelName:-gpt-4o}
       AiProviders__Gemini__ApiKey: ${AiProviders__Gemini__ApiKey:-}

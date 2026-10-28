@@ -17,6 +17,13 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var useInMemory = string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase);
+        var environment = configuration[Microsoft.Extensions.Hosting.HostDefaults.EnvironmentKey]
+            ?? configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"] ?? "Production";
+        if (useInMemory && string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "UseInMemory=true no está permitido en Production: los datos se perderían al reiniciar. Configura ConnectionStrings:DefaultConnection.");
+        }
         services.AddObjectStorage(configuration);
 
         // Fallback tenant context for non-HTTP hosts; API replaces with HttpTenantContext.
@@ -96,12 +103,13 @@ public static class InfrastructureServiceExtensions
             configuration.GetSection(OCAP.Infrastructure.Events.Distributed.EventBusOptions.SectionName));
         services.PostConfigure<OCAP.Infrastructure.Events.Distributed.EventBusOptions>(opts =>
         {
-            var env = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"];
-            var isDev = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(env, "Testing", StringComparison.OrdinalIgnoreCase);
+            var isDev = string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase);
+            // Fuera de desarrollo los eventos no pueden vivir solo en memoria del proceso (se pierden al reiniciar y
+            // no llegan a otras réplicas).
             if (!isDev && string.Equals(opts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase))
             {
-                opts.Provider = configuration["EventBus:Provider"] ?? "RabbitMQ";
+                opts.Provider = "RabbitMQ";
             }
 
             if (string.Equals(opts.Provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
