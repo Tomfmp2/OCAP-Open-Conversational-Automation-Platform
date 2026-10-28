@@ -27,7 +27,8 @@ public class WebhookSubscriptionConfiguration : IEntityTypeConfiguration<Webhook
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).IsRequired().HasMaxLength(128);
         builder.Property(x => x.TargetUrl).IsRequired().HasMaxLength(2048);
-        builder.Property(x => x.Secret).IsRequired().HasMaxLength(512);
+        // Referencia cifrada del vault (más larga que el secreto de hasta 512 caracteres que acepta la API).
+        builder.Property(x => x.Secret).IsRequired().HasMaxLength(2048);
         builder.Property(x => x.SubscribedEvents).HasMaxLength(2000);
         builder.HasIndex(x => x.TenantId);
     }

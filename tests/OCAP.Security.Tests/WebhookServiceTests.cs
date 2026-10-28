@@ -15,6 +15,8 @@ public class WebhookServiceTests
 {
     private readonly HmacSha256WebhookSigner _signer = new();
     private readonly Mock<ISecurityAuditService> _auditMock = new();
+    private readonly AesDbCredentialVault _vault =
+        new(Microsoft.Extensions.Logging.Abstractions.NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
 
     private static OCAPDbContext CreateDbContext()
     {
@@ -45,7 +47,7 @@ public class WebhookServiceTests
     {
         // Arrange
         using var db = CreateDbContext();
-        var service = new WebhookService(db, _signer, _auditMock.Object);
+        var service = new WebhookService(db, _signer, _auditMock.Object, _vault);
         var tenantId1 = Guid.NewGuid();
         var tenantId2 = Guid.NewGuid();
 
@@ -79,7 +81,7 @@ public class WebhookServiceTests
         using var db = CreateDbContext();
         var handlerMock = new MockHttpMessageHandler(HttpStatusCode.OK, "{\"received\":true}");
         var httpClient = new HttpClient(handlerMock);
-        var service = new WebhookService(db, _signer, _auditMock.Object, httpClient);
+        var service = new WebhookService(db, _signer, _auditMock.Object, _vault, httpClient);
 
         var tenantId = Guid.NewGuid();
         var sub = await service.CreateSubscriptionAsync(tenantId, "Prod Webhook", "https://93.184.215.16/webhook", "whsec_123", new[] { "WorkflowCompletedEvent" });
@@ -95,6 +97,10 @@ public class WebhookServiceTests
         handlerMock.LastRequestHeaders!.Contains("X-OCAP-Signature").Should().BeTrue();
         handlerMock.LastRequestHeaders.Contains("X-OCAP-Event").Should().BeTrue();
         handlerMock.LastRequestHeaders.GetValues("X-OCAP-Event").FirstOrDefault().Should().Be("WorkflowCompletedEvent");
+        // La base guarda el secreto cifrado, pero la firma se calcula con el secreto original.
+        (await db.WebhookSubscriptions.AsNoTracking().SingleAsync()).Secret.Should().StartWith("vault:").And.NotContain("whsec_123");
+        handlerMock.LastRequestHeaders.GetValues("X-OCAP-Signature").Single()
+            .Should().Be(_signer.SignPayload(handlerMock.LastRequestBody!, "whsec_123"));
 
         var history = await service.GetDeliveryHistoryAsync(sub.Id, tenantId);
         history.Should().HaveCount(1);
@@ -110,6 +116,7 @@ public class WebhookServiceTests
 
         public int RequestCount { get; private set; }
         public HttpRequestHeaders? LastRequestHeaders { get; private set; }
+        public string? LastRequestBody { get; private set; }
 
         public MockHttpMessageHandler(HttpStatusCode statusCode, string responseContent)
         {
@@ -117,17 +124,18 @@ public class WebhookServiceTests
             _responseContent = responseContent;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
             LastRequestHeaders = request.Headers;
+            LastRequestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
 
             var response = new HttpResponseMessage(_statusCode)
             {
                 Content = new StringContent(_responseContent)
             };
 
-            return Task.FromResult(response);
+            return response;
         }
     }
 }

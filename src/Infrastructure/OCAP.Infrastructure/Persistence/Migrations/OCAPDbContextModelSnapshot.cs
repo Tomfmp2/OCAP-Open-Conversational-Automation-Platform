@@ -1978,8 +1978,8 @@ namespace OCAP.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Secret")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
 
                     b.Property<string>("SubscribedEvents")
                         .IsRequired()

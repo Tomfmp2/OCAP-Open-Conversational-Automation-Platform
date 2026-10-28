@@ -17,6 +17,7 @@ public class WebhookService : IWebhookService
     private readonly OCAPDbContext _dbContext;
     private readonly IWebhookSigner _signer;
     private readonly ISecurityAuditService _auditService;
+    private readonly ICredentialVault _vault;
     private readonly HttpClient _httpClient;
     private readonly ILogger<WebhookService>? _logger;
 
@@ -24,12 +25,14 @@ public class WebhookService : IWebhookService
         OCAPDbContext dbContext,
         IWebhookSigner signer,
         ISecurityAuditService auditService,
+        ICredentialVault vault,
         HttpClient? httpClient = null,
         ILogger<WebhookService>? logger = null)
     {
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
+        _vault = vault ?? throw new ArgumentNullException(nameof(vault));
         _httpClient = httpClient ?? new HttpClient();
         _logger = logger;
     }
@@ -52,7 +55,7 @@ public class WebhookService : IWebhookService
             tenantId,
             name,
             targetUrl,
-            secret,
+            await ProtectSecretAsync(tenantId, secret, cancellationToken),
             eventsJoined
         );
 
@@ -67,6 +70,16 @@ public class WebhookService : IWebhookService
 
         return sub;
     }
+
+    // El secreto HMAC se guarda cifrado con el vault de la organización: una copia de la base no permite falsificar firmas.
+    private Task<string> ProtectSecretAsync(Guid tenantId, string secret, CancellationToken cancellationToken) =>
+        _vault.StoreSecretAsync(tenantId, "webhook-hmac-secret", secret, cancellationToken);
+
+    // Las suscripciones creadas antes del cifrado tienen el secreto en claro: se siguen firmando con él.
+    private async Task<string> RevealSecretAsync(WebhookSubscription sub, CancellationToken cancellationToken) =>
+        sub.Secret.StartsWith("vault:", StringComparison.Ordinal)
+            ? await _vault.RetrieveSecretAsync(sub.TenantId, sub.Secret, cancellationToken) ?? string.Empty
+            : sub.Secret;
 
     // Los webhooks salen hacia internet: nunca a la red interna (la entrega usa además un handler que lo revalida).
     private static async Task EnsureAllowedTargetAsync(string targetUrl, CancellationToken cancellationToken)
@@ -91,7 +104,8 @@ public class WebhookService : IWebhookService
         await EnsureAllowedTargetAsync(targetUrl, cancellationToken);
 
         var eventsJoined = string.Join(",", subscribedEvents ?? new[] { "*" });
-        sub.Update(name, targetUrl, secret ?? sub.Secret, eventsJoined);
+        var storedSecret = string.IsNullOrWhiteSpace(secret) ? sub.Secret : await ProtectSecretAsync(tenantId, secret, cancellationToken);
+        sub.Update(name, targetUrl, storedSecret, eventsJoined);
 
         if (isActive && !sub.IsActive) sub.Enable();
         else if (!isActive && sub.IsActive) sub.Disable();
@@ -175,7 +189,7 @@ public class WebhookService : IWebhookService
         string? responseBody = null;
         string? errorMessage = null;
 
-        var signature = _signer.SignPayload(payloadJson, sub.Secret);
+        var signature = _signer.SignPayload(payloadJson, await RevealSecretAsync(sub, cancellationToken));
         var deliveryId = Guid.NewGuid();
 
         var stopwatch = Stopwatch.StartNew();
