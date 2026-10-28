@@ -16,8 +16,7 @@ const variants: Record<ButtonVariant, string> = {
   secondary:
     "bg-white border border-neutral-300 text-neutral-900 hover:bg-neutral-100",
   ghost: "text-neutral-700 hover:bg-neutral-200/70",
-  danger:
-    "bg-neutral-950 hover:bg-neutral-800 text-neutral-50 border border-neutral-950 disabled:opacity-50 underline-offset-2",
+  danger: "bg-danger hover:bg-danger/90 text-white disabled:opacity-50",
   mono: "bg-neutral-950 hover:bg-neutral-800 text-neutral-50 disabled:opacity-50",
 };
 

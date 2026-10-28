@@ -6,6 +6,12 @@ import { expect, test, type Page } from "@playwright/test";
  * (BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD). Sus credenciales llegan por OCAP_ADMIN_EMAIL / OCAP_ADMIN_PASSWORD.
  */
 const email = process.env.OCAP_ADMIN_EMAIL ?? "";
+// Sitio de un cliente donde se incrusta el widget (lo sirve page.route).
+const clientSite = "http://cliente.test";
+
+// En la prueba el panel está en la red privada de Docker y Chromium bloquearía que un sitio público use el widget
+// (Local Network Access). En producción el widget se sirve desde el dominio público del panel y esto no aplica.
+test.use({ launchOptions: { args: ["--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests"] } });
 const password = process.env.OCAP_ADMIN_PASSWORD ?? "";
 
 test.beforeAll(() => {
@@ -113,6 +119,60 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   await page.goto("/intelligence");
   await page.getByRole("button", { name: `Eliminar ${providerName}` }).click();
   await expect(page.getByText(providerName)).toHaveCount(0);
+});
+
+test("WebChat: configurar el widget en el panel, incrustarlo en el sitio de un cliente y conversar", async ({ page }, testInfo) => {
+  // Una organización admite un solo WebChat: corre solo en escritorio y después del test de canales.
+  test.skip(testInfo.project.name.includes("mobile"), "Usa recursos únicos por organización");
+  const channelName = `Web widget ${Date.now()}`;
+  const title = "Soporte Tienda";
+  await login(page);
+
+  await page.goto("/channels");
+  await page.getByRole("button", { name: "Conectar canal" }).first().click();
+  await page.getByRole("button", { name: "WebChat" }).click();
+  await page.getByPlaceholder("WebChat Portal").fill(channelName);
+  await page.getByRole("button", { name: "Guardar y conectar" }).click();
+  await expect(page.getByRole("heading", { name: channelName })).toBeVisible({ timeout: 15_000 });
+
+  // Desde el panel: título, dominio autorizado y el código para pegar.
+  await page.getByRole("button", { name: `Insertar ${channelName} en tu sitio` }).click();
+  const dialog = page.getByRole("dialog", { name: "Chat en tu sitio web" });
+  await dialog.getByLabel("Título del chat").fill(title);
+  await dialog.getByLabel("Sitios donde se puede usar").fill(clientSite);
+  const snippet = (await dialog.locator("code").textContent())!;
+  await dialog.getByRole("button", { name: "Guardar" }).click();
+  await expect(dialog).toBeHidden();
+  // El panel lo genera con su propio origen; en la prueba el sitio cliente lo pide por la red interna.
+  const embed = snippet.replace(/src="[^"]*\/ocap-webchat\.js"/, `src="${testInfo.project.use.baseURL}/ocap-webchat.js"`);
+
+  const pageErrors: string[] = [];
+  const site = await page.context().newPage();
+  site.on("pageerror", (error) => pageErrors.push(error.message));
+  await site.route(`${clientSite}/**`, (route) =>
+    route.fulfill({ contentType: "text/html", body: `<!doctype html><title>Tienda</title><h1>Tienda</h1>${embed}` })
+  );
+  await site.goto(`${clientSite}/`);
+  await site.getByRole("button", { name: "Abrir chat" }).click();
+  await expect(site.getByRole("dialog", { name: title })).toBeVisible();
+  await site.getByRole("textbox", { name: "Mensaje" }).fill("Hola, ¿hacen envíos?");
+  await site.keyboard.press("Enter");
+  const log = site.getByRole("log");
+  await expect(log).toContainText("Hola, ¿hacen envíos?");
+  await expect(log.locator(".msg.agent")).toHaveCount(1, { timeout: 20_000 });
+  expect(await site.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+  expect(pageErrors).toEqual([]);
+
+  // La conversación del visitante llega a la bandeja del equipo.
+  await page.goto("/inbox");
+  await expect(page.getByText("Hola, ¿hacen envíos?").first()).toBeVisible({ timeout: 15_000 });
+
+  // Deja la organización como estaba.
+  page.on("dialog", (d) => void d.accept());
+  await page.goto("/channels");
+  await page.getByRole("button", { name: `Eliminar ${channelName}` }).click();
+  await page.getByRole("button", { name: "Eliminar canal" }).click();
+  await expect(page.getByRole("heading", { name: channelName })).toHaveCount(0);
 });
 
 test("equipo: invitar a un operador, aceptar el enlace y ver solo lo suyo", async ({ page, browser }, testInfo) => {

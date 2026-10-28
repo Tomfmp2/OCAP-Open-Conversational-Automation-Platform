@@ -24,6 +24,14 @@ export interface ChannelConnectionDto {
   agentId: string | null;
   /** Proveedor de IA (configuración de «IA y modelos») del canal; null = el activo de la organización. */
   aiProviderConfigId: string | null;
+  /** Solo WebChat: lo necesario para incrustar el widget en el sitio del cliente. */
+  widget?: WebChatWidget;
+}
+
+export interface WebChatWidget {
+  publicKey: string;
+  title: string;
+  allowedOrigins: string[];
 }
 
 export type ChannelConnection = ChannelConnectionDto;
@@ -94,6 +102,14 @@ export function useChannelsData() {
             health,
             agentId: item.configurationMetadata?.AgentId ?? null,
             aiProviderConfigId: item.configurationMetadata?.AiProviderConfigId ?? null,
+            widget:
+              item.provider.toLowerCase() === "webchat" && item.configurationMetadata?.PublicKey
+                ? {
+                    publicKey: item.configurationMetadata.PublicKey,
+                    title: item.configurationMetadata.WidgetTitle ?? "",
+                    allowedOrigins: (item.configurationMetadata.AllowedOrigins ?? "").split(",").filter(Boolean),
+                  }
+                : undefined,
           });
         });
       }
@@ -234,5 +250,24 @@ export function useDeleteChannel() {
       void queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
       void queryClient.invalidateQueries({ queryKey: ["inbox"] });
     },
+  });
+}
+
+/** Título y dominios (orígenes) donde puede incrustarse el widget de WebChat. */
+export function useConfigureWidget() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, widgetTitle, allowedOrigins }: { connectionId: string; widgetTitle: string; allowedOrigins: string[] }) =>
+      apiClient.put(`/api/channels/webchat/${connectionId}/widget`, { widgetTitle, allowedOrigins }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
+  });
+}
+
+/** Clave pública nueva para el widget: la anterior deja de funcionar en los sitios que la usen. */
+export function useRotateWidgetKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (connectionId: string) => apiClient.post<{ publicKey: string }>(`/api/channels/webchat/${connectionId}/widget/key`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["channelsData"] }),
   });
 }
