@@ -319,7 +319,28 @@ services:
       - ocap-api
       - ocap-frontend
 
+  # HTTPS con certificado automático. Solo con el perfil "https" (ocap lo activa si OCAP_DOMAIN está definido).
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: ocap-caddy
+    profiles: ["https"]
+    restart: always
+    environment:
+      OCAP_DOMAIN: ${OCAP_DOMAIN:-}
+      OCAP_ACME_EMAIL: ${OCAP_ACME_EMAIL:-}
+    ports:
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - nginx
+
 volumes:
   postgres_data:
   redis_data:
   api_storage:
+  caddy_data:
+  caddy_config:

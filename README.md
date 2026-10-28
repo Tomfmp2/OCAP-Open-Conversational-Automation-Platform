@@ -261,6 +261,8 @@ en tu teléfono y, para volver a usarlo, hay que escanear el QR otra vez. Las co
 | `ocap autostart on\|off` | Inicia (o no) OCAP al encender el equipo |
 | `ocap update` | `git pull` + reconstruir + levantar |
 | `ocap reset` | Borra **todos** los datos y empieza de cero (pide confirmación) |
+| `ocap backup` | Copia la base y los archivos subidos en `backups/` (el `.env` se guarda aparte: tiene las claves maestras) |
+| `ocap restore <archivo>` | Reemplaza los datos por los de una copia (pide confirmación; necesita el mismo `.env`) |
 | `ocap uninstall` | Quita el comando y el inicio automático (no borra el repo ni los datos) |
 | `ocap help` | Ayuda |
 
@@ -275,7 +277,8 @@ Las variables más relevantes (referencia completa en [`.env.example`](.env.exam
 | `OCAP_BIND_ADDRESS` | `127.0.0.1` solo este equipo; `0.0.0.0` también tu red | `127.0.0.1` |
 | `FRONTEND_HOST_PORT` / `API_HOST_PORT` | Puertos del panel y de la API | `3000` / `5000` |
 | `PUBLIC_PANEL_URL` | URL pública del panel (enlaces, CORS) | `http://localhost:3000` |
-| `EVENTBUS_PROVIDER` | Bus de eventos: `RabbitMQ`, `Nats` o `InMemory` | `RabbitMQ` |
+| `OCAP_DOMAIN` / `OCAP_ACME_EMAIL` | HTTPS público: con un dominio que apunte al servidor y el puerto 443 abierto, Caddy obtiene el certificado de Let's Encrypt y `PUBLIC_PANEL_URL` pasa a `https://<dominio>` | vacías |
+| `EVENTBUS_PROVIDER` | Bus de eventos solo de `ocap-dev.sh` (en Docker siempre RabbitMQ, o NATS con `OCAP_EVENTBUS_PROVIDER`) | `RabbitMQ` |
 | `STORAGE_PROVIDER` | Almacenamiento de archivos | `Local` |
 | `AiProviders__<Proveedor>__ApiKey` | Key de IA por entorno (alternativa al panel) | vacía |
 | `AiProviders__DemoMode` | `false` desactiva el proveedor simulado | activo sin keys |

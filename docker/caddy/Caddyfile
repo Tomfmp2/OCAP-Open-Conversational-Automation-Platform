@@ -1,0 +1,15 @@
+# HTTPS público de OCAP (perfil "https" de Compose, se activa con OCAP_DOMAIN en el .env).
+# Caddy obtiene y renueva el certificado de Let's Encrypt solo (desafío TLS-ALPN en el puerto 443) y pasa el
+# tráfico a Nginx, que mantiene los límites de intentos. Envía X-Forwarded-Proto: https, así la API marca la
+# cookie de sesión como Secure.
+{
+	email {$OCAP_ACME_EMAIL}
+}
+
+{$OCAP_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy nginx:80
+}

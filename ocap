@@ -42,6 +42,19 @@ OCAP_LANGUAGE="${OCAP_LANG:-$(env_get "$ENV_FILE" OCAP_LANGUAGE)}"
 OCAP_LANGUAGE="${OCAP_LANGUAGE:-es}"
 export OCAP_LANGUAGE
 
+# HTTPS público: con OCAP_DOMAIN en el .env se levanta Caddy (perfil https) con certificado de Let's Encrypt.
+OCAP_DOMAIN_VALUE="$(env_get "$ENV_FILE" OCAP_DOMAIN)"
+if [[ -n "$OCAP_DOMAIN_VALUE" ]]; then
+  export COMPOSE_PROFILES="https${COMPOSE_PROFILES:+,$COMPOSE_PROFILES}"
+fi
+
+# El panel y la API deben conocer la URL pública (CORS, enlaces de invitación); el certificado necesita un correo.
+prepare_https() {
+  [[ -n "$OCAP_DOMAIN_VALUE" ]] || return 0
+  [[ -n "$(env_get "$ENV_FILE" OCAP_ACME_EMAIL)" ]] || fail "$(t https_needs_email)"
+  env_set "$ENV_FILE" PUBLIC_PANEL_URL "https://${OCAP_DOMAIN_VALUE}"
+}
+
 panel_port() { local p; p="$(env_get "$ENV_FILE" FRONTEND_HOST_PORT)"; echo "${p:-3000}"; }
 api_port() { local p; p="$(env_get "$ENV_FILE" API_HOST_PORT)"; echo "${p:-5000}"; }
 
@@ -167,6 +180,7 @@ cmd_start() {
   require_tools
   ensure_docker
   "$ROOT/scripts/ocap-setup.sh" >/dev/null
+  prepare_https
   check_ports
   if (( force_build )) || needs_build; then
     build
@@ -185,6 +199,7 @@ cmd_start() {
   bold "  $(t running)"
   echo "  Panel: http://localhost:${panel}"
   echo "  API:   http://localhost:${api}"
+  [[ -n "$OCAP_DOMAIN_VALUE" ]] && echo "  HTTPS: https://${OCAP_DOMAIN_VALUE}"
   if [[ "$(env_get "$ENV_FILE" OCAP_BIND_ADDRESS)" == "0.0.0.0" ]]; then
     local ip
     ip="$(lan_ip)"

@@ -98,6 +98,7 @@ _msg_es() {
     reset_confirm) echo "Escribe 'borrar' para confirmar: " ;;
     reset_word) echo 'borrar' ;;
     cancelled) echo 'Cancelado.' ;;
+    https_needs_email) echo 'Con OCAP_DOMAIN definido falta OCAP_ACME_EMAIL en el .env (Let'"'"'s Encrypt avisa ahí si el certificado no se puede renovar).' ;;
     backup_database) echo 'Base de datos…' ;;
     backup_files) echo 'Archivos subidos…' ;;
     backup_done) echo 'Copia de seguridad lista: %s' ;;
@@ -237,6 +238,7 @@ _msg_en() {
     reset_confirm) echo "Type 'delete' to confirm: " ;;
     reset_word) echo 'delete' ;;
     cancelled) echo 'Cancelled.' ;;
+    https_needs_email) echo 'OCAP_DOMAIN is set but OCAP_ACME_EMAIL is missing in .env (Let'"'"'s Encrypt warns there if the certificate cannot be renewed).' ;;
     backup_database) echo 'Database…' ;;
     backup_files) echo 'Uploaded files…' ;;
     backup_done) echo 'Backup ready: %s' ;;
