@@ -361,8 +361,10 @@ exponerse a la red. Todos los puertos se cambian en el `.env` (o con `ocap confi
 
 - **Sin credenciales por defecto.** El administrador se crea en la instalación o en `/setup` con un código de un
   solo uso que la API imprime en sus logs.
-- **Keys cifradas.** Las API keys de IA y los tokens de canales se guardan cifrados (AES-256) en el vault de cada
-  organización y no salen de la API.
+- **Keys cifradas.** Las API keys de IA, los tokens de canales y de Google, los secretos de webhooks y la contraseña
+  LDAP se guardan cifrados (AES-256-GCM, una clave por organización) en el vault y no salen de la API.
+- **Sesión fuera del alcance de JavaScript.** El refresh token viaja en una cookie `HttpOnly` y se guarda como hash;
+  el panel no escribe la sesión en `localStorage`. Reusar un token ya rotado cierra esa sesión.
 - **Aislamiento por organización.** Filtros por tenant en la base de datos y comprobación explícita en las rutas
   que reciben un `tenantId`.
 - **Webhooks firmados.** Evolution, Telegram y Meta se verifican con su firma o secreto antes de procesar mensajes.
