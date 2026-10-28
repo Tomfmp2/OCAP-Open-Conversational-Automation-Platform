@@ -36,12 +36,31 @@ public class KnowledgeUploadTests : IClassFixture<OcapApiFactory>
         response.StatusCode.Should().NotBe(HttpStatusCode.BadRequest);
     }
 
-    private async Task<HttpResponseMessage> Upload(string fileName, byte[] bytes)
+    [Fact]
+    public async Task UploadedDocuments_AreListedAndCanBeDeleted()
     {
         var client = TestAuthHelper.CreateAuthenticatedClient(_factory);
+        var kbId = await CreateBaseAsync(client);
+        await Upload("horarios.md", Encoding.UTF8.GetBytes("# Horarios\nAbrimos de 9 a 18 h."), kbId);
+
+        var documents = await client.GetFromJsonAsync<List<Document>>($"/api/knowledge/{kbId}/documents");
+        documents.Should().ContainSingle(d => d.Title.Contains("horarios"));
+
+        (await client.DeleteAsync($"/api/knowledge/{documents![0].Id}")).EnsureSuccessStatusCode();
+        (await client.GetFromJsonAsync<List<Document>>($"/api/knowledge/{kbId}/documents")).Should().BeEmpty();
+    }
+
+    private static async Task<Guid> CreateBaseAsync(HttpClient client)
+    {
         var kb = await client.PostAsJsonAsync("/api/knowledge", new { name = $"KB {Guid.NewGuid():N}", description = "pruebas" });
         kb.EnsureSuccessStatusCode();
-        var kbId = (await kb.Content.ReadFromJsonAsync<KnowledgeBase>())!.Id;
+        return (await kb.Content.ReadFromJsonAsync<KnowledgeBase>())!.Id;
+    }
+
+    private async Task<HttpResponseMessage> Upload(string fileName, byte[] bytes, Guid? knowledgeBaseId = null)
+    {
+        var client = TestAuthHelper.CreateAuthenticatedClient(_factory);
+        var kbId = knowledgeBaseId ?? await CreateBaseAsync(client);
 
         using var form = new MultipartFormDataContent();
         var file = new ByteArrayContent(bytes);
@@ -53,4 +72,5 @@ public class KnowledgeUploadTests : IClassFixture<OcapApiFactory>
     }
 
     private sealed record KnowledgeBase(Guid Id);
+    private sealed record Document(Guid Id, string Title, string Status);
 }

@@ -66,6 +66,16 @@ public class KnowledgeController : ControllerBase
         return Ok(summaries);
     }
 
+    /// <summary>Documentos de una base, del más reciente al más antiguo.</summary>
+    [HttpGet("{knowledgeBaseId:guid}/documents")]
+    public async Task<ActionResult<IEnumerable<KnowledgeDocumentDto>>> GetDocuments(Guid knowledgeBaseId, CancellationToken cancellationToken)
+    {
+        var documents = await _knowledgeService.GetDocumentsAsync(_tenantContext.TenantId, knowledgeBaseId, cancellationToken);
+        return Ok(documents
+            .OrderByDescending(d => d.CreatedAtUtc)
+            .Select(d => new KnowledgeDocumentDto(d.Id, d.Title, d.FileType.ToString(), d.Status.ToString(), d.TotalChunks, d.CreatedAtUtc)));
+    }
+
     [HttpPost]
     public async Task<ActionResult> CreateKnowledgeBase([FromBody] CreateKnowledgeBaseDto dto, CancellationToken cancellationToken)
     {
@@ -134,3 +144,4 @@ public class KnowledgeController : ControllerBase
 
 public record CreateKnowledgeBaseDto(string Name, string Description, ChunkingStrategy Strategy, VectorDbProviderType VectorDbProvider);
 public record ReindexRequestDto(Guid KnowledgeBaseId);
+public record KnowledgeDocumentDto(Guid Id, string Title, string FileType, string Status, int TotalChunks, DateTime CreatedAtUtc);

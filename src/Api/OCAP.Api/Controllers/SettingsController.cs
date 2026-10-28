@@ -1,6 +1,5 @@
 using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Infrastructure.Persistence.Context;
@@ -8,20 +7,15 @@ using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
-public class SettingsConfigDto
-{
-    public string TenantName { get; set; } = "OCAP Enterprise Tenant";
-    public string DefaultLocale { get; set; } = "es";
-    public string Timezone { get; set; } = "UTC";
-    public int AuditLogRetentionDays { get; set; } = 30;
-    public bool EnableTelemetry { get; set; } = true;
-    public bool EnableFailover { get; set; } = true;
-}
+/// <summary>Datos de la organización que ve y edita el panel.</summary>
+public sealed record OrganizationSettingsDto(string Name);
 
 [ApiController]
 [Route("api/[controller]")]
 public class SettingsController : ControllerBase
 {
+    private const int MaxNameLength = 256;
+
     private readonly OCAPDbContext _dbContext;
     private readonly ITenantContext _tenantContext;
     private readonly IUserContext _userContext;
@@ -40,63 +34,42 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<SettingsConfigDto>> GetSettings(CancellationToken cancellationToken)
+    public async Task<ActionResult<OrganizationSettingsDto>> GetSettings(CancellationToken cancellationToken)
     {
-        var tenantId = _tenantContext.TenantId;
-        var tenant = tenantId != Guid.Empty
-            ? await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken)
-            : await _dbContext.Tenants.FirstOrDefaultAsync(cancellationToken);
-
-        if (tenant == null)
-        {
-            return Ok(new SettingsConfigDto());
-        }
-
-        SettingsConfigDto dto;
-        try
-        {
-            dto = JsonSerializer.Deserialize<SettingsConfigDto>(tenant.SettingsJson) ?? new SettingsConfigDto();
-        }
-        catch
-        {
-            dto = new SettingsConfigDto();
-        }
-
-        dto.TenantName = tenant.Name;
-        return Ok(dto);
+        var tenant = await FindTenantAsync(cancellationToken);
+        return tenant is null ? NotFound() : Ok(new OrganizationSettingsDto(tenant.Name));
     }
 
     [HttpPut]
     [Authorize(Policy = OcapPermissions.SettingsManage)]
-    public async Task<ActionResult<SettingsConfigDto>> UpdateSettings([FromBody] SettingsConfigDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult<OrganizationSettingsDto>> UpdateSettings([FromBody] OrganizationSettingsDto request, CancellationToken cancellationToken)
     {
-        if (request == null) return BadRequest("Configuración inválida.");
+        var name = request?.Name?.Trim() ?? string.Empty;
+        if (name.Length == 0 || name.Length > MaxNameLength)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"El nombre debe tener entre 1 y {MaxNameLength} caracteres.");
 
-        var tenantId = _tenantContext.TenantId;
-        var tenant = tenantId != Guid.Empty
-            ? await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId, cancellationToken)
-            : await _dbContext.Tenants.FirstOrDefaultAsync(cancellationToken);
+        var tenant = await FindTenantAsync(cancellationToken);
+        if (tenant is null) return NotFound();
 
-        if (tenant == null)
-        {
-            return NotFound("Tenant no encontrado para actualizar ajustes.");
-        }
-
-        var json = JsonSerializer.Serialize(request);
-        tenant.UpdateSettings(json);
-
+        var previous = tenant.Name;
+        tenant.Rename(name);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
         await _auditService.LogSecurityEventAsync(
             tenant.Id,
             _userContext.UserId,
-            "Settings_Updated",
-            $"Ajustes globales del tenant {tenant.Name} actualizados.",
-            ip,
+            "Organization_Renamed",
+            $"Organización renombrada de '{previous}' a '{tenant.Name}'.",
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
             true,
             cancellationToken);
 
-        return Ok(request);
+        return Ok(new OrganizationSettingsDto(tenant.Name));
     }
+
+    // Solo la organización de la sesión: sin ella no hay datos (antes devolvía la primera de la base).
+    private Task<OCAP.Security.Domain.Entities.Tenant?> FindTenantAsync(CancellationToken cancellationToken) =>
+        _tenantContext.TenantId == Guid.Empty
+            ? Task.FromResult<OCAP.Security.Domain.Entities.Tenant?>(null)
+            : _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, cancellationToken);
 }

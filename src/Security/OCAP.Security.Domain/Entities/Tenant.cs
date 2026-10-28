@@ -39,10 +39,11 @@ public class Tenant
         CreatedAtUtc = DateTime.UtcNow;
     }
 
-    // Actualiza la configuración tipada del tenant.
-    public void UpdateSettings(string jsonSettings)
+    // El slug no cambia: identifica a la organización en URLs y enlaces ya enviados.
+    public void Rename(string name)
     {
-        SettingsJson = jsonSettings ?? "{}";
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre del tenant es requerido.", nameof(name));
+        Name = name.Trim();
     }
 
     public void SetPreferredAiProvider(string? providerName)
