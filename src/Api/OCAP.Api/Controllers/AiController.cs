@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Api.Services;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
 using System.Diagnostics;
@@ -15,21 +16,21 @@ namespace OCAP.Api.Controllers;
 public class AiController : ControllerBase
 {
     private readonly IAiProvider _aiProvider;
-    private readonly IAiProviderSelector _selector;
     private readonly IAiProviderRegistry _registry;
     private readonly OCAPDbContext _dbContext;
     private readonly ILogger<AiController> _logger;
+    private readonly TenantAiProviderPreference _preference;
 
     public AiController(
         IAiProvider aiProvider, 
-        IAiProviderSelector selector,
         IAiProviderRegistry registry,
         OCAPDbContext dbContext,
-        ILogger<AiController> logger)
+        ILogger<AiController> logger,
+        TenantAiProviderPreference preference)
     {
+        _preference = preference ?? throw new ArgumentNullException(nameof(preference));
         _logger = logger;
         _aiProvider = aiProvider ?? throw new ArgumentNullException(nameof(aiProvider));
-        _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
@@ -37,7 +38,7 @@ public class AiController : ControllerBase
     [HttpGet("status")]
     public async Task<ActionResult<AiStatusDto>> GetStatus(CancellationToken cancellationToken)
     {
-        var activeName = _selector.ActiveProviderName;
+        var activeName = await _preference.GetActiveProviderNameAsync(cancellationToken);
         var activeProvider = _registry.GetProvider(activeName) ?? _aiProvider;
         var modelInfo = activeProvider.GetModelInformation();
         var health = await activeProvider.HealthAsync(cancellationToken);
@@ -114,7 +115,7 @@ public class AiController : ControllerBase
         {
             provider = _registry.GetProvider(dto.Provider);
         }
-        provider ??= _registry.GetProvider(_selector.ActiveProviderName) ?? _aiProvider;
+        provider ??= _registry.GetProvider(await _preference.GetActiveProviderNameAsync(cancellationToken)) ?? _aiProvider;
 
         var request = new AiRequest
         {

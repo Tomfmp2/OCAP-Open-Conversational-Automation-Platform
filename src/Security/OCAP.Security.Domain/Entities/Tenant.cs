@@ -18,6 +18,9 @@ public class Tenant
     // Configuración serializada en JSON con reglas específicas del tenant.
     public string SettingsJson { get; private set; } = "{}";
 
+    // Proveedor de IA que la organización eligió como activo; null usa el de la instalación.
+    public string? PreferredAiProvider { get; private set; }
+
     // Marca de tiempo UTC de creación de la organización.
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -40,6 +43,11 @@ public class Tenant
     public void UpdateSettings(string jsonSettings)
     {
         SettingsJson = jsonSettings ?? "{}";
+    }
+
+    public void SetPreferredAiProvider(string? providerName)
+    {
+        PreferredAiProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
     }
 
     // Desactiva la organización impidiendo el acceso a todos sus miembros.

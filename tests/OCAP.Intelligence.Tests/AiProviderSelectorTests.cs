@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Intelligence.Application.Services;
@@ -22,8 +21,7 @@ public class AiProviderSelectorTests
         mockAi.Setup(p => p.GenerateResponseAsync(It.IsAny<AiRequest>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(new AiResponse { ProviderName = "MockAI", GeneratedText = "Response from Mock" });
 
-        var cache = new InMemoryAiResponseCache(new MemoryCache(new MemoryCacheOptions()));
-        var selector = new AiProviderSelector(new IAiProvider[] { openAi, mockAi.Object }, cache, NullLogger<AiProviderSelector>.Instance);
+        var selector = new AiProviderSelector(new IAiProvider[] { openAi, mockAi.Object }, NullLogger<AiProviderSelector>.Instance);
         var request = new AiRequest { UserMessage = "Prueba Selector Failover" };
 
         // Act
@@ -35,20 +33,22 @@ public class AiProviderSelectorTests
     }
 
     [Fact]
-    public async Task SetActiveProvider_ChangesProviderSelection()
+    public async Task ExecuteWithFailoverAsync_SameMessageTwice_CallsProviderEachTime()
     {
-        // Arrange
+        // Dos organizaciones pueden enviar el mismo texto con instrucciones y conocimiento distintos: nunca se
+        // reutiliza una respuesta anterior.
         var mockAi = new Mock<IAiProvider>();
-        mockAi.Setup(p => p.Name).Returns("MockAI");
-        var cache = new InMemoryAiResponseCache(new MemoryCache(new MemoryCacheOptions()));
-        var selector = new AiProviderSelector(new IAiProvider[] { mockAi.Object }, cache, NullLogger<AiProviderSelector>.Instance);
+        mockAi.Setup(p => p.Name).Returns("Gemini");
+        mockAi.SetupSequence(p => p.GenerateResponseAsync(It.IsAny<AiRequest>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new AiResponse { ProviderName = "Gemini", GeneratedText = "respuesta A" })
+              .ReturnsAsync(new AiResponse { ProviderName = "Gemini", GeneratedText = "respuesta B" });
+        var selector = new AiProviderSelector(new IAiProvider[] { mockAi.Object }, NullLogger<AiProviderSelector>.Instance);
 
-        // Act
-        selector.SetActiveProvider("MockAI");
+        var first = await selector.ExecuteWithFailoverAsync(new AiRequest { UserMessage = "¿Cuál es mi saldo?", SystemInstructions = "Tenant A" });
+        var second = await selector.ExecuteWithFailoverAsync(new AiRequest { UserMessage = "¿Cuál es mi saldo?", SystemInstructions = "Tenant B" });
 
-        // Assert
-        selector.ActiveProviderName.Should().Be("MockAI");
-        var selected = await selector.SelectProviderAsync();
-        selected.Name.Should().Be("MockAI");
+        first.GeneratedText.Should().Be("respuesta A");
+        second.GeneratedText.Should().Be("respuesta B");
+        mockAi.Verify(p => p.GenerateResponseAsync(It.IsAny<AiRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 }

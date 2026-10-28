@@ -87,6 +87,7 @@ public static partial class ApiServiceExtensions
 
         // Orquestador inteligente de proveedores
         services.AddSingleton<IAiProviderSelector, AiProviderSelector>();
+        services.AddScoped<OCAP.Api.Services.TenantAiProviderPreference>();
 
         // Prompts y razonamiento
         services.AddSingleton<IPromptBuilder, SystemPromptBuilder>();

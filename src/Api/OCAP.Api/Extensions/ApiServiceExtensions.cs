@@ -79,9 +79,7 @@ public static partial class ApiServiceExtensions
 
         services.AddEndpointsApiExplorer();
 
-        // Registrar Caché en Memoria
         services.AddMemoryCache();
-        services.AddSingleton<IAiResponseCache, InMemoryAiResponseCache>();
 
         AddSecurityServices(services, configuration);
 

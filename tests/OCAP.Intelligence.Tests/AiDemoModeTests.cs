@@ -56,7 +56,6 @@ public class AiDemoModeTests
     {
         var selector = new AiProviderSelector(
             RegisteredProviders(),
-            new InMemoryAiResponseCache(new MemoryCache(new MemoryCacheOptions())),
             NullLogger<AiProviderSelector>.Instance,
             new AiDemoMode(true));
 

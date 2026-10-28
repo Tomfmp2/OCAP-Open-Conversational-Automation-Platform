@@ -15,9 +15,6 @@ public interface IAiProviderSelector
     // Obtiene el estado de salud de todos los proveedores registrados.
     Task<IReadOnlyList<ProviderHealth>> GetAllProviderHealthAsync(CancellationToken cancellationToken = default);
 
-    // Establece el proveedor activo manualmente.
-    void SetActiveProvider(string providerName);
-
-    // Obtiene el nombre del proveedor activo actual.
+    // Proveedor por defecto de la instalación (no el de una organización: ese está en Tenant.PreferredAiProvider).
     string ActiveProviderName { get; }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Api.Models.Providers;
+using OCAP.Api.Services;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Security.Abstractions;
@@ -20,6 +21,7 @@ public class ProvidersController : ControllerBase
     private readonly ITenantContext _tenantContext;
     private readonly OCAPDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly TenantAiProviderPreference _preference;
 
     public ProvidersController(
         IAiProviderSelector selector,
@@ -27,8 +29,10 @@ public class ProvidersController : ControllerBase
         IAiProviderConfigurationService configurations,
         ITenantContext tenantContext,
         OCAPDbContext dbContext,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        TenantAiProviderPreference preference)
     {
+        _preference = preference ?? throw new ArgumentNullException(nameof(preference));
         _selector = selector ?? throw new ArgumentNullException(nameof(selector));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _configurations = configurations ?? throw new ArgumentNullException(nameof(configurations));
@@ -40,7 +44,7 @@ public class ProvidersController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ProviderInfoDto>>> GetProviders(CancellationToken cancellationToken)
     {
-        var active = _selector.ActiveProviderName;
+        var active = await _preference.GetActiveProviderNameAsync(cancellationToken);
         var configs = await _dbContext.AiProviderConfigurations
             .Where(c => c.IsEnabled)
             .OrderBy(c => c.ProviderName)
@@ -103,13 +107,21 @@ public class ProvidersController : ControllerBase
 
     [HttpPost("select")]
     [Authorize(Policy = OcapPermissions.SettingsManage)]
-    public IActionResult SelectProvider([FromBody] SelectProviderRequestDto request)
+    public async Task<IActionResult> SelectProvider([FromBody] SelectProviderRequestDto request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.ProviderName))
             return BadRequest(new { message = "El nombre del proveedor es requerido." });
 
-        _selector.SetActiveProvider(request.ProviderName);
-        return Ok(new { message = $"Proveedor activo actualizado correctamente a '{_selector.ActiveProviderName}'." });
+        var name = request.ProviderName.Trim();
+        var configured = await _dbContext.AiProviderConfigurations
+            .AnyAsync(c => c.IsEnabled && c.ProviderName.ToLower() == name.ToLower(), cancellationToken);
+        if (!configured && _registry.GetProvider(name) is null)
+            return BadRequest(new { message = $"Proveedor '{name}' no está registrado ni configurado." });
+
+        if (!await _preference.SetActiveProviderNameAsync(name, cancellationToken))
+            return NotFound(new { message = "Organización no encontrada." });
+
+        return Ok(new { message = $"Proveedor activo actualizado correctamente a '{name}'." });
     }
 
     /// <summary>
@@ -125,7 +137,7 @@ public class ProvidersController : ControllerBase
             return BadRequest(new { message = "El prompt no puede ser vacío." });
 
         var providerName = string.IsNullOrWhiteSpace(request.ProviderName)
-            ? (_configuration["AiProviders:PreferredProvider"] ?? _selector.ActiveProviderName)
+            ? (_configuration["AiProviders:PreferredProvider"] ?? await _preference.GetActiveProviderNameAsync(cancellationToken))
             : request.ProviderName.Trim();
 
         IAiProvider? provider = null;
@@ -168,7 +180,7 @@ public class ProvidersController : ControllerBase
             var response = await provider.GenerateResponseAsync(aiRequest, cancellationToken);
             stopwatch.Stop();
 
-            _selector.SetActiveProvider(provider.Name);
+            await _preference.SetActiveProviderNameAsync(provider.Name, cancellationToken);
 
             return Ok(new TestProviderResponseDto(
                 ProviderUsed: $"{response.ProviderName} ({source})",

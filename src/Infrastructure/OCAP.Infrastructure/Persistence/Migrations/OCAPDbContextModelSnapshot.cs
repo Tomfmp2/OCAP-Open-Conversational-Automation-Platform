@@ -1497,6 +1497,10 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("PreferredAiProvider")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("SettingsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");

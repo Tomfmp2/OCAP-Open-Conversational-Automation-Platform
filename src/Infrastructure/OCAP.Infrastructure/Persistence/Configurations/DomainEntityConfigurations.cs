@@ -106,6 +106,7 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(x => x.Name).IsRequired().HasMaxLength(256);
         builder.Property(x => x.Slug).IsRequired().HasMaxLength(128);
         builder.Property(x => x.SettingsJson).HasColumnType("jsonb");
+        builder.Property(x => x.PreferredAiProvider).HasMaxLength(64);
         builder.HasIndex(x => x.Slug).IsUnique();
     }
 }

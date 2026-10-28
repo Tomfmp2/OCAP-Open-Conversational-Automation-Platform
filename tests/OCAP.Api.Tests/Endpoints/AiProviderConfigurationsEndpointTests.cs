@@ -2,7 +2,11 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using OCAP.Api.Tests.Infrastructure;
+using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Security.Domain.Entities;
 
 namespace OCAP.Api.Tests.Endpoints;
 
@@ -112,6 +116,44 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task SelectingTheActiveProvider_OnlyChangesTheOwnOrganization()
+    {
+        var otherTenantId = Guid.NewGuid();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+            db.Tenants.Add(new Tenant(otherTenantId, "Otra organización", $"otra-{otherTenantId:N}"));
+            await db.SaveChangesAsync();
+        }
+
+        var client = await AdminClientAsync();
+        var providers = await client.GetFromJsonAsync<List<ProviderInfo>>("/api/providers");
+        var target = providers!.First(p => !p.IsActive).Name;
+
+        (await client.PostAsJsonAsync("/api/providers/select", new { providerName = target })).EnsureSuccessStatusCode();
+
+        (await client.GetFromJsonAsync<List<ProviderInfo>>("/api/providers"))!.Single(p => p.IsActive).Name.Should().Be(target);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+            var preferences = await db.Tenants.IgnoreQueryFilters().AsNoTracking()
+                .Where(t => t.Id == SeedTenantId || t.Id == otherTenantId)
+                .ToDictionaryAsync(t => t.Id, t => t.PreferredAiProvider);
+            preferences[SeedTenantId].Should().Be(target);
+            preferences[otherTenantId].Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task SelectingAnUnknownProvider_IsRejected()
+    {
+        var client = await AdminClientAsync();
+
+        (await client.PostAsJsonAsync("/api/providers/select", new { providerName = "NoExiste" }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private async Task<HttpClient> AdminClientAsync()
     {
         var client = _factory.CreateClient();
@@ -122,6 +164,7 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
     }
 
     private sealed record Config(Guid Id);
+    private sealed record ProviderInfo(string Name, bool IsActive);
     private sealed record Connection(Guid Id, Dictionary<string, string> ConfigurationMetadata);
     private sealed record Envelope(List<Connection> Data);
     private sealed record Session(string AccessToken);
