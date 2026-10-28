@@ -98,6 +98,13 @@ _msg_es() {
     reset_confirm) echo "Escribe 'borrar' para confirmar: " ;;
     reset_word) echo 'borrar' ;;
     cancelled) echo 'Cancelado.' ;;
+    backup_database) echo 'Base de datos…' ;;
+    backup_files) echo 'Archivos subidos…' ;;
+    backup_done) echo 'Copia de seguridad lista: %s' ;;
+    backup_env_warning) echo 'Guarda también el .env en un lugar seguro: sin VAULT_MASTER_KEY las API keys y tokens de la copia no se pueden descifrar.' ;;
+    restore_usage) echo 'Uso: ocap restore <archivo .tar de ocap backup>' ;;
+    restore_invalid) echo 'Ese archivo no es una copia de ocap backup.' ;;
+    restore_warning) echo 'Esto reemplaza TODOS los datos actuales de OCAP por los de la copia. Necesita el mismo .env con el que se hizo.' ;;
     uninstalled) echo 'Comando quitado. El repo y los datos siguen intactos (para borrar datos: ocap reset antes de desinstalar).' ;;
     not_installed) echo 'El comando ocap no estaba instalado en %s.' ;;
     unknown_command) echo 'Comando desconocido: %s' ;;
@@ -136,6 +143,8 @@ Uso: ocap [comando]
   autostart on|off  Inicia (o no) OCAP al encender el equipo.
   update            git pull + reconstruir + levantar.
   reset             Borra TODOS los datos y empieza de cero (pide confirmación).
+  backup            Copia la base y los archivos subidos en backups/ (el .env se guarda aparte).
+  restore <archivo> Reemplaza los datos por los de una copia (pide confirmación).
   uninstall         Quita el comando `ocap` y el inicio automático (no borra el repo ni los datos).
   help              Esta ayuda.
 EOF
@@ -228,6 +237,13 @@ _msg_en() {
     reset_confirm) echo "Type 'delete' to confirm: " ;;
     reset_word) echo 'delete' ;;
     cancelled) echo 'Cancelled.' ;;
+    backup_database) echo 'Database…' ;;
+    backup_files) echo 'Uploaded files…' ;;
+    backup_done) echo 'Backup ready: %s' ;;
+    backup_env_warning) echo 'Also keep the .env somewhere safe: without VAULT_MASTER_KEY the API keys and tokens in the backup cannot be decrypted.' ;;
+    restore_usage) echo 'Usage: ocap restore <.tar file from ocap backup>' ;;
+    restore_invalid) echo 'That file is not an ocap backup.' ;;
+    restore_warning) echo 'This replaces ALL current OCAP data with the backup. It needs the same .env the backup was made with.' ;;
     uninstalled) echo 'Command removed. The repo and your data are untouched (to delete data: ocap reset before uninstalling).' ;;
     not_installed) echo 'The ocap command was not installed in %s.' ;;
     unknown_command) echo 'Unknown command: %s' ;;
@@ -266,6 +282,8 @@ Usage: ocap [command]
   autostart on|off  Starts (or not) OCAP when the computer turns on.
   update            git pull + rebuild + start.
   reset             Deletes ALL data and starts from scratch (asks for confirmation).
+  backup            Copies the database and uploaded files into backups/ (keep the .env separately).
+  restore <file>    Replaces the data with a backup (asks for confirmation).
   uninstall         Removes the `ocap` command and autostart (keeps the repo and your data).
   help              This help.
 EOF
