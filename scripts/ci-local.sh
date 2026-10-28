@@ -50,6 +50,13 @@ need() {
 need dotnet
 need npm
 
+# --- Scripts (job "Installer & Scripts") -----------------------------------------------------------
+if command -v docker >/dev/null 2>&1; then
+  step "Scripts: shellcheck"
+  docker run --rm -v "$ROOT:/mnt:ro" -w /mnt koalaman/shellcheck:v0.10.0 -x ocap install.sh scripts/*.sh scripts/lib/*.sh
+  ok
+fi
+
 # --- Backend (job "Backend Build & Test") ---------------------------------------------------------
 step "Backend: restore"
 dotnet restore OCAP.slnx --verbosity quiet

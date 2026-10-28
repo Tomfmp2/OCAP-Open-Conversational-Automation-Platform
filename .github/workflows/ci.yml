@@ -11,6 +11,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  scripts:
+    name: Installer & Scripts (shellcheck)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        # El instalador corre con permisos del usuario (y sudo para Docker): un error de shell ahí es un error de seguridad.
+        run: >
+          docker run --rm -v "$PWD:/mnt:ro" -w /mnt koalaman/shellcheck:v0.10.0
+          -x ocap install.sh scripts/*.sh scripts/lib/*.sh
+
   backend:
     name: Backend Build & Test
     runs-on: ubuntu-24.04
