@@ -277,8 +277,8 @@ BACKUP_DIR="$ROOT/backups"
 # Espera a que Postgres acepte conexiones (lo levanta si estaba apagado).
 ensure_postgres() {
   dk compose up -d postgres >/dev/null
-  local i
-  for i in $(seq 1 30); do
+  for _ in $(seq 1 30); do
+    # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor de Postgres
     dk compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1 && return 0
     sleep 2
   done
@@ -299,6 +299,7 @@ cmd_backup() {
   file="$BACKUP_DIR/ocap-$(date +%Y%m%d-%H%M%S).tar"
 
   info "$(t backup_database)"
+  # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor de Postgres
   dk compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$work/database.dump"
   info "$(t backup_files)"
   dk compose run --rm --no-deps -T storage-permissions tar -cf - -C /app/storage . > "$work/storage.tar"
@@ -329,6 +330,7 @@ cmd_restore() {
   dk compose stop ocap-api ocap-frontend >/dev/null 2>&1 || true
   ensure_postgres
   info "$(t backup_database)"
+  # shellcheck disable=SC2016 # las variables se expanden dentro del contenedor de Postgres
   dk compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
     < "$work/database.dump"
   info "$(t backup_files)"
