@@ -79,8 +79,6 @@ public static partial class ApiServiceExtensions
 
         services.AddEndpointsApiExplorer();
 
-        services.AddMemoryCache();
-
         AddSecurityServices(services, configuration);
 
         services.AddSingleton<IChannelRegistry, ChannelRegistry>();

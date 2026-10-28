@@ -68,7 +68,7 @@ public class HealthController : ControllerBase
             {
                 Id = 4,
                 Title = "HealthChecks",
-                Description = "Estado agregado de PostgreSQL, Redis, Event Bus, storage y telemetría.",
+                Description = "Estado agregado de PostgreSQL, Event Bus, storage y telemetría.",
                 Status = report.Status == HealthStatus.Healthy ? "completed" : "error",
                 Details = report.Status.ToString()
             }

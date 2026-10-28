@@ -76,7 +76,6 @@ builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
 });
-builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
@@ -124,7 +123,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseResponseCompression();
-app.UseResponseCaching();
 
 
 app.UseRouting();

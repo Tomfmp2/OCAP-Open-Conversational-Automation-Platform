@@ -63,12 +63,6 @@ public static class ObservabilityServiceExtensions
             .AddCheck("self", () => HealthCheckResult.Healthy("process"), tags: new[] { "live" })
             .AddCheck("startup", () => HealthCheckResult.Healthy("started"), tags: new[] { "startup" });
 
-        var redis = configuration.GetConnectionString("Redis");
-        if (!string.IsNullOrWhiteSpace(redis))
-        {
-            health.AddRedis(redis, name: "redis", tags: new[] { "ready", "cache" });
-        }
-
         health.AddCheck<ObjectStorageHealthCheck>("storage", tags: new[] { "ready", "storage" });
         health.AddCheck<TelemetryHealthCheck>("telemetry", tags: new[] { "ready", "telemetry" });
 

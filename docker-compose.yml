@@ -1,6 +1,5 @@
 # Configuración común de la API y de su migrador (misma imagen).
 x-api-environment: &api-environment
-  ConnectionStrings__Redis: "redis:6379"
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
   Jwt__SecretKey: ${JWT_SECRET_KEY:?Falta JWT_SECRET_KEY (ejecuta ./scripts/ocap-setup.sh)}
   VAULT_MASTER_KEY: ${VAULT_MASTER_KEY:?Falta VAULT_MASTER_KEY (ejecuta ./scripts/ocap-setup.sh)}
@@ -113,10 +112,16 @@ services:
       timeout: 5s
       retries: 5
 
+  # Caché interna de Evolution API (sesiones de WhatsApp). La API de OCAP no usa Redis: sus datos están en Postgres.
   redis:
     image: redis:7-alpine
     container_name: ocap-redis
     restart: always
+    # Con contraseña: otro contenedor de la red no puede leer ni borrar las sesiones de WhatsApp.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Falta REDIS_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Falta REDIS_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT:-6379}:6379"
     volumes:
@@ -190,8 +195,6 @@ services:
       rabbitmq:
         condition: service_healthy
       nats:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:5000/health/ready || exit 1"]
@@ -273,7 +276,7 @@ services:
       DATABASE_SAVE_DATA_LABELS: "false"
       DATABASE_SAVE_DATA_HISTORIC: "false"
       CACHE_REDIS_ENABLED: "true"
-      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_URI: redis://:${REDIS_PASSWORD:?Falta REDIS_PASSWORD (ejecuta ./scripts/ocap-setup.sh)}@redis:6379/6
       CACHE_REDIS_PREFIX_KEY: evolution
       CACHE_REDIS_SAVE_INSTANCES: "false"
       CACHE_LOCAL_ENABLED: "false"

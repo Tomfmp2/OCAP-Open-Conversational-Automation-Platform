@@ -312,7 +312,7 @@ flowchart LR
     API --> AG --> LLM
     AG --> KB
     API --> BUS
-    API --> R
+    EVO --> R
 ```
 
 El backend sigue una arquitectura por capas (dominio → aplicación → infraestructura / API) dividida en módulos:
@@ -350,7 +350,7 @@ exponerse a la red. Todos los puertos se cambian en el `.env` (o con `ocap confi
 | API | `5000` | según `OCAP_BIND_ADDRESS` |
 | Nginx | `80` | según `OCAP_BIND_ADDRESS` |
 | PostgreSQL + pgvector | `5433` | no |
-| Redis | `6379` | no |
+| Redis (solo caché de Evolution, con contraseña) | `6379` | no |
 | RabbitMQ (AMQP / administración) | `5672` / `15672` | no |
 | NATS (cliente / monitorización) | `4222` / `8222` | no |
 | Evolution API (WhatsApp) | `8088` | no |

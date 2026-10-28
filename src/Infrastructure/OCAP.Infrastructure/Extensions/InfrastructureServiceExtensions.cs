@@ -77,26 +77,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IAiExecutionLogRepository, AiExecutionLogRepository>();
         services.AddScoped<IAiConversationMemoryRepository, AiConversationMemoryRepository>();
 
-        // Caching Foundation — MemoryCache + distributed adapter (Redis when ConnectionStrings:Redis is set)
-        services.AddMemoryCache();
-        var redisConnection = configuration.GetConnectionString("Redis");
-        if (!string.IsNullOrWhiteSpace(redisConnection))
-        {
-            services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
-        }
-        else
-        {
-            services.AddDistributedMemoryCache();
-        }
-
-        services.AddSingleton<OCAP.Core.Caching.ICacheService, OCAP.Infrastructure.Caching.DistributedCacheService>();
-
         // Retention & Maintenance Options
         services.Configure<OCAP.Infrastructure.Options.RetentionOptions>(configuration.GetSection(OCAP.Infrastructure.Options.RetentionOptions.SectionName));
 
-        // Background Jobs Foundation
-        services.AddSingleton<OCAP.Infrastructure.BackgroundJobs.IBackgroundTaskQueue>(ctx => new OCAP.Infrastructure.BackgroundJobs.BackgroundTaskQueue(100));
-        services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.BackgroundWorkerService>();
+        // Trabajos en segundo plano: el estado vive en la base (outbox, retención), nunca en colas de memoria.
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
