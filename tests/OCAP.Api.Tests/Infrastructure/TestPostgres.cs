@@ -38,7 +38,8 @@ public static class TestPostgres
             await create.ExecuteNonQueryAsync();
         }
 
-        var owner = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ConnectionString;
+        // El dueño solo migra: sin pool, no deja conexiones abiertas.
+        var owner = new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name, Pooling = false }.ConnectionString;
         var options = new DbContextOptionsBuilder<OCAPDbContext>()
             .UseNpgsql(owner, o => o.UseVector().MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName))
             .Options;
@@ -50,7 +51,7 @@ public static class TestPostgres
             await RowLevelSecurity.ProvisionAppRoleAsync(db, AppRole, AppPassword);
         }
 
-        var app = new NpgsqlConnectionStringBuilder(owner) { Username = AppRole, Password = AppPassword }.ConnectionString;
+        var app = new NpgsqlConnectionStringBuilder(owner) { Username = AppRole, Password = AppPassword, Pooling = true, MaxPoolSize = 10 }.ConnectionString;
         return new Database(owner, app);
     }
 
@@ -62,8 +63,11 @@ public static class TestPostgres
         {
             if (_container is null)
             {
+                // Cada fábrica de pruebas abre su base y su pool, y siguen vivas hasta el final de la ejecución: con el
+                // límite por defecto (100) las últimas fallaban de vez en cuando con "too many clients".
                 var container = new PostgreSqlBuilder("pgvector/pgvector:pg16")
                     .WithDatabase("postgres")
+                    .WithCommand("-c", "max_connections=500")
                     .Build();
                 await container.StartAsync();
                 _container = container;
