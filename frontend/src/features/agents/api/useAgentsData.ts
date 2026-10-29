@@ -8,6 +8,8 @@ export interface Agent {
   status: string;
   systemPrompt: string;
   enabledTools: string[];
+  /** Colecciones de conocimiento que consulta; vacía, todas. */
+  knowledgeBaseIds: string[];
   createdAt: string;
 }
 
@@ -21,6 +23,7 @@ export interface AgentDraft {
   description: string;
   systemPrompt: string;
   allowedTools: string[];
+  knowledgeBaseIds: string[];
 }
 
 export interface AgentTestTurn {

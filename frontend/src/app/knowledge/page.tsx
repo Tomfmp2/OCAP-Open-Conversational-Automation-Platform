@@ -1,14 +1,16 @@
 "use client";
 
 import React from "react";
-import { Trash2, Upload } from "lucide-react";
+import { Eye, Globe, PenLine, Trash2, Upload } from "lucide-react";
 import {
+  useDocumentContent,
   useKnowledgeActions,
   useKnowledgeBases,
   useKnowledgeDocuments,
   type KnowledgeDocument,
 } from "@/features/knowledge/api/useKnowledgeData";
-import { Badge, Button, EmptyState, ErrorState, FormError, Input, ListSkeleton, Modal, Page, PageHeader, Select } from "@/shared/components/ui";
+import { Badge, Button, EmptyState, ErrorState, FormError, Input, ListSkeleton, Modal, Page, PageHeader, Select, Textarea } from "@/shared/components/ui";
+import { cn } from "@/shared/utils/cn";
 
 const ACCEPTED = ".pdf,.docx,.md,.markdown,.csv,.json,.html,.htm,.xml,.txt";
 
@@ -83,6 +85,9 @@ function Documents({ baseId }: { baseId: string }) {
   const { upload, remove, reindex } = useKnowledgeActions(baseId);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [deleting, setDeleting] = React.useState<KnowledgeDocument | null>(null);
+  const [viewing, setViewing] = React.useState<KnowledgeDocument | null>(null);
+  const [adding, setAdding] = React.useState<"text" | "url" | null>(null);
+  const [dragging, setDragging] = React.useState(false);
 
   const uploadFiles = async (files: FileList | null) => {
     for (const file of Array.from(files ?? [])) {
@@ -97,7 +102,7 @@ function Documents({ baseId }: { baseId: string }) {
         <h2 id="documents-title" className="text-sm font-semibold text-neutral-950">
           Documentos
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {!!documents.data?.length && (
             <Button
               variant="ghost"
@@ -109,6 +114,12 @@ function Documents({ baseId }: { baseId: string }) {
               Volver a procesar
             </Button>
           )}
+          <Button variant="secondary" size="sm" onClick={() => setAdding("text")}>
+            <PenLine className="h-3.5 w-3.5" aria-hidden /> Escribir respuesta
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setAdding("url")}>
+            <Globe className="h-3.5 w-3.5" aria-hidden /> Importar página
+          </Button>
           <Button size="sm" loading={upload.isPending} onClick={() => fileRef.current?.click()}>
             <Upload className="h-3.5 w-3.5" aria-hidden /> Subir documentos
           </Button>
@@ -116,6 +127,26 @@ function Documents({ baseId }: { baseId: string }) {
         </div>
       </div>
       <FormError error={upload.error ?? reindex.error} />
+
+      {/* Soltar archivos aquí equivale a «Subir documentos»; el botón sigue siendo el camino con teclado. */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void uploadFiles(e.dataTransfer.files);
+        }}
+        className={cn(
+          "rounded-lg border border-dashed px-4 py-5 text-center text-sm transition-colors",
+          dragging ? "border-neutral-950 bg-neutral-50 text-neutral-950" : "border-neutral-300 text-neutral-600"
+        )}
+      >
+        {upload.isPending ? "Subiendo…" : "Arrastra aquí tus archivos: PDF, Word, Markdown, CSV, JSON, HTML o texto, de hasta 10 MB."}
+      </div>
 
       {documents.isLoading ? (
         <ListSkeleton label="Cargando documentos" rows={2} />
@@ -138,6 +169,15 @@ function Documents({ baseId }: { baseId: string }) {
               </div>
               <button
                 type="button"
+                onClick={() => setViewing(doc)}
+                disabled={doc.status !== "Indexed"}
+                className="focus-ring rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950 disabled:opacity-40"
+                aria-label={`Ver contenido de ${doc.title}`}
+              >
+                <Eye className="h-4 w-4" aria-hidden />
+              </button>
+              <button
+                type="button"
                 onClick={() => setDeleting(doc)}
                 className="focus-ring rounded-md p-2 text-neutral-600 hover:bg-neutral-100 hover:text-danger"
                 aria-label={`Eliminar ${doc.title}`}
@@ -148,6 +188,10 @@ function Documents({ baseId }: { baseId: string }) {
           ))}
         </ul>
       )}
+
+      <DocumentContent document={viewing} onClose={() => setViewing(null)} />
+      <AddText baseId={baseId} open={adding === "text"} onClose={() => setAdding(null)} />
+      <ImportUrl baseId={baseId} open={adding === "url"} onClose={() => setAdding(null)} />
 
       <Modal open={deleting !== null} onClose={() => setDeleting(null)} title={`¿Eliminar ${deleting?.title ?? ""}?`}>
         <div className="space-y-5">
@@ -241,6 +285,106 @@ function CreateCollection({ open, onClose, onCreated }: { open: boolean; onClose
           </Button>
           <Button type="submit" loading={createBase.isPending}>
             Crear colección
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function DocumentContent({ document, onClose }: { document: KnowledgeDocument | null; onClose: () => void }) {
+  const content = useDocumentContent(document?.id ?? null);
+  return (
+    <Modal open={document !== null} onClose={onClose} title={document?.title ?? ""} description="Lo que leyó OCAP: es lo que usan tus agentes." className="sm:max-w-2xl">
+      {content.isLoading ? (
+        <ListSkeleton label="Cargando contenido" rows={3} />
+      ) : content.isError ? (
+        <ErrorState onRetry={() => void content.refetch()} />
+      ) : !content.data?.chunks.length ? (
+        <p className="text-sm text-neutral-600">No se extrajo texto de este documento.</p>
+      ) : (
+        <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+          {content.data.chunks.map((chunk, i) => (
+            <p key={i} className="whitespace-pre-wrap rounded-md bg-neutral-50 p-3 text-sm text-neutral-800">
+              {chunk}
+            </p>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function AddText({ baseId, open, onClose }: { baseId: string; open: boolean; onClose: () => void }) {
+  const { addText } = useKnowledgeActions(baseId);
+  const [title, setTitle] = React.useState("");
+  const [content, setContent] = React.useState("");
+  const close = () => {
+    setTitle("");
+    setContent("");
+    addText.reset();
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={close} title="Escribir respuesta" description="Una pregunta frecuente con su respuesta, o una nota que deban saber tus agentes.">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          addText.mutate({ title: title.trim(), content: content.trim() }, { onSuccess: close });
+        }}
+      >
+        <Input label="Pregunta o título" required maxLength={200} placeholder="¿Hacen envíos a domicilio?" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Textarea
+          label="Respuesta"
+          required
+          rows={6}
+          maxLength={20000}
+          placeholder="Sí, en toda la ciudad. El envío cuesta 5.000 y llega el mismo día si pides antes de las 2 p. m."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+        <FormError error={addText.error} />
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={close}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={addText.isPending}>
+            Guardar respuesta
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ImportUrl({ baseId, open, onClose }: { baseId: string; open: boolean; onClose: () => void }) {
+  const { importUrl } = useKnowledgeActions(baseId);
+  const [url, setUrl] = React.useState("");
+  const close = () => {
+    setUrl("");
+    importUrl.reset();
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={close} title="Importar página web" description="OCAP descarga la página una vez y guarda su texto. Si cambia, impórtala de nuevo.">
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          importUrl.mutate(url.trim(), { onSuccess: close });
+        }}
+      >
+        <Input label="Dirección" type="url" required placeholder="https://tutienda.com/preguntas-frecuentes" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <FormError error={importUrl.error} />
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={close}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={importUrl.isPending}>
+            Importar
           </Button>
         </div>
       </form>

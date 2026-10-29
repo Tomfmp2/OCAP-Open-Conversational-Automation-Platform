@@ -41,6 +41,27 @@ public class KnowledgeRetriever : IKnowledgeRetriever
         return SearchAsync(tenantId, null, query, strategy, topK, minScore, cancellationToken);
     }
 
+    public async Task<List<KnowledgeSearchResult>> SearchInBasesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> knowledgeBaseIds,
+        string query,
+        int topK = 5,
+        double minScore = 0.5,
+        CancellationToken cancellationToken = default)
+    {
+        if (knowledgeBaseIds.Count == 0) return await SearchAsync(tenantId, null, query, SearchStrategyType.Hybrid, topK, minScore, cancellationToken);
+        if (knowledgeBaseIds.Count == 1) return await SearchAsync(tenantId, knowledgeBaseIds.First(), query, SearchStrategyType.Hybrid, topK, minScore, cancellationToken);
+
+        // Varias colecciones: una sola búsqueda (un embedding) en toda la organización, filtrada por sus documentos.
+        var documentIds = new HashSet<Guid>();
+        foreach (var baseId in knowledgeBaseIds)
+            documentIds.UnionWith((await _documentRepository.GetByKnowledgeBaseAsync(baseId, tenantId, cancellationToken)).Select(d => d.Id));
+        if (documentIds.Count == 0) return new List<KnowledgeSearchResult>();
+
+        var results = await SearchAsync(tenantId, null, query, SearchStrategyType.Hybrid, topK * 4, minScore, cancellationToken);
+        return results.Where(r => documentIds.Contains(r.DocumentId)).Take(topK).ToList();
+    }
+
     public async Task<List<KnowledgeSearchResult>> SearchAsync(
         Guid tenantId,
         Guid? knowledgeBaseId,

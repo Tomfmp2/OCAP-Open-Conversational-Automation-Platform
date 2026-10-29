@@ -69,8 +69,26 @@ export function useKnowledgeActions(baseId: string | null) {
       mutationFn: () => apiClient.post("/api/knowledge/reindex", { knowledgeBaseId: baseId }),
       onSuccess: refresh,
     }),
+    /** Pregunta frecuente o nota escrita en el panel; se indexa como un documento. */
+    addText: useMutation({
+      mutationFn: (m: { title: string; content: string }) => apiClient.post("/api/knowledge/text", { knowledgeBaseId: baseId, ...m }),
+      onSuccess: refresh,
+    }),
+    importUrl: useMutation({
+      mutationFn: (url: string) => apiClient.post("/api/knowledge/url", { knowledgeBaseId: baseId, url }, { timeout: 60_000, skipRetry: true }),
+      onSuccess: refresh,
+    }),
     search: useMutation({
       mutationFn: (query: string) => apiClient.get<KnowledgeSearchResult[]>(`/api/knowledge/search?query=${encodeURIComponent(query)}&topK=3`),
     }),
   };
+}
+
+/** Lo que OCAP leyó del documento, en fragmentos: es lo que usan los agentes. */
+export function useDocumentContent(documentId: string | null) {
+  return useQuery<{ chunks: string[] }>({
+    queryKey: ["knowledge", "content", documentId],
+    queryFn: () => apiClient.get(`/api/knowledge/documents/${documentId}/content`),
+    enabled: documentId !== null,
+  });
 }

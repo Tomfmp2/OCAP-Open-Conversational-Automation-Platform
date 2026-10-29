@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useChannels } from "@/features/channels/api/useChannelsData";
+import { useKnowledgeBases } from "@/features/knowledge/api/useKnowledgeData";
 import { Button, FormError, Input, Modal, Textarea } from "@/shared/components/ui";
 import { useAgentTools, useDeleteAgent, useSaveAgent, type Agent } from "../api/useAgentsData";
 
@@ -42,8 +43,11 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
   const [description, setDescription] = React.useState(agent?.description ?? "");
   const [systemPrompt, setSystemPrompt] = React.useState(agent?.systemPrompt ?? "");
   const [tools, setTools] = React.useState<string[]>(agent?.enabledTools ?? []);
+  const [bases, setBases] = React.useState<string[]>(agent?.knowledgeBaseIds ?? []);
   const save = useSaveAgent();
   const available = useAgentTools();
+  const collections = useKnowledgeBases();
+  const toggleBase = (id: string) => setBases((current) => (current.includes(id) ? current.filter((b) => b !== id) : [...current, id]));
 
   const toggleTool = (tool: string) => setTools((current) => (current.includes(tool) ? current.filter((t) => t !== tool) : [...current, tool]));
 
@@ -53,7 +57,10 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
       onSubmit={(e) => {
         e.preventDefault();
         save.mutate(
-          { id: agent?.id, draft: { name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim(), allowedTools: tools } },
+          {
+            id: agent?.id,
+            draft: { name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim(), allowedTools: tools, knowledgeBaseIds: bases },
+          },
           { onSuccess: onDone }
         );
       }}
@@ -76,6 +83,19 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
       />
+
+      {collections.data && collections.data.length > 1 && (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium text-neutral-800">Conocimiento que consulta</legend>
+          <p className="text-xs text-neutral-600">Sin marcar ninguna, consulta todas las colecciones.</p>
+          {collections.data.map((collection) => (
+            <label key={collection.id} className="flex items-center gap-3 rounded-md border border-neutral-200 p-3 text-sm has-[:checked]:border-neutral-950">
+              <input type="checkbox" className="h-4 w-4 accent-neutral-950" checked={bases.includes(collection.id)} onChange={() => toggleBase(collection.id)} />
+              <span className="text-neutral-800">{collection.name}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       {available.data && available.data.length > 0 && (
         <fieldset className="space-y-2">

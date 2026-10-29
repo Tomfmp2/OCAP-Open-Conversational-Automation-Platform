@@ -193,6 +193,37 @@ public class KnowledgeTests
         Assert.NotEmpty(searchResults);
     }
 
+    [Fact]
+    public async Task SearchInBases_OnlyReturnsDocumentsOfTheChosenCollections()
+    {
+        var kbRepo = new InMemoryKnowledgeBaseRepository();
+        var docRepo = new InMemoryKnowledgeDocumentRepository();
+        var chunkRepo = new InMemoryKnowledgeChunkRepository();
+        var generator = new EmbeddingGenerator(
+            [new FakeEmbeddingProvider()],
+            Options.Create(new KnowledgeOptions { DefaultEmbeddingProvider = "Fake", DefaultEmbeddingModel = "unit" }));
+        var vectorDb = new InMemoryVectorDatabase(NullLogger<InMemoryVectorDatabase>.Instance);
+        var retriever = new KnowledgeRetriever(vectorDb, generator, chunkRepo, docRepo, NullLogger<KnowledgeRetriever>.Instance);
+        var service = new KnowledgeService(kbRepo, docRepo, chunkRepo, new InMemoryDocumentProcessingJobRepository(),
+            new DocumentParserFactory([new TxtDocumentParser()]), new ChunkerFactory([new ParagraphChunker()]),
+            generator, vectorDb, retriever, new FileUploadValidator(), NullLogger<KnowledgeService>.Instance);
+
+        var tenantId = Guid.NewGuid();
+        var prices = await service.CreateKnowledgeBaseAsync(tenantId, "Precios", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        var hours = await service.CreateKnowledgeBaseAsync(tenantId, "Horarios", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        var other = await service.CreateKnowledgeBaseAsync(tenantId, "Interno", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        foreach (var (kb, text) in new[] { (prices, "El pan cuesta 2 euros en la tienda."), (hours, "La tienda abre a las 9."), (other, "Clave interna de la tienda.") })
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+            await service.UploadDocumentAsync(tenantId, kb.Id, stream, $"{kb.Name}.txt", DocumentType.Txt, DocumentCategory.General);
+        }
+
+        var results = await retriever.SearchInBasesAsync(tenantId, [prices.Id, hours.Id], "tienda", topK: 5, minScore: 0);
+
+        Assert.NotEmpty(results);
+        Assert.DoesNotContain(results, r => r.Content.Contains("Clave interna"));
+    }
+
     [Theory]
     [InlineData("../../secret.txt")]
     [InlineData("..\\..\\windows\\system32\\cmd.exe")]

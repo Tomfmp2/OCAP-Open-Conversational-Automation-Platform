@@ -31,7 +31,7 @@ public class ChannelAgentRunnerTests
         var selector = new Mock<ILanguageModelProviderSelector>();
         selector.Setup(s => s.GetProviderAsync(It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(_model);
-        _knowledge.Setup(k => k.SearchAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<SearchStrategyType>(),
+        _knowledge.Setup(k => k.SearchInBasesAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<KnowledgeSearchResult>());
         return new ChannelAgentRunner(
@@ -55,7 +55,7 @@ public class ChannelAgentRunnerTests
         var agent = RegisterAgent("Eres el vendedor de la Panadería Sol.");
         _model.Next = """{"reply":"Abrimos a las 7.","tool":null,"args":{}}""";
         var runner = CreateRunner();
-        _knowledge.Setup(k => k.SearchAsync(TenantId, "¿A qué hora abren?", SearchStrategyType.Hybrid, It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
+        _knowledge.Setup(k => k.SearchInBasesAsync(TenantId, It.IsAny<IReadOnlyCollection<Guid>>(), "¿A qué hora abren?", It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<KnowledgeSearchResult>
             {
                 new(Guid.NewGuid(), Guid.NewGuid(), "Horarios", "Abrimos de lunes a sábado a las 7:00.", 0.9, 0.1, "{}", new List<string>())
@@ -192,7 +192,7 @@ public class ChannelAgentRunnerTests
     {
         _model.Next = "Respuesta sin conocimiento";
         var runner = CreateRunner();
-        _knowledge.Setup(k => k.SearchAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<SearchStrategyType>(),
+        _knowledge.Setup(k => k.SearchInBasesAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<string>(),
                 It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("vector db caída"));
 

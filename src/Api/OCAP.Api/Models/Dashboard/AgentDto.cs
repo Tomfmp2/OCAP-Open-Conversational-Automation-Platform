@@ -9,5 +9,7 @@ public class AgentDto
     public string Status { get; set; } = "Active";
     public string SystemPrompt { get; set; } = string.Empty;
     public List<string> EnabledTools { get; set; } = new();
+    /// <summary>Colecciones de conocimiento que consulta; vacía, todas.</summary>
+    public List<Guid> KnowledgeBaseIds { get; set; } = new();
     public DateTime CreatedAt { get; set; }
 }

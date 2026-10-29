@@ -21,4 +21,13 @@ public interface IKnowledgeRetriever
         int topK = 5,
         double minScore = 0.5,
         CancellationToken cancellationToken = default) => SearchAsync(tenantId, query, strategy, topK, minScore, cancellationToken);
+
+    /// <summary>Solo en esas colecciones (las que eligió un agente). Vacía = todas.</summary>
+    Task<List<KnowledgeSearchResult>> SearchInBasesAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> knowledgeBaseIds,
+        string query,
+        int topK = 5,
+        double minScore = 0.5,
+        CancellationToken cancellationToken = default) => SearchAsync(tenantId, query, SearchStrategyType.Hybrid, topK, minScore, cancellationToken);
 }

@@ -98,7 +98,7 @@ public sealed class ChannelAgentRunner
             .Select(name => _tools.GetTool(name))
             .OfType<ITool>()
             .ToList() ?? new List<ITool>();
-        var knowledge = await SearchKnowledgeAsync(request.TenantId, request.Message, cancellationToken);
+        var knowledge = await SearchKnowledgeAsync(request.TenantId, agent?.Configuration.KnowledgeBaseIds ?? [], request.Message, cancellationToken);
 
         var messages = new List<PromptMessage>
         {
@@ -171,12 +171,12 @@ public sealed class ChannelAgentRunner
         return agent is { Status: AgentStatus.Active } ? agent : null;
     }
 
-    private async Task<IReadOnlyList<string>> SearchKnowledgeAsync(Guid tenantId, string query, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<string>> SearchKnowledgeAsync(Guid tenantId, IReadOnlyList<Guid> knowledgeBaseIds, string query, CancellationToken cancellationToken)
     {
         if (_knowledge is null) return Array.Empty<string>();
         try
         {
-            var results = await _knowledge.SearchAsync(tenantId, query, SearchStrategyType.Hybrid, KnowledgeResults, KnowledgeMinScore, cancellationToken);
+            var results = await _knowledge.SearchInBasesAsync(tenantId, knowledgeBaseIds, query, KnowledgeResults, KnowledgeMinScore, cancellationToken);
             return results.Select(r => $"[{r.DocumentTitle}] {r.Content.Trim()}").ToList();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
