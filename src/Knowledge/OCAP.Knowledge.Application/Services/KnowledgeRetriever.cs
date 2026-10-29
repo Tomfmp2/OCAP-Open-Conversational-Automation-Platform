@@ -52,8 +52,10 @@ public class KnowledgeRetriever : IKnowledgeRetriever
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required for retrieval isolation.", nameof(tenantId));
         if (string.IsNullOrWhiteSpace(query)) return new List<KnowledgeSearchResult>();
+        if (!await _chunkRepository.AnyForTenantAsync(tenantId, cancellationToken)) return new List<KnowledgeSearchResult>();
 
-        _logger.LogInformation("Ejecutando Knowledge Retrieval ({Strategy}) para Tenant {TenantId}. Query: {Query}", strategy, tenantId, query);
+        // Sin el texto de la consulta: es el mensaje del cliente.
+        _logger.LogInformation("Ejecutando Knowledge Retrieval ({Strategy}) para Tenant {TenantId}.", strategy, tenantId);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         List<KnowledgeSearchResult> results;

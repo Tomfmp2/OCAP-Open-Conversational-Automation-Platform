@@ -22,6 +22,11 @@ public static partial class ApiServiceExtensions
             o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(120);
             o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(130);
             o.Retry.MaxRetryAttempts = 1;
+            // Un 429 es cuota agotada (la capa gratuita de Gemini lo devuelve por minuto o por día): reintentar solo
+            // gasta otra petición. Se reintentan los fallos transitorios del servidor.
+            o.Retry.ShouldHandle = args => ValueTask.FromResult(
+                args.Outcome.Exception is HttpRequestException or TimeoutException
+                || (args.Outcome.Result is { } r && (int)r.StatusCode >= 500));
         }
 
         services.AddHttpClient<OpenAiProvider>().AddStandardResilienceHandler(ConfigureLlmResilience);

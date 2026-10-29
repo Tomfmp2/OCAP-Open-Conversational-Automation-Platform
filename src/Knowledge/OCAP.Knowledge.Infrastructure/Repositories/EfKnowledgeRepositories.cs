@@ -112,6 +112,9 @@ public class EfKnowledgeChunkRepository : IKnowledgeChunkRepository
         _context = context ?? throw new ArgumentNullException(nameof(context));
     }
 
+    public Task<bool> AnyForTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) =>
+        _context.Set<KnowledgeChunk>().AnyAsync(c => c.TenantId == tenantId, cancellationToken);
+
     public async Task<IReadOnlyList<KnowledgeChunk>> GetByDocumentAsync(Guid documentId, Guid tenantId, CancellationToken cancellationToken = default)
     {
         return await _context.Set<KnowledgeChunk>()

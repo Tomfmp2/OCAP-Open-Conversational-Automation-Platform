@@ -101,6 +101,11 @@ public class InMemoryKnowledgeChunkRepository : IKnowledgeChunkRepository
 {
     private readonly List<KnowledgeChunk> _list = new();
 
+    public Task<bool> AnyForTenantAsync(Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        lock (_list) return Task.FromResult(_list.Any(c => c.TenantId == tenantId));
+    }
+
     public Task<IReadOnlyList<KnowledgeChunk>> GetByDocumentAsync(Guid documentId, Guid tenantId, CancellationToken cancellationToken = default)
     {
         lock (_list)
