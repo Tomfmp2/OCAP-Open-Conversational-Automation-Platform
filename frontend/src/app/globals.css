@@ -95,7 +95,8 @@
   }
 
   .ocap-hero-ambient {
-    background: radial-gradient(ellipse 60% 42% at 50% 22%, var(--aurora-haze), transparent 72%), #ffffff;
+    /* Solo el halo, sobre el mismo fondo del panel: sin un bloque de otro color. */
+    background: radial-gradient(ellipse 50% 38% at 50% 26%, var(--aurora-haze), transparent 70%);
   }
 
   /* --- Orbe del asistente -------------------------------------------------------------------------

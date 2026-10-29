@@ -82,7 +82,6 @@ export function PrincipalAgentChat({
       onSubmit={() => sendText(input)}
       onReset={isEmpty || pending ? undefined : resetSession}
       pending={pending}
-      description={description}
       providerUsed={providerUsed}
       expanded={isEmpty}
       inputRef={inputRef}
@@ -115,7 +114,7 @@ export function PrincipalAgentChat({
             Pregúntame por tus conversaciones, canales, correo o documentos.
           </p>
 
-          <div className="mt-10 w-full">{composer}</div>
+          <div className="mt-8 w-full">{composer}</div>
           {errorBox && <div className="mt-3 w-full">{errorBox}</div>}
 
           <ul className="mt-5 flex flex-wrap items-center justify-center gap-2" aria-label="Sugerencias">
@@ -124,7 +123,7 @@ export function PrincipalAgentChat({
                 <button
                   type="button"
                   onClick={() => sendText(prompt)}
-                  className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-sm text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-950"
+                  className="focus-ring inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-700 transition-colors hover:border-neutral-400 hover:text-neutral-950"
                 >
                   <Icon className="h-3.5 w-3.5 text-neutral-600" aria-hidden />
                   {label}

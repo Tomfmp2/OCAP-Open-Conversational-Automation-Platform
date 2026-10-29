@@ -10,7 +10,6 @@ interface ChatComposerProps {
   onSubmit: () => void;
   onReset?: () => void;
   pending: boolean;
-  description: string;
   providerUsed: string | null;
   expanded: boolean;
   inputRef: React.Ref<HTMLTextAreaElement>;
@@ -23,7 +22,6 @@ export function ChatComposer({
   onSubmit,
   onReset,
   pending,
-  description,
   providerUsed,
   expanded,
   inputRef,
@@ -42,9 +40,8 @@ export function ChatComposer({
         onSubmit();
       }}
       className={cn(
-        "ocap-composer w-full rounded-3xl border border-neutral-200/80 bg-white text-left",
-        "shadow-[0_18px_50px_-22px_rgba(255,90,40,0.28),0_2px_6px_-2px_rgba(10,10,10,0.06)]",
-        "transition-shadow focus-within:border-neutral-300 focus-within:shadow-[0_22px_60px_-22px_rgba(255,90,40,0.38),0_2px_6px_-2px_rgba(10,10,10,0.08)]"
+        "ocap-composer w-full rounded-2xl border border-neutral-200 bg-white text-left shadow-sm",
+        "transition-[border-color,box-shadow] focus-within:border-neutral-400 focus-within:shadow-md"
       )}
     >
       <label htmlFor="assistant-input" className="sr-only">
@@ -56,10 +53,10 @@ export function ChatComposer({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        rows={expanded ? 2 : 1}
-        placeholder="Pregúntame cualquier cosa…"
+        rows={expanded ? 3 : 2}
+        placeholder="Escribe tu pregunta"
         disabled={pending}
-        className="block w-full resize-none bg-transparent px-5 pt-4 text-[15px] leading-relaxed text-neutral-950 placeholder:text-neutral-500 focus:outline-none disabled:opacity-60"
+        className="block max-h-48 w-full resize-none bg-transparent px-4 pt-3.5 text-base leading-relaxed text-neutral-950 placeholder:text-neutral-500 focus:outline-none disabled:opacity-60"
       />
 
       <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-2">
@@ -75,17 +72,14 @@ export function ChatComposer({
               <RotateCcw className="h-4 w-4" aria-hidden />
             </button>
           )}
-          <span className="truncate pl-2 text-xs text-neutral-600">
-            {description}
-            {providerUsed && <span className="font-mono"> · {providerUsed}</span>}
-          </span>
+          {providerUsed && <span className="truncate pl-1 text-xs text-neutral-600">Respondió {providerUsed}</span>}
         </div>
 
         <button
           type="submit"
           disabled={pending || !value.trim()}
           aria-label="Enviar"
-          className="focus-ring flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white shadow-[0_6px_16px_-6px_rgba(10,10,10,0.5)] transition-[transform,opacity] hover:scale-105 active:scale-95 disabled:scale-100 disabled:opacity-25"
+          className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-white transition-colors hover:bg-neutral-800 disabled:bg-neutral-200 disabled:text-neutral-500"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <ArrowUp className="h-4 w-4" aria-hidden />}
         </button>
