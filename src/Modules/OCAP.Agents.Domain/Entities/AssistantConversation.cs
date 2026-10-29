@@ -13,6 +13,11 @@ public class AssistantConversation
     public string Title { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
+    /// <summary>
+    /// Tuvo archivos adjuntos: lo que el modelo leyó de ellos sigue en el historial, así que ningún turno de esta
+    /// conversación ejecuta herramientas.
+    /// </summary>
+    public bool HasUntrustedContent { get; private set; }
 
     private AssistantConversation() { }
 
@@ -32,6 +37,8 @@ public class AssistantConversation
     }
 
     public void Touch() => UpdatedAt = DateTime.UtcNow;
+
+    public void MarkUntrustedContent() => HasUntrustedContent = true;
 
     private static string TitleFrom(string text)
     {

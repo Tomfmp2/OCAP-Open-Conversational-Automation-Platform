@@ -114,7 +114,7 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
         if (proposesTool && context.EnvironmentVariables.TryGetValue(UntrustedContentKey, out var untrusted) && untrusted is true)
         {
             metadata["ToolBlocked"] = parsed!.Tool!;
-            reply = $"{parsed.Reply}\n\nNo ejecuto acciones (correo, calendario, hojas) en un mensaje con archivos adjuntos. Si quieres hacerlo, pídemelo en un mensaje aparte.".Trim();
+            reply = $"{parsed.Reply}\n\nNo ejecuto acciones (correo, calendario, hojas) en una conversación con archivos adjuntos. Si quieres hacerlo, pídemelo en una conversación nueva.".Trim();
         }
         else if (proposesTool)
         {

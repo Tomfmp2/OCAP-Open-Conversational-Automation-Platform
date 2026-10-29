@@ -159,7 +159,7 @@ public class PrincipalAgentController : ControllerBase
         {
             var context = new AgentContext(_assistantAgent.GlobalAgentId, tenantId, userId, message);
             context.EnvironmentVariables[EnterpriseAssistantAgent.AttachmentsKey] = media;
-            context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = untrusted;
+            context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = untrusted || conversation?.HasUntrustedContent == true;
             context.EnvironmentVariables[EnterpriseAssistantAgent.HistoryKey] = previous
                 .Select(m => m.Role == AssistantRoles.User ? PromptMessage.User(m.Content) : PromptMessage.Assistant(m.Content))
                 .ToList();
@@ -175,6 +175,7 @@ public class PrincipalAgentController : ControllerBase
                 conversation = new AssistantConversation(tenantId, userId, historyText ?? message);
                 await _conversations.AddAsync(conversation, cancellationToken);
             }
+            if (untrusted) conversation.MarkUntrustedContent();
             await _conversations.AddMessagesAsync(conversation,
                 [new AssistantMessage(conversation, AssistantRoles.User, historyText ?? message), new AssistantMessage(conversation, AssistantRoles.Assistant, reply)],
                 cancellationToken);
