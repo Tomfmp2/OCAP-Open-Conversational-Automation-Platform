@@ -141,7 +141,13 @@ public class TelegramApiClient
         {
             var url = $"https://api.telegram.org/bot{token}/getUpdates?offset={offset}&limit={limit}&timeout=5";
             var response = await _httpClient.GetAsync(url, cancellationToken);
-            if (!response.IsSuccessStatusCode) return new List<TelegramUpdate>();
+            if (!response.IsSuccessStatusCode)
+            {
+                // Sin esto un token revocado o un webhook activo dejan el bot mudo sin rastro. La URL lleva el token: no se registra.
+                var error = await response.Content.ReadFromJsonAsync<TelegramApiResponse<object>>(cancellationToken: cancellationToken);
+                _logger.LogWarning("Telegram rechazó getUpdates ({Status}): {Description}", (int)response.StatusCode, error?.Description ?? "sin detalle");
+                return new List<TelegramUpdate>();
+            }
 
             var apiResult = await response.Content.ReadFromJsonAsync<TelegramApiResponse<List<TelegramUpdate>>>(cancellationToken: cancellationToken);
             return apiResult?.Result ?? new List<TelegramUpdate>();

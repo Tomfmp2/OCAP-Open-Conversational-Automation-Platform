@@ -1035,8 +1035,7 @@ namespace OCAP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "Provider")
-                        .IsUnique();
+                    b.HasIndex("TenantId", "Provider");
 
                     b.ToTable("ChannelConnections", (string)null);
                 });

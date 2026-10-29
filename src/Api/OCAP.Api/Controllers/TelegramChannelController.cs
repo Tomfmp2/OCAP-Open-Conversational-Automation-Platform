@@ -190,7 +190,7 @@ public class TelegramChannelController : ControllerBase
 
         // Telegram reintenta si la respuesta tarda: cada update se responde una sola vez.
         var key = $"telegram-update:{connectionId:N}:{update.UpdateId}";
-        if (await inbox.TryClaimAsync(key, WebhookInbox.ConsumerGroup, cancellationToken))
+        if (await inbox.TryClaimAsync(key, ChannelInbox.ConsumerGroup, cancellationToken))
         {
             await processor.ProcessAsync(connection.TenantId, connectionId, token, update, cancellationToken);
         }

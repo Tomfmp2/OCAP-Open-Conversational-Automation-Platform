@@ -64,6 +64,14 @@ public class TelegramBotRuntimeManager : ITelegramBotRuntimeManager
             throw new InvalidOperationException("El Bot Token proporcionado es inválido o no se pudo verificar con Telegram API.");
         }
 
+        // El mismo bot en dos canales (o dos organizaciones) se pelearía los mensajes: Telegram entrega cada uno una vez.
+        var botId = botInfo.Id.ToString();
+        if ((await _connectionManager.GetAllConnectionsByProviderAsync("Telegram", cancellationToken))
+            .Any(c => c.ConfigurationMetadata.TryGetValue("BotId", out var id) && id == botId))
+        {
+            throw new InvalidOperationException($"El bot @{botInfo.Username} ya está conectado en OCAP.");
+        }
+
         var useWebhook = string.Equals(connectionMode, "webhook", StringComparison.OrdinalIgnoreCase)
                          && !string.IsNullOrWhiteSpace(webhookBaseUrl);
 

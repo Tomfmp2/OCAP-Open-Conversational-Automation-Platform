@@ -135,7 +135,7 @@ public class WhatsAppWebhookController : ControllerBase
         }
 
         var key = $"whatsapp-cloud-message:{message.Metadata.GetValueOrDefault("MessageId")}";
-        if (!await _inbox.TryClaimAsync(key, WebhookInbox.ConsumerGroup, cancellationToken)) return;
+        if (!await _inbox.TryClaimAsync(key, ChannelInbox.ConsumerGroup, cancellationToken)) return;
 
         var tenantId = connection[0].TenantId;
         HttpTenantContext.UseTrustedTenant(HttpContext, tenantId);

@@ -11,6 +11,8 @@ namespace OCAP.Infrastructure.Services;
 // Servicio de infraestructura para la gestión en tiempo de ejecución de conexiones de canales por Tenant.
 public class ChannelConnectionManager : IChannelConnectionManager
 {
+    private static readonly HashSet<string> SinglePerTenantProviders = new(StringComparer.OrdinalIgnoreCase) { "WhatsApp" };
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IChannelRegistry _channelRegistry;
@@ -55,12 +57,12 @@ public class ChannelConnectionManager : IChannelConnectionManager
                 $"El proveedor '{normalizedProvider}' está en el catálogo pero aún no tiene adaptador runtime (próximamente).");
         }
 
-        var existing = await _dbContext.ChannelConnections
-            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Provider == normalizedProvider, cancellationToken);
-
-        if (existing != null)
+        // Varios canales del mismo tipo por organización (varios bots de Telegram, varios chats web). WhatsApp por QR
+        // es una sola instancia de Evolution por organización.
+        if (SinglePerTenantProviders.Contains(normalizedProvider)
+            && await _dbContext.ChannelConnections.AnyAsync(c => c.TenantId == tenantId && c.Provider == normalizedProvider, cancellationToken))
         {
-            throw new InvalidOperationException($"Ya existe una conexión registrada para el proveedor '{normalizedProvider}' en este Tenant.");
+            throw new InvalidOperationException($"Ya hay un canal {normalizedProvider} en esta organización.");
         }
 
         var secretRef = await _credentialVault.StoreSecretAsync(tenantId, $"{normalizedProvider}_Credentials", rawSecretCredentials, cancellationToken);

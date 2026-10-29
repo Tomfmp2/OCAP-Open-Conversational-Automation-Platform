@@ -129,7 +129,7 @@ public sealed class EvolutionWhatsAppWebhookController : ControllerBase
     {
         // Evolution reintenta un webhook si tarda o falla: el mismo mensaje no debe responderse dos veces.
         var deduplicationKey = $"whatsapp-message:{message.Instance}:{message.MessageId}";
-        if (!await _inbox.TryClaimAsync(deduplicationKey, WebhookInbox.ConsumerGroup, cancellationToken)) return;
+        if (!await _inbox.TryClaimAsync(deduplicationKey, ChannelInbox.ConsumerGroup, cancellationToken)) return;
 
         var connection = await _link.FindConnectionAsync(tenantId, cancellationToken);
         if (connection is null)
