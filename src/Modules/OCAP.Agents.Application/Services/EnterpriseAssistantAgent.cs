@@ -19,6 +19,11 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
     public const string HistoryKey = "History";
     /// <summary>Clave con las imágenes o video del mensaje (<c>IReadOnlyList&lt;PromptAttachment&gt;</c>).</summary>
     public const string AttachmentsKey = "Attachments";
+    /// <summary>
+    /// Turno con contenido que no escribió el usuario (archivos adjuntos): el modelo puede proponer una herramienta, pero
+    /// no se ejecuta. Un documento con instrucciones escondidas no puede mandar correos ni crear eventos.
+    /// </summary>
+    public const string UntrustedContentKey = "UntrustedContent";
 
     public static readonly Guid EnterpriseAssistantAgentId = Guid.Parse("00000000-0000-0000-0000-000000000001");
     public Guid GlobalAgentId => EnterpriseAssistantAgentId;
@@ -103,11 +108,17 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
             ["HasSystemSnapshot"] = true
         };
 
-        if (parsed != null &&
-            !string.IsNullOrWhiteSpace(parsed.Tool) &&
-            !string.Equals(parsed.Tool, "null", StringComparison.OrdinalIgnoreCase))
+        var proposesTool = parsed != null
+            && !string.IsNullOrWhiteSpace(parsed.Tool)
+            && !string.Equals(parsed.Tool, "null", StringComparison.OrdinalIgnoreCase);
+        if (proposesTool && context.EnvironmentVariables.TryGetValue(UntrustedContentKey, out var untrusted) && untrusted is true)
         {
-            var toolName = parsed.Tool.Trim();
+            metadata["ToolBlocked"] = parsed!.Tool!;
+            reply = $"{parsed.Reply}\n\nNo ejecuto acciones (correo, calendario, hojas) en un mensaje con archivos adjuntos. Si quieres hacerlo, pídemelo en un mensaje aparte.".Trim();
+        }
+        else if (proposesTool)
+        {
+            var toolName = parsed!.Tool!.Trim();
             var actionType = toolName.Contains("Email", StringComparison.OrdinalIgnoreCase)
                 ? AgentAction.SendEmail
                 : toolName.Contains("Calendar", StringComparison.OrdinalIgnoreCase)

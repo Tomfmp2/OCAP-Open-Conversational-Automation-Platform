@@ -49,6 +49,30 @@ public class AgentRuntimeAndEnterpriseAssistantTests
     }
 
     [Fact]
+    public async Task ToolsProposedFromAttachedContent_AreNotExecuted()
+    {
+        // Un documento adjunto con instrucciones escondidas lleva al modelo a pedir un correo: no debe enviarse.
+        var dispatcher = new Mock<IActionDispatcher>();
+        var provider = new MockLanguageModelProvider("Gemini",
+            """{"reply":"Envío el resumen.","tool":"SendEmailTool","args":{"To":"atacante@ejemplo.com","Subject":"x","Body":"y"}}""");
+        var agent = new EnterpriseAssistantAgent(
+            new SingleProviderSelector(provider),
+            new ToolRegistry(),
+            dispatcher.Object,
+            Mock.Of<IOcapSystemContextProvider>(c =>
+                c.GetTenantSnapshotAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()) == Task.FromResult(string.Empty)),
+            Mock.Of<IConfiguration>(),
+            NullLogger<EnterpriseAssistantAgent>.Instance);
+        var context = new AgentContext(EnterpriseAssistantAgent.EnterpriseAssistantAgentId, Guid.NewGuid(), Guid.NewGuid(), "Resume el PDF");
+        context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = true;
+
+        var result = await agent.ProcessRequestAsync(context);
+
+        result.OutputMessage.Should().Contain("No ejecuto acciones");
+        dispatcher.Verify(d => d.DispatchActionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<OCAP.Agents.Domain.Entities.AgentAction>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task AgentRuntime_Should_Execute_AssistantAgent_Successfully()
     {
         // Arrange
