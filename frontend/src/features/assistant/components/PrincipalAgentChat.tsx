@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
-import { BookOpen, Cpu, Mail, MessageSquare, RotateCcw } from "lucide-react";
+import { BookOpen, Cpu, History, Mail, MessageSquare, RotateCcw } from "lucide-react";
 import { useAuth } from "@/features/auth/context/AuthProvider";
 import { usePrincipalAgentChat } from "../api/usePrincipalAgentChat";
 import { AssistantOrb, type OrbState } from "./AssistantOrb";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessages } from "./ChatMessages";
+import { ConversationHistory } from "./ConversationHistory";
 
 function greetingForHour(hour: number) {
   if (hour < 12) return "Buenos días";
@@ -36,8 +37,9 @@ export function PrincipalAgentChat({
   hero = true,
 }: PrincipalAgentChatProps) {
   const { user } = useAuth();
-  const { lines, pending, error, providerUsed, revealingId, finishReveal, send, reset } = usePrincipalAgentChat();
+  const { conversationId, lines, pending, error, providerUsed, revealingId, finishReveal, send, reset, open } = usePrincipalAgentChat();
   const [input, setInput] = React.useState("");
+  const [historyOpen, setHistoryOpen] = React.useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -88,6 +90,28 @@ export function PrincipalAgentChat({
     />
   );
 
+  const historyButton = (
+    <button
+      type="button"
+      onClick={() => setHistoryOpen(true)}
+      disabled={pending}
+      className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-950 disabled:opacity-40"
+    >
+      <History className="h-3 w-3" aria-hidden />
+      Conversaciones
+    </button>
+  );
+
+  const history = (
+    <ConversationHistory
+      open={historyOpen}
+      onClose={() => setHistoryOpen(false)}
+      currentId={conversationId}
+      onOpen={(id) => void open(id)}
+      onDeletedCurrent={resetSession}
+    />
+  );
+
   const errorBox = error && (
     <p role="alert" className="w-full rounded-2xl border border-neutral-950 bg-white px-4 py-2.5 text-left text-xs text-neutral-950">
       {error}
@@ -100,6 +124,8 @@ export function PrincipalAgentChat({
         className={`relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-8 ${className}`}
       >
         <div className="ocap-hero-ambient pointer-events-none absolute inset-0" aria-hidden />
+        <div className="absolute right-2 top-2 z-[2]">{historyButton}</div>
+        {history}
 
         <div className="ocap-hero-enter relative z-[1] flex w-full max-w-2xl flex-col items-center text-center">
           <AssistantOrb size={112} state={orbState} className="ocap-mark mb-8" />
@@ -148,16 +174,20 @@ export function PrincipalAgentChat({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={resetSession}
-          disabled={pending}
-          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-950 disabled:opacity-40"
-        >
-          <RotateCcw className="h-3 w-3" aria-hidden />
-          Nueva conversación
-        </button>
+        <div className="flex items-center gap-2">
+          {historyButton}
+          <button
+            type="button"
+            onClick={resetSession}
+            disabled={pending}
+            className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-400 hover:text-neutral-950 disabled:opacity-40"
+          >
+            <RotateCcw className="h-3 w-3" aria-hidden />
+            Nueva conversación
+          </button>
+        </div>
       </header>
+      {history}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 py-6">
         <ChatMessages lines={lines} pending={pending} revealingId={revealingId} onRevealDone={finishReveal} />

@@ -15,6 +15,9 @@ namespace OCAP.Agents.Application.Services;
 /// </summary>
 public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
 {
+    /// <summary>Clave de <c>EnvironmentVariables</c> con los turnos previos (<c>IEnumerable&lt;PromptMessage&gt;</c>).</summary>
+    public const string HistoryKey = "History";
+
     public static readonly Guid EnterpriseAssistantAgentId = Guid.Parse("00000000-0000-0000-0000-000000000001");
     public Guid GlobalAgentId => EnterpriseAssistantAgentId;
 
@@ -80,8 +83,12 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
             """ + snapshot);
 
         systemPrompt = PromptMessage.System(systemPrompt.Content.Replace("{{LANGUAGE}}", ResponseLanguage()));
-        var userPrompt = PromptMessage.User(context.UserMessage);
-        var request = new LanguageModelRequest(new[] { systemPrompt, userPrompt });
+        // Turnos anteriores de la conversación (los carga quien llama desde la base): el modelo sigue el hilo.
+        var messages = new List<PromptMessage> { systemPrompt };
+        if (context.EnvironmentVariables.TryGetValue(HistoryKey, out var history) && history is IEnumerable<PromptMessage> turns)
+            messages.AddRange(turns);
+        messages.Add(PromptMessage.User(context.UserMessage));
+        var request = new LanguageModelRequest(messages);
         var response = await provider.GenerateAsync(request, cancellationToken);
 
         var parsed = AssistantPlanParser.TryParse(response.Content);

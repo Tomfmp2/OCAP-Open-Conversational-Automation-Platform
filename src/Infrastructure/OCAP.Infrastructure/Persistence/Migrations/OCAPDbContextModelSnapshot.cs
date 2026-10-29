@@ -64,6 +64,67 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                     b.ToTable("Agents", (string)null);
                 });
 
+            modelBuilder.Entity("OCAP.Agents.Domain.Entities.AssistantConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UserId", "UpdatedAt");
+
+                    b.ToTable("AssistantConversations", (string)null);
+                });
+
+            modelBuilder.Entity("OCAP.Agents.Domain.Entities.AssistantMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("AssistantMessages", (string)null);
+                });
+
             modelBuilder.Entity("OCAP.Core.Entities.AgentToolPermission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2477,6 +2538,15 @@ namespace OCAP.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Configuration")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OCAP.Agents.Domain.Entities.AssistantMessage", b =>
+                {
+                    b.HasOne("OCAP.Agents.Domain.Entities.AssistantConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
