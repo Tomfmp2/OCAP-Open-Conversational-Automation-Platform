@@ -77,7 +77,16 @@ public class ChannelConnectionManager : IChannelConnectionManager
             enabled: true);
 
         await _dbContext.ChannelConnections.AddAsync(connection, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Índice único de la base (p. ej. el mismo bot de Telegram en otra conexión u organización).
+            _dbContext.Entry(connection).State = EntityState.Detached;
+            throw new InvalidOperationException("Ese canal ya está conectado en OCAP.");
+        }
 
         _logger.LogInformation("Nueva conexión de canal {Provider} (ID: {ConnectionId}) creada para Tenant {TenantId}.",
             normalizedProvider, connection.Id, tenantId);

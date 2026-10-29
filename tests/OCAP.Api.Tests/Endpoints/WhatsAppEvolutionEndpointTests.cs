@@ -123,6 +123,22 @@ public class WhatsAppEvolutionEndpointTests : IClassFixture<WhatsAppEvolutionFac
     }
 
     [Fact]
+    public async Task GenericConnect_RejectsTelegram_SoTheBotIdCannotComeFromTheClient()
+    {
+        var admin = await AdminClientAsync();
+
+        var response = await admin.PostAsJsonAsync("/api/channels/connect", new
+        {
+            provider = "Telegram",
+            displayName = "Bot",
+            credentials = "123:abc",
+            metadata = new Dictionary<string, string> { ["BotId"] = "999" }
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Rename_IsKeptAfterReconnecting_AndDeleteUnlinksThePhone()
     {
         using var factory = new WhatsAppEvolutionFactory();

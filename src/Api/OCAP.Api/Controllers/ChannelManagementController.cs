@@ -137,6 +137,17 @@ public class ChannelManagementController : ControllerBase
             });
         }
 
+        if (string.Equals(request.Provider.Trim(), "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            // El bot se identifica con getMe sobre el token (BotId): esa metadata no puede venir del cliente.
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Telegram se conecta con POST /api/channels/telegram/bots.",
+                Data = null
+            });
+        }
+
         try
         {
             var connection = await _connectionManager.CreateConnectionAsync(
