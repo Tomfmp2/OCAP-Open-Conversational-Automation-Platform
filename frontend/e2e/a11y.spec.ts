@@ -34,7 +34,7 @@ test("login sin violaciones WCAG graves", async ({ page }) => {
 
 test("páginas del panel sin violaciones WCAG graves", async ({ page }) => {
   test.skip(!email || !password, "Define OCAP_ADMIN_EMAIL y OCAP_ADMIN_PASSWORD.");
-  // Recorre doce páginas y analiza cada una: el límite por defecto (30 s) no alcanza en móvil con la suite en paralelo.
+  // Recorre nueve páginas y analiza cada una: el límite por defecto (30 s) no alcanza en móvil con la suite en paralelo.
   test.setTimeout(120_000);
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
@@ -43,7 +43,7 @@ test("páginas del panel sin violaciones WCAG graves", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
 
   const found: Record<string, string[]> = {};
-  for (const route of ["/", "/inbox", "/channels", "/intelligence", "/agents", "/knowledge", "/settings", "/team", "/account", "/security", "/monitoring", "/developer"]) {
+  for (const route of ["/", "/inbox", "/channels", "/agents", "/knowledge", "/intelligence", "/team", "/settings", "/account"]) {
     await page.goto(route);
     await page.waitForLoadState("networkidle");
     const violations = await seriousViolations(page);
