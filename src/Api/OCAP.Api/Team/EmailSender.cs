@@ -50,8 +50,13 @@ public sealed class SmtpEmailSender : IEmailSender
     {
         var options = await ResolveAsync(tenantId, cancellationToken) ?? throw new InvalidOperationException("El correo no está configurado.");
         // El host lo escribe un usuario: se vuelve a comprobar justo antes de conectar.
-        if (options != _server && await OrganizationEmailSettings.ValidateHostAsync(options.Host!, cancellationToken) is { } blocked)
-            throw new InvalidOperationException(blocked);
+        if (options != _server)
+        {
+            if (!OrganizationEmailSettings.AllowedPorts.Contains(options.Port))
+                throw new InvalidOperationException("Puerto de correo no permitido.");
+            if (await OrganizationEmailSettings.ValidateHostAsync(options.Host!, cancellationToken) is { } blocked)
+                throw new InvalidOperationException(blocked);
+        }
 
         using var client = new SmtpClient(options.Host, options.Port) { EnableSsl = options.UseSsl, Timeout = 30_000 };
         if (!string.IsNullOrWhiteSpace(options.Username))

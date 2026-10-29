@@ -20,6 +20,9 @@ public sealed class OrganizationEmailSettings
     private const string Section = "Smtp";
     private const string PasswordSecretKey = "smtp-password";
 
+    /// <summary>Puertos de correo: limitarlos impide usar el SMTP para tocar otros servicios.</summary>
+    public static readonly IReadOnlySet<int> AllowedPorts = new HashSet<int> { 25, 465, 587, 2525 };
+
     private readonly OCAPDbContext _db;
     private readonly ICredentialVault _vault;
 
@@ -52,7 +55,7 @@ public sealed class OrganizationEmailSettings
         (await _db.Tenants.IgnoreQueryFilters().Where(t => t.IsActive).Select(t => t.SettingsJson).ToListAsync(cancellationToken))
             .Any(json => JsonNode.Parse(json) is JsonObject root && root[Section] is not null);
 
-    /// <param name="password">Null conserva la guardada; vacía la borra.</param>
+    /// <summary>Guarda el SMTP. La contraseña: null conserva la guardada; vacía la borra.</summary>
     public async Task SaveAsync(Guid tenantId, OrganizationEmailSettingsDto settings, string? password, CancellationToken cancellationToken)
     {
         var tenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Id == tenantId, cancellationToken);

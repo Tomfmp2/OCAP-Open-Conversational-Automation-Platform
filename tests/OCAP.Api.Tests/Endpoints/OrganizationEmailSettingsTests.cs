@@ -19,6 +19,8 @@ public class OrganizationEmailSettingsTests : IClassFixture<OcapApiFactory>
         object Smtp(string host, string? password) => new { host, port = 587, username = "envios", password, from = "envios@tienda.com", useSsl = true };
 
         (await admin.PutAsJsonAsync("/api/settings/email", Smtp("127.0.0.1", "secreta"))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PutAsJsonAsync("/api/settings/email", new { host = "8.8.8.8", port = 22, from = "a@b.com", useSsl = true }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await admin.PutAsJsonAsync("/api/settings/email", Smtp("8.8.8.8", "secreta"))).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var raw = await admin.GetStringAsync("/api/settings/email");
@@ -39,11 +41,14 @@ public class OrganizationEmailSettingsTests : IClassFixture<OcapApiFactory>
     }
 
     [Fact]
-    public async Task OnlyAdministrators_CanChangeTheSmtp()
+    public async Task OnlyWhoManagesSecurity_CanChangeTheSmtp()
     {
-        var token = TestAuthHelper.CreateAccessToken(_factory, "operador@ocap.test", "Operator", ["Conversation.Read"]);
+        // Ajustes generales no bastan: el SMTP recibe los enlaces de recuperación de contraseña.
+        var token = TestAuthHelper.CreateAccessToken(_factory, "ajustes@ocap.test", "Settings", ["Settings.Manage"]);
         var operatorClient = TestAuthHelper.CreateAuthenticatedClient(_factory, token);
 
         (await operatorClient.GetAsync("/api/settings/email")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await operatorClient.PutAsJsonAsync("/api/settings/email", new { host = "8.8.8.8", port = 587, from = "a@b.com", useSsl = true }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }

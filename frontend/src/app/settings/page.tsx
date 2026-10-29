@@ -105,7 +105,7 @@ function EmailForm({ current, usesServer }: { current: EmailSettings | null; use
       )}
       <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
         <Input label="Servidor SMTP" required placeholder="smtp.tudominio.com" value={host} onChange={(e) => setHost(e.target.value)} />
-        <Input label="Puerto" required type="number" min={1} max={65535} value={port} onChange={(e) => setPort(e.target.value)} />
+        <Input label="Puerto" required type="number" hint="25, 465, 587 o 2525" value={port} onChange={(e) => setPort(e.target.value)} />
       </div>
       <Input label="Usuario" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
       <Input
