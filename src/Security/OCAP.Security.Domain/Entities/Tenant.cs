@@ -46,6 +46,9 @@ public class Tenant
         Name = name.Trim();
     }
 
+    /// <summary>Ajustes de la organización (JSON). Los secretos no van aquí: solo su referencia en el vault.</summary>
+    public void UpdateSettings(string settingsJson) => SettingsJson = string.IsNullOrWhiteSpace(settingsJson) ? "{}" : settingsJson;
+
     public void SetPreferredAiProvider(string? providerName)
     {
         PreferredAiProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();

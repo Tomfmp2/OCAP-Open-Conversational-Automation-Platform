@@ -28,7 +28,7 @@ public sealed class TeamController : ControllerBase
 
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken) =>
-        Ok(new { members = await _team.ListAsync(TenantId, cancellationToken), emailConfigured = _team.EmailConfigured });
+        Ok(new { members = await _team.ListAsync(TenantId, cancellationToken), emailConfigured = await _team.IsEmailConfiguredAsync(TenantId, cancellationToken) });
 
     [HttpPost("invitations")]
     public async Task<IActionResult> Invite([FromBody] InviteMemberRequest request, CancellationToken cancellationToken)

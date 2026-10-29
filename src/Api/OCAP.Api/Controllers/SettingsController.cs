@@ -10,6 +10,9 @@ namespace OCAP.Api.Controllers;
 /// <summary>Datos de la organización que ve y edita el panel.</summary>
 public sealed record OrganizationSettingsDto(string Name);
 
+/// <summary>SMTP de la organización. <c>Password</c> null conserva la guardada; vacía la borra.</summary>
+public sealed record UpdateEmailSettingsRequest(string Host, int Port, string? Username, string? Password, string From, bool UseSsl);
+
 [ApiController]
 [Route("api/[controller]")]
 public class SettingsController : ControllerBase
@@ -72,4 +75,81 @@ public class SettingsController : ControllerBase
         _tenantContext.TenantId == Guid.Empty
             ? Task.FromResult<OCAP.Security.Domain.Entities.Tenant?>(null)
             : _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == _tenantContext.TenantId, cancellationToken);
+
+    /// <summary>SMTP propio de la organización, sin la contraseña. <c>usesServer</c>: sin uno propio, se usa el del servidor.</summary>
+    [HttpGet("email")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
+    public async Task<IActionResult> GetEmailSettings(
+        [FromServices] OCAP.Api.Team.OrganizationEmailSettings email,
+        [FromServices] Microsoft.Extensions.Options.IOptions<OCAP.Api.Team.SmtpOptions> server,
+        CancellationToken cancellationToken)
+    {
+        var own = await email.DescribeAsync(_tenantContext.TenantId, cancellationToken);
+        return Ok(new { settings = own, usesServer = own is null && server.Value.IsComplete });
+    }
+
+    [HttpPut("email")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
+    public async Task<IActionResult> UpdateEmailSettings(
+        [FromBody] UpdateEmailSettingsRequest request,
+        [FromServices] OCAP.Api.Team.OrganizationEmailSettings email,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Host) || string.IsNullOrWhiteSpace(request.From))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Indica el servidor y la dirección de envío.");
+        if (request.Port is < 1 or > 65535)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El puerto debe estar entre 1 y 65535.");
+        if (!System.Net.Mail.MailAddress.TryCreate(request.From.Trim(), out _))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "La dirección de envío no es un correo válido.");
+        if (await OCAP.Api.Team.OrganizationEmailSettings.ValidateHostAsync(request.Host.Trim(), cancellationToken) is { } blocked)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: blocked);
+
+        await email.SaveAsync(
+            _tenantContext.TenantId,
+            new OCAP.Api.Team.OrganizationEmailSettingsDto(request.Host, request.Port, request.Username, request.From, request.UseSsl, false),
+            request.Password,
+            cancellationToken);
+        await AuditAsync("Organization_EmailSettingsUpdated", $"SMTP de la organización: {request.Host.Trim()}:{request.Port}.", cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("email")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
+    public async Task<IActionResult> DeleteEmailSettings([FromServices] OCAP.Api.Team.OrganizationEmailSettings email, CancellationToken cancellationToken)
+    {
+        await email.ClearAsync(_tenantContext.TenantId, cancellationToken);
+        await AuditAsync("Organization_EmailSettingsRemoved", "SMTP de la organización eliminado.", cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Envía un correo de prueba a quien lo pide, con el SMTP que usaría la organización.</summary>
+    [HttpPost("email/test")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
+    public async Task<IActionResult> TestEmailSettings([FromServices] OCAP.Api.Team.IEmailSender sender, CancellationToken cancellationToken)
+    {
+        var to = await _dbContext.UserIdentities.Where(u => u.Id == _userContext.UserId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
+        if (to is null) return NotFound();
+        if (!await sender.IsConfiguredAsync(_tenantContext.TenantId, cancellationToken))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Configura el servidor de correo primero.");
+        try
+        {
+            await sender.SendAsync(_tenantContext.TenantId, to, "Prueba de correo de OCAP", "El correo de tu organización en OCAP funciona.", cancellationToken);
+        }
+        catch (Exception ex) when (ex is System.Net.Mail.SmtpException or InvalidOperationException or System.Net.Sockets.SocketException or IOException)
+        {
+            // El detalle del servidor SMTP ayuda a corregir la configuración y no expone secretos.
+            return Problem(statusCode: StatusCodes.Status422UnprocessableEntity, title: "No se pudo enviar el correo de prueba.", detail: ex.Message);
+        }
+        return Ok(new { sentTo = to });
+    }
+
+    private Task AuditAsync(string action, string detail, CancellationToken cancellationToken) =>
+        _auditService.LogSecurityEventAsync(
+            _tenantContext.TenantId,
+            _userContext.UserId,
+            action,
+            detail,
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+            true,
+            cancellationToken);
 }

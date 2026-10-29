@@ -58,7 +58,10 @@ public sealed class TeamService
         _configuration = configuration;
     }
 
-    public bool EmailConfigured => _email.IsConfigured;
+    public Task<bool> IsEmailConfiguredAsync(Guid tenantId, CancellationToken cancellationToken) => _email.IsConfiguredAsync(tenantId, cancellationToken);
+
+    /// <summary>Pantallas sin sesión (recuperar contraseña): no hay organización todavía.</summary>
+    public Task<bool> IsAnyEmailConfiguredAsync(CancellationToken cancellationToken) => _email.IsAnyConfiguredAsync(cancellationToken);
 
     public async Task<IReadOnlyList<TeamMemberDto>> ListAsync(Guid tenantId, CancellationToken cancellationToken)
     {
@@ -178,10 +181,10 @@ public sealed class TeamService
     /// </summary>
     public async Task RequestPasswordResetAsync(string email, CancellationToken cancellationToken)
     {
-        if (!_email.IsConfigured || string.IsNullOrWhiteSpace(email)) return;
+        if (string.IsNullOrWhiteSpace(email)) return;
         var normalized = email.Trim().ToLowerInvariant();
         var user = await _db.UserIdentities.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == normalized && u.IsActive, cancellationToken);
-        if (user is null) return;
+        if (user is null || !await _email.IsConfiguredAsync(user.TenantId, cancellationToken)) return;
 
         await IssueLinkAsync(user, ResetLifetime, isInvitation: false, cancellationToken);
     }
@@ -196,7 +199,7 @@ public sealed class TeamService
         var path = $"/accept?token={token}";
         var emailed = false;
         var panelUrl = _configuration["App:PublicPanelUrl"]?.TrimEnd('/');
-        if (_email.IsConfigured && !string.IsNullOrWhiteSpace(panelUrl))
+        if (!string.IsNullOrWhiteSpace(panelUrl) && await _email.IsConfiguredAsync(user.TenantId, cancellationToken))
         {
             var subject = isInvitation ? "Te invitaron a OCAP" : "Restablece tu contraseña de OCAP";
             var intro = isInvitation
@@ -205,7 +208,7 @@ public sealed class TeamService
             var body = $"{intro}\n\n{panelUrl}{path}\n\nEl enlace vence el {expires:yyyy-MM-dd HH:mm} UTC y sirve una sola vez.\nSi no lo esperabas, ignora este correo.";
             try
             {
-                await _email.SendAsync(user.Email, subject, body, cancellationToken);
+                await _email.SendAsync(user.TenantId, user.Email, subject, body, cancellationToken);
                 emailed = true;
             }
             catch (Exception ex) when (ex is System.Net.Mail.SmtpException or InvalidOperationException or System.Net.Sockets.SocketException)

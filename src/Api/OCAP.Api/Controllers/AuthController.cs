@@ -88,14 +88,14 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         await team.RequestPasswordResetAsync(request.Email, cancellationToken);
-        return Ok(new { emailConfigured = team.EmailConfigured });
+        return Ok(new { emailConfigured = await team.IsAnyEmailConfiguredAsync(cancellationToken) });
     }
 
     /// <summary>Si el servidor puede enviar correos (cambia lo que ofrece el panel en "Olvidé mi contraseña").</summary>
     [HttpGet("password/options")]
     [Microsoft.AspNetCore.RateLimiting.DisableRateLimiting]
-    public IActionResult PasswordOptions([FromServices] OCAP.Api.Team.TeamService team) =>
-        Ok(new { emailConfigured = team.EmailConfigured, minLength = OCAP.Api.Security.PasswordRules.MinLength });
+    public async Task<IActionResult> PasswordOptions([FromServices] OCAP.Api.Team.TeamService team, CancellationToken cancellationToken) =>
+        Ok(new { emailConfigured = await team.IsAnyEmailConfiguredAsync(cancellationToken), minLength = OCAP.Api.Security.PasswordRules.MinLength });
 
     /// <summary>Rota el refresh token de la cookie y emite un access token nuevo.</summary>
     [HttpPost("refresh")]

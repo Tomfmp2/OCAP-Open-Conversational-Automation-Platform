@@ -38,7 +38,9 @@ public static partial class ApiServiceExtensions
         services.AddScoped<IUserAuthenticationQuery, EfUserAuthenticationQuery>();
         services.AddScoped<InitialAdminProvisioner>();
         services.Configure<OCAP.Api.Team.SmtpOptions>(configuration.GetSection("Email:Smtp"));
-        services.AddSingleton<OCAP.Api.Team.IEmailSender, OCAP.Api.Team.SmtpEmailSender>();
+        // Scoped: cada organización puede tener su propio SMTP (en la base).
+        services.AddScoped<OCAP.Api.Team.OrganizationEmailSettings>();
+        services.AddScoped<OCAP.Api.Team.IEmailSender, OCAP.Api.Team.SmtpEmailSender>();
         services.AddScoped<OCAP.Api.Team.TeamService>();
         // Orden: el bootstrap opcional por entorno corre antes que el código de configuración inicial.
         services.AddHostedService<BootstrapAdminHostedService>();
