@@ -310,7 +310,10 @@ public class GeminiAiProvider : IAiProvider
             contents.Add(new { role = "user", parts = new[] { new { text = history } } });
         }
 
-        contents.Add(new { role = "user", parts = new[] { new { text = request.UserMessage } } });
+        // Gemini lee imágenes y video en línea junto al texto.
+        var parts = new List<object> { new { text = request.UserMessage } };
+        parts.AddRange(request.Attachments.Select(a => new { inline_data = new { mime_type = a.MimeType, data = a.Base64Data } }));
+        contents.Add(new { role = "user", parts });
         return contents;
     }
 }

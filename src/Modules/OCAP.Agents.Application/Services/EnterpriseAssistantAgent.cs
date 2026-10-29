@@ -17,6 +17,8 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
 {
     /// <summary>Clave de <c>EnvironmentVariables</c> con los turnos previos (<c>IEnumerable&lt;PromptMessage&gt;</c>).</summary>
     public const string HistoryKey = "History";
+    /// <summary>Clave con las imágenes o video del mensaje (<c>IReadOnlyList&lt;PromptAttachment&gt;</c>).</summary>
+    public const string AttachmentsKey = "Attachments";
 
     public static readonly Guid EnterpriseAssistantAgentId = Guid.Parse("00000000-0000-0000-0000-000000000001");
     public Guid GlobalAgentId => EnterpriseAssistantAgentId;
@@ -87,7 +89,8 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
         var messages = new List<PromptMessage> { systemPrompt };
         if (context.EnvironmentVariables.TryGetValue(HistoryKey, out var history) && history is IEnumerable<PromptMessage> turns)
             messages.AddRange(turns);
-        messages.Add(PromptMessage.User(context.UserMessage));
+        var attachments = context.EnvironmentVariables.TryGetValue(AttachmentsKey, out var media) ? media as IReadOnlyList<PromptAttachment> : null;
+        messages.Add(PromptMessage.User(context.UserMessage, attachments));
         var request = new LanguageModelRequest(messages);
         var response = await provider.GenerateAsync(request, cancellationToken);
 

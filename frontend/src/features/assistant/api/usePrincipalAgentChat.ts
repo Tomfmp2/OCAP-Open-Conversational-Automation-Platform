@@ -65,20 +65,31 @@ export function usePrincipalAgentChat() {
   }, []);
 
   const send = React.useCallback(
-    async (text: string) => {
+    async (text: string, files: File[] = []) => {
       const trimmed = text.trim();
-      if (!trimmed || pending) return;
+      if ((!trimmed && files.length === 0) || pending) return;
 
       setError(null);
-      setLines((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", text: trimmed }]);
+      // Igual que lo guarda la API: los archivos no se conservan, solo sus nombres.
+      const shown = files.length ? `${trimmed}\n\n[Adjuntos: ${files.map((f) => f.name).join(", ")}]`.trim() : trimmed;
+      setLines((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", text: shown }]);
       setPending(true);
 
       try {
-        const res = await apiClient.post<PrincipalReply>(
-          "/api/agents/principal/messages",
-          { conversationId, message: trimmed },
-          { timeout: AGENT_TIMEOUT_MS }
-        );
+        let res: PrincipalReply;
+        if (files.length) {
+          const form = new FormData();
+          if (conversationId) form.append("conversationId", conversationId);
+          if (trimmed) form.append("message", trimmed);
+          files.forEach((file) => form.append("files", file));
+          res = await apiClient.upload<PrincipalReply>("/api/agents/principal/messages/attachments", form, { timeout: AGENT_TIMEOUT_MS });
+        } else {
+          res = await apiClient.post<PrincipalReply>(
+            "/api/agents/principal/messages",
+            { conversationId, message: trimmed },
+            { timeout: AGENT_TIMEOUT_MS }
+          );
+        }
 
         const reply = res?.data?.reply || "Sin respuesta del agente.";
         if (res?.data?.providerUsed) setProviderUsed(res.data.providerUsed);

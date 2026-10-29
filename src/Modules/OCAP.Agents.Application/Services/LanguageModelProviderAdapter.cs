@@ -20,7 +20,8 @@ public class LanguageModelProviderAdapter : ILanguageModelProvider
         if (request == null) throw new ArgumentNullException(nameof(request));
 
         var systemMsg = request.Messages.FirstOrDefault(m => m.Role == MessageRole.System)?.Content ?? string.Empty;
-        var userMsg = request.Messages.LastOrDefault(m => m.Role == MessageRole.User)?.Content ?? string.Empty;
+        var lastUser = request.Messages.LastOrDefault(m => m.Role == MessageRole.User);
+        var userMsg = lastUser?.Content ?? string.Empty;
 
         var history = request.Messages
             .Where(m => m.Role != MessageRole.System && m.Content != userMsg)
@@ -33,7 +34,8 @@ public class LanguageModelProviderAdapter : ILanguageModelProvider
             SystemInstructions = systemMsg,
             ConversationHistory = history,
             Temperature = request.Temperature,
-            MaxTokens = request.MaxTokens
+            MaxTokens = request.MaxTokens,
+            Attachments = lastUser?.Attachments.Select(a => new AiAttachment(a.MimeType, Convert.ToBase64String(a.Data))).ToList() ?? []
         };
 
         var response = await _innerProvider.GenerateResponseAsync(aiRequest, cancellationToken);

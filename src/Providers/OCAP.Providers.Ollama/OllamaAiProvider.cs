@@ -30,6 +30,9 @@ public class OllamaAiProvider : IAiProvider
         var baseUrl = string.IsNullOrWhiteSpace(_settings.BaseUrl) ? "http://localhost:11434" : _settings.BaseUrl;
         var model = string.IsNullOrWhiteSpace(_settings.ModelName) ? "llama3" : _settings.ModelName;
 
+        if (request.Attachments.Any(a => !a.IsImage))
+            throw new UnsupportedAttachmentException("Este modelo solo lee imágenes. Para video usa un modelo de Gemini.");
+
         try
         {
             var payload = new Dictionary<string, object>
@@ -37,6 +40,8 @@ public class OllamaAiProvider : IAiProvider
                 ["model"] = model,
                 ["prompt"] = $"{request.SystemInstructions}\n\nUsuario: {request.UserMessage}",
                 ["stream"] = false,
+                // Modelos con visión (llava, llama3.2-vision…): imágenes en base64.
+                ["images"] = request.Attachments.Select(a => a.Base64Data).ToArray(),
                 ["options"] = new
                 {
                     temperature = request.Temperature ?? _settings.Temperature,

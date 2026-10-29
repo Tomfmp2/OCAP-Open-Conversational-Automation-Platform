@@ -7,6 +7,7 @@ using OCAP.Agents.Abstractions.Providers;
 using OCAP.Agents.Domain.Entities;
 using OCAP.Agents.Application.Services;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Api.Validation;
 using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
@@ -102,10 +103,48 @@ public class PrincipalAgentController : ControllerBase
             });
         }
 
-        var message = request.Message.Trim();
+        return await ReplyAsync(tenantId, userId, request.ConversationId, request.Message.Trim(), [], cancellationToken);
+    }
+
+    /// <summary>
+    /// Mensaje con archivos: imágenes y video van al modelo (no se guardan); de los documentos se envía su texto. En
+    /// el historial queda solo el nombre de cada archivo.
+    /// </summary>
+    [HttpPost("messages/attachments")]
+    [RequestSizeLimit(AssistantAttachments.MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = AssistantAttachments.MaxRequestBytes)]
+    public async Task<IActionResult> SendMessageWithAttachments(
+        [FromForm] Guid? conversationId,
+        [FromForm] string? message,
+        [FromForm] List<IFormFile> files,
+        [FromServices] OCAP.Knowledge.Abstractions.IDocumentParserFactory parsers,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var userId = _userContext.UserId;
+        if (tenantId == Guid.Empty || userId == Guid.Empty) return Unauthorized();
+
+        var prepared = await AssistantAttachments.PrepareAsync(files, parsers, cancellationToken);
+        if (prepared.Error is { } error) return BadRequest(new ApiResponse<object> { Success = false, Message = error });
+
+        var text = string.IsNullOrWhiteSpace(message) ? "Revisa los archivos adjuntos." : message.Trim();
+        var forModel = prepared.DocumentText.Length == 0 ? text : $"{text}\n\n{prepared.DocumentText}";
+        var forHistory = $"{text}\n\n[Adjuntos: {string.Join(", ", prepared.FileNames)}]";
+        return await ReplyAsync(tenantId, userId, conversationId, forModel, prepared.Media, cancellationToken, forHistory);
+    }
+
+    private async Task<IActionResult> ReplyAsync(
+        Guid tenantId,
+        Guid userId,
+        Guid? requestedConversationId,
+        string message,
+        IReadOnlyList<PromptAttachment> media,
+        CancellationToken cancellationToken,
+        string? historyText = null)
+    {
         AssistantConversation? conversation = null;
         IReadOnlyList<AssistantMessage> previous = [];
-        if (request.ConversationId is { } conversationId)
+        if (requestedConversationId is { } conversationId)
         {
             conversation = await _conversations.FindAsync(userId, conversationId, cancellationToken);
             if (conversation is null) return NotFound();
@@ -115,6 +154,7 @@ public class PrincipalAgentController : ControllerBase
         try
         {
             var context = new AgentContext(_assistantAgent.GlobalAgentId, tenantId, userId, message);
+            context.EnvironmentVariables[EnterpriseAssistantAgent.AttachmentsKey] = media;
             context.EnvironmentVariables[EnterpriseAssistantAgent.HistoryKey] = previous
                 .Select(m => m.Role == AssistantRoles.User ? PromptMessage.User(m.Content) : PromptMessage.Assistant(m.Content))
                 .ToList();
@@ -127,11 +167,11 @@ public class PrincipalAgentController : ControllerBase
             // Se guarda solo lo que respondió: un fallo del modelo no deja una conversación vacía.
             if (conversation is null)
             {
-                conversation = new AssistantConversation(tenantId, userId, message);
+                conversation = new AssistantConversation(tenantId, userId, historyText ?? message);
                 await _conversations.AddAsync(conversation, cancellationToken);
             }
             await _conversations.AddMessagesAsync(conversation,
-                [new AssistantMessage(conversation, AssistantRoles.User, message), new AssistantMessage(conversation, AssistantRoles.Assistant, reply)],
+                [new AssistantMessage(conversation, AssistantRoles.User, historyText ?? message), new AssistantMessage(conversation, AssistantRoles.Assistant, reply)],
                 cancellationToken);
 
             return Ok(new ApiResponse<object>
@@ -156,7 +196,9 @@ public class PrincipalAgentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error en chat del agente principal.");
-            var friendly = ex is OperationCanceledException || ex is TaskCanceledException
+            var friendly = ex is NotSupportedException
+                ? ex.Message
+                : ex is OperationCanceledException || ex is TaskCanceledException
                 ? "El modelo de IA no respondió a tiempo. Pruébalo en Modelos de IA; si falla igual, revisa la clave y la conexión."
                 : ex.Message.Contains("no longer available", StringComparison.OrdinalIgnoreCase)
                 || ex.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase)

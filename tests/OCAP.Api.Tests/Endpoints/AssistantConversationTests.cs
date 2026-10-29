@@ -39,6 +39,39 @@ public class AssistantConversationTests : IClassFixture<OcapApiFactory>
         (await owner.GetFromJsonAsync<List<Summary>>("/api/agents/principal/conversations")).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Attachments_ReachTheAssistant_AndOnlyTheirNamesAreKeptInTheHistory()
+    {
+        var client = TestAuthHelper.CreateAuthenticatedClient(_factory, TestAuthHelper.CreateAccessToken(_factory, "files@ocap.test"));
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
+
+        using var form = new MultipartFormDataContent
+        {
+            { new StringContent("¿Qué ves?"), "message" },
+            { new ByteArrayContent(png), "files", "foto.png" },
+            { new ByteArrayContent("Horario: 9 a 18"u8.ToArray()), "files", "horario.txt" }
+        };
+        var response = await client.PostAsync("/api/agents/principal/messages/attachments", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var conversationId = (await response.Content.ReadFromJsonAsync<Envelope>())!.Data.ConversationId;
+        var messages = await client.GetFromJsonAsync<List<Line>>($"/api/agents/principal/conversations/{conversationId}/messages");
+        messages![0].Content.Should().Be("¿Qué ves?\n\n[Adjuntos: foto.png, horario.txt]");
+    }
+
+    [Fact]
+    public async Task Attachments_AreCheckedByContent_AndLimited()
+    {
+        var client = TestAuthHelper.CreateAuthenticatedClient(_factory, TestAuthHelper.CreateAccessToken(_factory, "files2@ocap.test"));
+
+        using var disguised = new MultipartFormDataContent { { new ByteArrayContent([0x4D, 0x5A, 0x90, 0x00, 0x03]), "files", "factura.pdf" } };
+        (await client.PostAsync("/api/agents/principal/messages/attachments", disguised)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        using var tooMany = new MultipartFormDataContent();
+        for (var i = 0; i < 5; i++) tooMany.Add(new ByteArrayContent("hola"u8.ToArray()), "files", $"nota{i}.txt");
+        (await client.PostAsync("/api/agents/principal/messages/attachments", tooMany)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private sealed record Reply(Guid ConversationId);
     private sealed record Envelope(Reply Data);
     private sealed record Summary(Guid Id, string Title);

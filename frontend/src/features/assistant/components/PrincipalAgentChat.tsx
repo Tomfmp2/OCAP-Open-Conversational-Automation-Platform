@@ -40,6 +40,7 @@ export function PrincipalAgentChat({
   const { conversationId, lines, pending, error, providerUsed, revealingId, finishReveal, send, reset, open } = usePrincipalAgentChat();
   const [input, setInput] = React.useState("");
   const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [files, setFiles] = React.useState<File[]>([]);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -68,25 +69,29 @@ export function PrincipalAgentChat({
   const resetSession = () => {
     reset();
     setInput("");
+    setFiles([]);
     inputRef.current?.focus();
   };
 
-  const sendText = (text: string) => {
-    if (!text.trim() || pending) return;
+  const sendText = (text: string, attached: File[] = []) => {
+    if ((!text.trim() && attached.length === 0) || pending) return;
     setInput("");
-    void send(text);
+    setFiles([]);
+    void send(text, attached);
   };
 
   const composer = (
     <ChatComposer
       value={input}
       onChange={setInput}
-      onSubmit={() => sendText(input)}
+      onSubmit={() => sendText(input, files)}
       onReset={isEmpty || pending ? undefined : resetSession}
       pending={pending}
       providerUsed={providerUsed}
       expanded={isEmpty}
       inputRef={inputRef}
+      files={files}
+      onFilesChange={setFiles}
     />
   );
 

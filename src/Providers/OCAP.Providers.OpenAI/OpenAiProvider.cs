@@ -276,7 +276,17 @@ public class OpenAiProvider : IAiProvider
             messages.Add(new { role = "user", content = history });
         }
 
-        messages.Add(new { role = "user", content = request.UserMessage });
+        if (request.Attachments.Count == 0)
+        {
+            messages.Add(new { role = "user", content = request.UserMessage });
+            return messages;
+        }
+
+        if (request.Attachments.Any(a => !a.IsImage))
+            throw new UnsupportedAttachmentException("Este modelo solo lee imágenes. Para video usa un modelo de Gemini.");
+        var content = new List<object> { new { type = "text", text = request.UserMessage } };
+        content.AddRange(request.Attachments.Select(a => new { type = "image_url", image_url = new { url = $"data:{a.MimeType};base64,{a.Base64Data}" } }));
+        messages.Add(new { role = "user", content });
         return messages;
     }
 
