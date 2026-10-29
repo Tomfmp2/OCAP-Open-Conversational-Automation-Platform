@@ -39,6 +39,17 @@ public class OrganizationPreferencesTests : IClassFixture<OcapApiFactory>
     }
 
     [Fact]
+    public async Task ChangingThePanelUrl_RequiresTheSecurityPermission()
+    {
+        // La dirección del panel va en los enlaces con tokens de contraseña.
+        var token = TestAuthHelper.CreateAccessToken(_factory, "ajustes2@ocap.test", "Settings", ["Settings.Manage"]);
+        var settingsOnly = TestAuthHelper.CreateAuthenticatedClient(_factory, token);
+
+        (await settingsOnly.PutAsJsonAsync("/api/settings/preferences", new { panelUrl = "https://otro-dominio.com" }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task GoogleClient_IsStoredWithoutReturningTheSecret_AndTheConsentUrlCarriesASignedState()
     {
         var admin = TestAuthHelper.CreateAuthenticatedClient(_factory);

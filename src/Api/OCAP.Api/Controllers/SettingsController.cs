@@ -172,7 +172,10 @@ public class SettingsController : ControllerBase
 
     [HttpPut("preferences")]
     [Authorize(Policy = OcapPermissions.SettingsManage)]
-    public async Task<IActionResult> UpdatePreferences([FromBody] OCAP.Infrastructure.Services.OrganizationPreferences request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdatePreferences(
+        [FromBody] OCAP.Infrastructure.Services.OrganizationPreferences request,
+        [FromServices] IAuthorizationService authorization,
+        CancellationToken cancellationToken)
     {
         string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
         var language = Clean(request.Language);
@@ -189,6 +192,14 @@ public class SettingsController : ControllerBase
             && days is < OCAP.Infrastructure.Services.OrganizationPreferences.MinRetentionDays or > OCAP.Infrastructure.Services.OrganizationPreferences.MaxRetentionDays)
             return Problem(statusCode: StatusCodes.Status400BadRequest,
                 title: $"La retención va de {OCAP.Infrastructure.Services.OrganizationPreferences.MinRetentionDays} a {OCAP.Infrastructure.Services.OrganizationPreferences.MaxRetentionDays} días.");
+
+        // La dirección del panel va en los enlaces de invitación y de recuperación de contraseña: quien la cambia podría
+        // desviar esos tokens a otro dominio. Solo quien administra la seguridad.
+        var stored = await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+            _dbContext, _tenantContext.TenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken);
+        if (panelUrl != stored?.PanelUrl
+            && !(await authorization.AuthorizeAsync(User, OcapPermissions.SecurityManage)).Succeeded)
+            return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Cambiar la dirección del panel requiere el permiso de seguridad.");
 
         var preferences = new OCAP.Infrastructure.Services.OrganizationPreferences(language, timeZone, panelUrl, request.ConversationRetentionDays);
         await OCAP.Infrastructure.Services.TenantSettingsSections.WriteAsync(
