@@ -55,15 +55,15 @@ export function AiStep({ onNext }: AiStepProps) {
 
     setSaving(true);
     try {
-      await createProviderMutation.mutateAsync({
+      const created = await createProviderMutation.mutateAsync({
         providerName: provider,
         displayName: provider,
         modelName: model,
         apiKey: needsKey ? apiKey.trim() : "",
         baseUrl: provider === "Ollama" ? baseUrl.trim() : null,
       });
-      await selectProviderMutation.mutateAsync(provider);
-      const test = await testProviderMutation.mutateAsync(provider);
+      await selectProviderMutation.mutateAsync(created.id);
+      const test = await testProviderMutation.mutateAsync(created.id);
       setResult({ ok: true, message: `${provider} respondió en ${Math.round(test.latencyMs)} ms con ${test.modelUsed}.` });
     } catch (error: unknown) {
       const detail = error instanceof Error && error.message ? ` (${error.message})` : "";

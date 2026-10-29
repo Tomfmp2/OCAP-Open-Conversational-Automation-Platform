@@ -50,17 +50,13 @@ public class ProvidersController : ControllerBase
             .OrderBy(c => c.ProviderName)
             .ToListAsync(cancellationToken);
 
+        // El predeterminado se guarda como id de configuración; los guardados antes como nombre de proveedor marcan la
+        // primera configuración de ese proveedor, que es la que se usa en tiempo de ejecución.
+        var activeId = configs.FirstOrDefault(c => c.Id.ToString() == active)?.Id
+            ?? configs.FirstOrDefault(c => c.ProviderName.Equals(active, StringComparison.OrdinalIgnoreCase))?.Id;
         var list = configs
-            .GroupBy(c => c.ProviderName)
-            .Select((g, i) =>
-            {
-                var c = g.First();
-                return new ProviderInfoDto(
-                    c.ProviderName,
-                    c.ModelName,
-                    active.Equals(c.ProviderName, StringComparison.OrdinalIgnoreCase),
-                    i + 1);
-            }).ToList();
+            .Select((c, i) => new ProviderInfoDto(c.ProviderName, c.ModelName, c.Id == activeId, i + 1, c.Id))
+            .ToList();
 
         if (!list.Any())
         {
@@ -112,9 +108,11 @@ public class ProvidersController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.ProviderName))
             return BadRequest(new { message = "El nombre del proveedor es requerido." });
 
+        // Un id de configuración (varias por proveedor) o, como antes, un nombre de proveedor.
         var name = request.ProviderName.Trim();
-        var configured = await _dbContext.AiProviderConfigurations
-            .AnyAsync(c => c.IsEnabled && c.ProviderName.ToLower() == name.ToLower(), cancellationToken);
+        var configured = Guid.TryParse(name, out var configId)
+            ? await _dbContext.AiProviderConfigurations.AnyAsync(c => c.IsEnabled && c.Id == configId, cancellationToken)
+            : await _dbContext.AiProviderConfigurations.AnyAsync(c => c.IsEnabled && c.ProviderName.ToLower() == name.ToLower(), cancellationToken);
         if (!configured && _registry.GetProvider(name) is null)
             return BadRequest(new { message = $"Proveedor '{name}' no está registrado ni configurado." });
 
@@ -179,8 +177,6 @@ public class ProvidersController : ControllerBase
         {
             var response = await provider.GenerateResponseAsync(aiRequest, cancellationToken);
             stopwatch.Stop();
-
-            await _preference.SetActiveProviderNameAsync(provider.Name, cancellationToken);
 
             return Ok(new TestProviderResponseDto(
                 ProviderUsed: $"{response.ProviderName} ({source})",

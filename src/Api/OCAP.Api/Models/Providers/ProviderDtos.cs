@@ -1,7 +1,8 @@
 namespace OCAP.Api.Models.Providers;
 
 // DTO para la información de un proveedor de IA.
-public record ProviderInfoDto(string Name, string DefaultModel, bool IsActive, int Priority);
+// Id: la configuración concreta (puede haber varias del mismo proveedor); nulo para los proveedores del .env.
+public record ProviderInfoDto(string Name, string DefaultModel, bool IsActive, int Priority, Guid? Id = null);
 
 // DTO para seleccionar el proveedor activo.
 public record SelectProviderRequestDto(string ProviderName);

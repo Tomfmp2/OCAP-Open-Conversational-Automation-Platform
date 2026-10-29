@@ -2,14 +2,35 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/apiClient";
 import { getTenantId } from "@/shared/api/tokenStorage";
 
-export type ProviderName = "Gemini" | "OpenAI" | "Claude" | "Ollama";
+export type ProviderName = "Gemini" | "OpenAI" | "Claude" | "Ollama" | "OpenAICompatible";
+
+export const PROVIDER_LABELS: Record<ProviderName, string> = {
+  Gemini: "Gemini",
+  OpenAI: "OpenAI",
+  Claude: "Claude",
+  Ollama: "Ollama",
+  OpenAICompatible: "Compatible con OpenAI",
+};
 
 export const PROVIDER_MODEL_PRESETS: Record<ProviderName, string[]> = {
   Gemini: ["gemini-3.5-flash", "gemini-2.5-flash"],
   OpenAI: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o4-mini"],
   Claude: ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"],
   Ollama: ["llama3", "llama3.2", "mistral", "qwen2.5"],
+  OpenAICompatible: [],
 };
+
+/** Servicios con API al estilo de OpenAI: solo cambia la dirección. */
+export const OPENAI_COMPATIBLE_SERVICES = [
+  { name: "NVIDIA", baseUrl: "https://integrate.api.nvidia.com/v1" },
+  { name: "Groq", baseUrl: "https://api.groq.com/openai/v1" },
+  { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1" },
+  { name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1" },
+  { name: "Mistral", baseUrl: "https://api.mistral.ai/v1" },
+] as const;
+
+/** Proveedores que llaman a una dirección elegida por el usuario. */
+export const usesBaseUrl = (provider: ProviderName) => provider === "Ollama" || provider === "OpenAICompatible";
 
 export const OLLAMA_DEFAULT_URL = "http://host.docker.internal:11434";
 
@@ -56,9 +77,9 @@ export function useAiModels() {
     queryFn: async () => {
       const [configs, providers] = await Promise.all([
         apiClient.get<RawConfig[]>(tenantPath()),
-        apiClient.get<Array<{ name: string; isActive: boolean }>>("/api/providers").catch(() => []),
+        apiClient.get<Array<{ id: string | null; isActive: boolean }>>("/api/providers").catch(() => []),
       ]);
-      const active = providers.find((p) => p.isActive)?.name.toLowerCase();
+      const active = providers.find((p) => p.isActive)?.id;
       return configs.map((c) => ({
         id: c.id,
         providerName: c.providerName,
@@ -66,7 +87,7 @@ export function useAiModels() {
         modelName: c.modelName,
         isEnabled: c.isEnabled,
         baseUrl: baseUrlOf(c.settingsJson),
-        isActive: c.providerName.toLowerCase() === active,
+        isActive: c.id === active,
       }));
     },
   });
@@ -82,7 +103,7 @@ export function useAiModelActions() {
   return {
     create: useMutation({
       mutationFn: (m: { providerName: ProviderName; displayName: string; modelName: string; apiKey: string; baseUrl: string | null }) =>
-        apiClient.post("/api/aiproviderconfigurations", { tenantId: getTenantId(), ...m }),
+        apiClient.post<{ id: string }>("/api/aiproviderconfigurations", { tenantId: getTenantId(), ...m }),
       onSuccess: refresh,
     }),
     update: useMutation({
@@ -95,14 +116,26 @@ export function useAiModelActions() {
       onSuccess: refresh,
     }),
     remove: useMutation({ mutationFn: (id: string) => apiClient.delete(`${tenantPath()}/${id}`), onSuccess: refresh }),
-    setActive: useMutation({ mutationFn: (providerName: string) => apiClient.post("/api/providers/select", { providerName }), onSuccess: refresh }),
+    /** Recibe el id de la configuración: puede haber varias del mismo proveedor. */
+    setActive: useMutation({ mutationFn: (configId: string) => apiClient.post("/api/providers/select", { providerName: configId }), onSuccess: refresh }),
     test: useMutation({
-      mutationFn: (providerName: string) =>
+      mutationFn: (configId: string) =>
         apiClient.post<{ modelUsed: string; generatedText: string; latencyMs: number }>(
           "/api/providers/test",
-          { providerName, prompt: "Responde solo: OK" },
+          { providerName: configId, prompt: "Responde solo: OK" },
           { timeout: 90_000, skipRetry: true }
         ),
     }),
   };
+}
+
+/**
+ * Modelos que ofrece el proveedor. Con configurationId usa la clave guardada; si no, la escrita en el formulario,
+ * que solo viaja a la API para esta consulta.
+ */
+export function useProviderModels() {
+  return useMutation({
+    mutationFn: (m: { configurationId?: string; providerName?: ProviderName; apiKey?: string; baseUrl?: string | null }) =>
+      apiClient.post<string[]>("/api/aiproviderconfigurations/models", m, { timeout: 30_000, skipRetry: true }),
+  });
 }

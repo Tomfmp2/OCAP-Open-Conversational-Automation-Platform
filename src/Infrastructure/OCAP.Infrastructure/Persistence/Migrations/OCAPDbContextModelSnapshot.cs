@@ -603,8 +603,10 @@ namespace OCAP.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "ProviderName")
+                    b.HasIndex("TenantId", "DisplayName")
                         .IsUnique();
+
+                    b.HasIndex("TenantId", "ProviderName");
 
                     b.ToTable("AiProviderConfigurations", (string)null);
                 });

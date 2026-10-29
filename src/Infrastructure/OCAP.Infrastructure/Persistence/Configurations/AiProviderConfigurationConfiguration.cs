@@ -34,7 +34,9 @@ public class AiProviderConfigurationConfiguration : IEntityTypeConfiguration<AiP
         builder.Property(x => x.SettingsJson)
             .HasColumnType("jsonb");
 
-        builder.HasIndex(x => new { x.TenantId, x.ProviderName })
+        // Varias configuraciones por proveedor (otra clave, otro modelo, otra API compatible): las distingue el nombre.
+        builder.HasIndex(x => new { x.TenantId, x.DisplayName })
             .IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.ProviderName });
     }
 }

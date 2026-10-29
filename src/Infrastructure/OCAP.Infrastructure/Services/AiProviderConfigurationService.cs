@@ -12,6 +12,8 @@ namespace OCAP.Infrastructure.Services;
 // Servicio de infraestructura encargado de la gestión persistente y resolución en tiempo de ejecución de configuraciones de proveedores de IA aislados por Tenant.
 public class AiProviderConfigurationService : IAiProviderConfigurationService
 {
+    public const string OpenAiCompatible = "OpenAICompatible";
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IAiProviderRegistry _providerRegistry;
@@ -39,13 +41,18 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         var normalizedProvider = dto.ProviderName.Trim();
 
-        // Una configuración por proveedor y organización (índice único): se avisa antes de dejar un secreto huérfano en el vault.
+        // Puede haber varias configuraciones del mismo proveedor (otra clave, otro modelo, otra API compatible); el nombre
+        // visible las distingue (índice único). Se avisa antes de dejar un secreto huérfano en el vault.
+        var displayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? normalizedProvider : dto.DisplayName.Trim();
         var exists = await _dbContext.AiProviderConfigurations
-            .AnyAsync(c => c.TenantId == dto.TenantId && c.ProviderName == normalizedProvider, cancellationToken);
+            .AnyAsync(c => c.TenantId == dto.TenantId && c.DisplayName == displayName, cancellationToken);
         if (exists)
         {
-            throw new InvalidOperationException(
-                $"Ya hay un proveedor {normalizedProvider} registrado en esta organización. Edítalo para cambiar su key o modelo.");
+            throw new InvalidOperationException($"Ya hay un modelo llamado «{displayName}». Usa otro nombre.");
+        }
+        if (normalizedProvider.Equals(OpenAiCompatible, StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(dto.BaseUrl))
+        {
+            throw new ArgumentException("Indica la dirección de la API compatible con OpenAI (por ejemplo https://integrate.api.nvidia.com/v1).");
         }
 
         await EnsureAllowedBaseUrlAsync(normalizedProvider, dto.BaseUrl, dto.SettingsJson, cancellationToken);
@@ -77,7 +84,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         var entity = new AiProviderConfiguration(
             dto.TenantId,
             normalizedProvider,
-            dto.DisplayName,
+            displayName,
             dto.ModelName,
             vaultRef,
             finalSettingsJson);
@@ -193,7 +200,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         if (!string.IsNullOrWhiteSpace(preferredProvider))
         {
-            config = await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
+            // El predeterminado puede ser una configuración concreta (id) o, como antes, un proveedor (nombre).
+            config = Guid.TryParse(preferredProvider, out var preferredId)
+                ? await query.FirstOrDefaultAsync(c => c.Id == preferredId, cancellationToken)
+                : await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
         }
 
         config ??= await query.FirstOrDefaultAsync(cancellationToken);

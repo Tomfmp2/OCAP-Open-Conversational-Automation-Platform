@@ -56,10 +56,10 @@ public class AiProviderConfigurationsEndpointTests : IClassFixture<OcapApiFactor
         created.StatusCode.Should().Be(HttpStatusCode.Created);
         var config = (await created.Content.ReadFromJsonAsync<Config>())!;
 
-        // Un segundo Claude en la misma organización es un error de negocio claro, no un 500.
+        // Un nombre repetido es un error de negocio claro, no un 500.
         var duplicate = await client.PostAsJsonAsync("/api/aiproviderconfigurations", new
         {
-            tenantId = SeedTenantId, providerName = "Claude", displayName = "Otro", modelName = "claude-sonnet-5-5", apiKey = "sk-ant-otra"
+            tenantId = SeedTenantId, providerName = "Claude", displayName = "Claude soporte", modelName = "claude-haiku-5-5", apiKey = "sk-ant-otra"
         });
         duplicate.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 

@@ -130,5 +130,43 @@ public class AiProviderConfigurationsController : ControllerBase
     }
 
     /// <summary>El tenant de la URL debe ser el de la sesión (los filtros de EF ya lo garantizan; esto lo hace explícito).</summary>
+    /// <summary>
+    /// Modelos que ofrece el proveedor, para elegir de una lista. Con <c>ConfigurationId</c> usa la clave guardada (al
+    /// editar); si no, la que el usuario está escribiendo, que no se guarda.
+    /// </summary>
+    [HttpPost("models")]
+    public async Task<ActionResult<IReadOnlyList<string>>> ListProviderModels([FromBody] ListProviderModelsRequest request, CancellationToken cancellationToken)
+    {
+        IAiProvider? provider;
+        if (request.ConfigurationId is { } configurationId)
+        {
+            provider = await _configurationService.GetRuntimeProviderByIdAsync(_tenantContext.TenantId, configurationId, cancellationToken);
+            if (provider is null) return NotFound();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(request.ProviderName)) return BadRequest(new { message = "Elige un proveedor." });
+            var local = request.ProviderName.Equals("Ollama", StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(request.BaseUrl)
+                && await OutboundUrlGuard.ValidateAsync(request.BaseUrl.Trim(), allowPrivateNetwork: local, cancellationToken) is { } error)
+            {
+                return BadRequest(new { message = error });
+            }
+            try
+            {
+                provider = _providerRegistry.CreateDynamicProvider(request.ProviderName, string.Empty, request.ApiKey?.Trim() ?? string.Empty, request.BaseUrl?.Trim());
+            }
+            catch (NotSupportedException)
+            {
+                return BadRequest(new { message = "Proveedor no soportado." });
+            }
+        }
+
+        var models = await provider.GetAvailableModelsAsync(cancellationToken);
+        return Ok(models.Distinct().Order(StringComparer.OrdinalIgnoreCase).ToList());
+    }
+
     private bool IsOwnTenant(Guid tenantId) => tenantId != Guid.Empty && tenantId == _tenantContext.TenantId;
 }
+
+public sealed record ListProviderModelsRequest(string? ProviderName, string? ApiKey, string? BaseUrl, Guid? ConfigurationId);

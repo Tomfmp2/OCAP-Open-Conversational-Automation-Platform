@@ -52,7 +52,8 @@ public class AiProviderRegistry : IAiProviderRegistry
 
         return normName switch
         {
-            "openai" => new OCAP.Providers.OpenAI.OpenAiProvider(_httpClient, settings),
+            // Cualquier API con el formato de OpenAI (NVIDIA NIM, Groq, OpenRouter, DeepSeek, Mistral…) con su propia URL.
+            "openai" or "openaicompatible" => new OCAP.Providers.OpenAI.OpenAiProvider(_httpClient, settings),
             "gemini" => new OCAP.Providers.Gemini.GeminiAiProvider(_httpClient, settings),
             "ollama" => new OCAP.Providers.Ollama.OllamaAiProvider(_httpClient, settings),
             "local" => new OCAP.Providers.Ollama.LocalAiProvider(_httpClient, settings),
