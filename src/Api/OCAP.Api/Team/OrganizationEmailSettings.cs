@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Security.Abstractions;
@@ -53,14 +51,12 @@ public sealed class OrganizationEmailSettings
     // SettingsJson es jsonb: se revisa en memoria (hay pocas organizaciones por instalación).
     public async Task<bool> AnyConfiguredAsync(CancellationToken cancellationToken) =>
         (await _db.Tenants.IgnoreQueryFilters().Where(t => t.IsActive).Select(t => t.SettingsJson).ToListAsync(cancellationToken))
-            .Any(json => JsonNode.Parse(json) is JsonObject root && root[Section] is not null);
+            .Any(json => OCAP.Infrastructure.Services.TenantSettingsSections.HasSection(json, Section));
 
     /// <summary>Guarda el SMTP. La contraseña: null conserva la guardada; vacía la borra.</summary>
     public async Task SaveAsync(Guid tenantId, OrganizationEmailSettingsDto settings, string? password, CancellationToken cancellationToken)
     {
-        var tenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Id == tenantId, cancellationToken);
-        var root = JsonNode.Parse(tenant.SettingsJson) as JsonObject ?? new JsonObject();
-        var previous = root[Section]?.Deserialize<Stored>();
+        var previous = await ReadAsync(tenantId, cancellationToken);
 
         var passwordRef = previous?.PasswordRef;
         if (password is not null)
@@ -69,21 +65,15 @@ public sealed class OrganizationEmailSettings
             passwordRef = password.Length == 0 ? null : await _vault.StoreSecretAsync(tenantId, PasswordSecretKey, password, cancellationToken);
         }
 
-        root[Section] = JsonSerializer.SerializeToNode(new Stored(
-            settings.Host?.Trim(), settings.Port, settings.Username?.Trim(), settings.From?.Trim(), settings.UseSsl, passwordRef));
-        tenant.UpdateSettings(root.ToJsonString());
-        await _db.SaveChangesAsync(cancellationToken);
+        await OCAP.Infrastructure.Services.TenantSettingsSections.WriteAsync(_db, tenantId, Section, new Stored(
+            settings.Host?.Trim(), settings.Port, settings.Username?.Trim(), settings.From?.Trim(), settings.UseSsl, passwordRef), cancellationToken);
     }
 
     public async Task ClearAsync(Guid tenantId, CancellationToken cancellationToken)
     {
-        var tenant = await _db.Tenants.IgnoreQueryFilters().FirstAsync(t => t.Id == tenantId, cancellationToken);
-        if (JsonNode.Parse(tenant.SettingsJson) is not JsonObject root || root[Section] is null) return;
-        if (root[Section]!.Deserialize<Stored>()?.PasswordRef is { } reference)
-            await _vault.DeleteSecretAsync(tenantId, reference, cancellationToken);
-        root.Remove(Section);
-        tenant.UpdateSettings(root.ToJsonString());
-        await _db.SaveChangesAsync(cancellationToken);
+        if (await ReadAsync(tenantId, cancellationToken) is not { } stored) return;
+        if (stored.PasswordRef is { } reference) await _vault.DeleteSecretAsync(tenantId, reference, cancellationToken);
+        await OCAP.Infrastructure.Services.TenantSettingsSections.WriteAsync<Stored>(_db, tenantId, Section, null, cancellationToken);
     }
 
     /// <summary>
@@ -107,11 +97,8 @@ public sealed class OrganizationEmailSettings
             : null;
     }
 
-    private async Task<Stored?> ReadAsync(Guid tenantId, CancellationToken cancellationToken)
-    {
-        var json = await _db.Tenants.IgnoreQueryFilters().Where(t => t.Id == tenantId).Select(t => t.SettingsJson).FirstOrDefaultAsync(cancellationToken);
-        return json is not null && JsonNode.Parse(json) is JsonObject root && root[Section] is { } node ? node.Deserialize<Stored>() : null;
-    }
+    private Task<Stored?> ReadAsync(Guid tenantId, CancellationToken cancellationToken) =>
+        OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<Stored>(_db, tenantId, Section, cancellationToken);
 
     private sealed record Stored(string? Host, int Port, string? Username, string? From, bool UseSsl, string? PasswordRef);
 }

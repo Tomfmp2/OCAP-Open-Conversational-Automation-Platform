@@ -11,6 +11,8 @@ namespace OCAP.Api.Controllers;
 public sealed record OrganizationSettingsDto(string Name);
 
 /// <summary>SMTP de la organización. <c>Password</c> null conserva la guardada; vacía la borra.</summary>
+public sealed record UpdateGoogleSettingsRequest(string ClientId, string? ClientSecret);
+
 public sealed record UpdateEmailSettingsRequest(string Host, int Port, string? Username, string? Password, string From, bool UseSsl);
 
 [ApiController]
@@ -161,4 +163,86 @@ public class SettingsController : ControllerBase
             HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
             true,
             cancellationToken);
+
+    [HttpGet("preferences")]
+    public async Task<IActionResult> GetPreferences(CancellationToken cancellationToken) =>
+        Ok(await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+               _dbContext, _tenantContext.TenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken)
+           ?? new OCAP.Infrastructure.Services.OrganizationPreferences(null, null, null, null));
+
+    [HttpPut("preferences")]
+    [Authorize(Policy = OcapPermissions.SettingsManage)]
+    public async Task<IActionResult> UpdatePreferences([FromBody] OCAP.Infrastructure.Services.OrganizationPreferences request, CancellationToken cancellationToken)
+    {
+        string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+        var language = Clean(request.Language);
+        var timeZone = Clean(request.TimeZone);
+        var panelUrl = Clean(request.PanelUrl)?.TrimEnd('/');
+
+        if (language is not null and not ("es" or "en"))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Idioma no admitido: es o en.");
+        if (timeZone is not null && !TimeZoneInfo.TryFindSystemTimeZoneById(timeZone, out _))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"Zona horaria desconocida: {timeZone}.");
+        if (panelUrl is not null && (!Uri.TryCreate(panelUrl, UriKind.Absolute, out var url) || (url.Scheme != Uri.UriSchemeHttps && url.Host != "localhost")))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "La dirección del panel debe empezar por https://.");
+        if (request.ConversationRetentionDays is { } days
+            && days is < OCAP.Infrastructure.Services.OrganizationPreferences.MinRetentionDays or > OCAP.Infrastructure.Services.OrganizationPreferences.MaxRetentionDays)
+            return Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: $"La retención va de {OCAP.Infrastructure.Services.OrganizationPreferences.MinRetentionDays} a {OCAP.Infrastructure.Services.OrganizationPreferences.MaxRetentionDays} días.");
+
+        var preferences = new OCAP.Infrastructure.Services.OrganizationPreferences(language, timeZone, panelUrl, request.ConversationRetentionDays);
+        await OCAP.Infrastructure.Services.TenantSettingsSections.WriteAsync(
+            _dbContext, _tenantContext.TenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, preferences, cancellationToken);
+        await AuditAsync("Organization_PreferencesUpdated",
+            $"Preferencias: idioma {language ?? "-"}, zona {timeZone ?? "-"}, panel {panelUrl ?? "-"}, retención {request.ConversationRetentionDays?.ToString() ?? "sin límite"}.",
+            cancellationToken);
+        return Ok(preferences);
+    }
+
+    /// <summary>Cliente OAuth de Google de la organización, sin el secreto. Lo gestiona quien administra integraciones.</summary>
+    [HttpGet("google")]
+    [Authorize(Policy = OcapPermissions.OAuthManage)]
+    public async Task<IActionResult> GetGoogleSettings(
+        [FromServices] OCAP.Api.Services.OrganizationGoogleSettings google,
+        [FromServices] OCAP.Api.Services.GoogleOAuthClient client,
+        CancellationToken cancellationToken)
+    {
+        var clientId = await google.GetClientIdAsync(_tenantContext.TenantId, cancellationToken);
+        var server = client.ServerSettings;
+        return Ok(new
+        {
+            clientId,
+            usesServer = clientId is null && !string.IsNullOrWhiteSpace(server.ClientId) && !string.IsNullOrWhiteSpace(server.ClientSecret)
+        });
+    }
+
+    [HttpPut("google")]
+    [Authorize(Policy = OcapPermissions.OAuthManage)]
+    public async Task<IActionResult> UpdateGoogleSettings(
+        [FromBody] UpdateGoogleSettingsRequest request,
+        [FromServices] OCAP.Api.Services.OrganizationGoogleSettings google,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ClientId) || !request.ClientId.Trim().EndsWith(".apps.googleusercontent.com", StringComparison.Ordinal))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El client ID de Google termina en .apps.googleusercontent.com.");
+        try
+        {
+            await google.SaveAsync(_tenantContext.TenantId, request.ClientId, string.IsNullOrWhiteSpace(request.ClientSecret) ? null : request.ClientSecret.Trim(), cancellationToken);
+        }
+        catch (ArgumentException ex)
+        {
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: ex.Message);
+        }
+        await AuditAsync("Organization_GoogleOAuthUpdated", "Cliente OAuth de Google actualizado.", cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("google")]
+    [Authorize(Policy = OcapPermissions.OAuthManage)]
+    public async Task<IActionResult> DeleteGoogleSettings([FromServices] OCAP.Api.Services.OrganizationGoogleSettings google, CancellationToken cancellationToken)
+    {
+        await google.ClearAsync(_tenantContext.TenantId, cancellationToken);
+        await AuditAsync("Organization_GoogleOAuthRemoved", "Cliente OAuth de Google eliminado.", cancellationToken);
+        return NoContent();
+    }
 }

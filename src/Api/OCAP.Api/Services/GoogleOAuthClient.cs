@@ -12,39 +12,66 @@ public sealed class GoogleOAuthClient
     private const string TokenEndpoint = "https://oauth2.googleapis.com/token";
     private static readonly TimeSpan DefaultLifetime = TimeSpan.FromHours(1);
 
+    /// <summary>Permisos que piden las herramientas del asistente si el servidor no indica otros.</summary>
+    public static readonly string[] DefaultScopes =
+    [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.readonly",
+        "https://www.googleapis.com/auth/calendar.events",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "openid",
+        "email"
+    ];
+
     private readonly HttpClient _http;
     private readonly IConfiguration _configuration;
+    private readonly OrganizationGoogleSettings _organizations;
 
-    public GoogleOAuthClient(HttpClient http, IConfiguration configuration)
+    public GoogleOAuthClient(HttpClient http, IConfiguration configuration, OrganizationGoogleSettings organizations)
     {
         _http = http;
         _configuration = configuration;
+        _organizations = organizations;
     }
 
-    public GoogleSettings Settings =>
+    /// <summary>Configuración del servidor (Google:*): respaldo cuando la organización no cargó su cliente OAuth.</summary>
+    public GoogleSettings ServerSettings =>
         _configuration.GetSection(GoogleWorkspaceOptions.SectionName).Get<GoogleSettings>() ?? new GoogleSettings();
 
-    public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(Settings.ClientId) && !string.IsNullOrWhiteSpace(Settings.ClientSecret);
+    /// <summary>Cliente OAuth de la organización o, si no tiene, el del servidor; null si no hay ninguno.</summary>
+    public async Task<GoogleSettings?> ResolveAsync(Guid tenantId, CancellationToken cancellationToken)
+    {
+        if (await _organizations.GetAsync(tenantId, cancellationToken) is { } own)
+        {
+            var server = ServerSettings;
+            return new GoogleSettings { ClientId = own.ClientId, ClientSecret = own.ClientSecret, Scopes = server.Scopes };
+        }
+        var fallback = ServerSettings;
+        return !string.IsNullOrWhiteSpace(fallback.ClientId) && !string.IsNullOrWhiteSpace(fallback.ClientSecret) ? fallback : null;
+    }
 
-    public Task<GoogleTokenGrant> ExchangeCodeAsync(string authCode, string redirectUri, CancellationToken cancellationToken) =>
-        RequestAsync(new Dictionary<string, string>
+    public async Task<bool> IsConfiguredAsync(Guid tenantId, CancellationToken cancellationToken) =>
+        await ResolveAsync(tenantId, cancellationToken) is not null;
+
+    public Task<GoogleTokenGrant> ExchangeCodeAsync(Guid tenantId, string authCode, string redirectUri, CancellationToken cancellationToken) =>
+        RequestAsync(tenantId, new Dictionary<string, string>
         {
             ["code"] = authCode,
             ["redirect_uri"] = redirectUri,
             ["grant_type"] = "authorization_code"
         }, cancellationToken);
 
-    public Task<GoogleTokenGrant> RefreshAsync(string refreshToken, CancellationToken cancellationToken) =>
-        RequestAsync(new Dictionary<string, string>
+    public Task<GoogleTokenGrant> RefreshAsync(Guid tenantId, string refreshToken, CancellationToken cancellationToken) =>
+        RequestAsync(tenantId, new Dictionary<string, string>
         {
             ["refresh_token"] = refreshToken,
             ["grant_type"] = "refresh_token"
         }, cancellationToken);
 
-    private async Task<GoogleTokenGrant> RequestAsync(Dictionary<string, string> form, CancellationToken cancellationToken)
+    private async Task<GoogleTokenGrant> RequestAsync(Guid tenantId, Dictionary<string, string> form, CancellationToken cancellationToken)
     {
-        var settings = Settings;
+        var settings = await ResolveAsync(tenantId, cancellationToken)
+            ?? throw new InvalidOperationException("Google no está configurado para esta organización.");
         form["client_id"] = settings.ClientId;
         form["client_secret"] = settings.ClientSecret;
 

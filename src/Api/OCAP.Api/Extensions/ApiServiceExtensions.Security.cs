@@ -40,6 +40,8 @@ public static partial class ApiServiceExtensions
         services.Configure<OCAP.Api.Team.SmtpOptions>(configuration.GetSection("Email:Smtp"));
         // Scoped: cada organización puede tener su propio SMTP (en la base).
         services.AddScoped<OCAP.Api.Team.OrganizationEmailSettings>();
+        services.AddScoped<OCAP.Api.Services.OrganizationGoogleSettings>();
+        services.AddSingleton<OCAP.Api.Services.GoogleOAuthState>();
         services.AddScoped<OCAP.Api.Team.IEmailSender, OCAP.Api.Team.SmtpEmailSender>();
         services.AddScoped<OCAP.Api.Team.TeamService>();
         // Orden: el bootstrap opcional por entorno corre antes que el código de configuración inicial.

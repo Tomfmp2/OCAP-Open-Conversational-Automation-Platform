@@ -24,6 +24,9 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
     /// no se ejecuta. Un documento con instrucciones escondidas no puede mandar correos ni crear eventos.
     /// </summary>
     public const string UntrustedContentKey = "UntrustedContent";
+    /// <summary>Preferencias de la organización: idioma ("es"/"en") y zona horaria IANA.</summary>
+    public const string LanguageKey = "Language";
+    public const string TimeZoneKey = "TimeZone";
 
     public static readonly Guid EnterpriseAssistantAgentId = Guid.Parse("00000000-0000-0000-0000-000000000001");
     public Guid GlobalAgentId => EnterpriseAssistantAgentId;
@@ -89,7 +92,8 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
 
             """ + snapshot);
 
-        systemPrompt = PromptMessage.System(systemPrompt.Content.Replace("{{LANGUAGE}}", ResponseLanguage()));
+        systemPrompt = PromptMessage.System(
+            systemPrompt.Content.Replace("{{LANGUAGE}}", ResponseLanguage(context)) + LocalTimeLine(context));
         // Turnos anteriores de la conversación (los carga quien llama desde la base): el modelo sigue el hilo.
         var messages = new List<PromptMessage> { systemPrompt };
         if (context.EnvironmentVariables.TryGetValue(HistoryKey, out var history) && history is IEnumerable<PromptMessage> turns)
@@ -156,8 +160,22 @@ public class EnterpriseAssistantAgent : IEnterpriseAssistantAgent
     }
 
     /// <summary>Idioma de las respuestas del panel (Assistant:Language, lo elige el instalador): "en" o español.</summary>
-    private string ResponseLanguage() =>
-        string.Equals(_configuration["Assistant:Language"], "en", StringComparison.OrdinalIgnoreCase) ? "inglés" : "español";
+    private string ResponseLanguage(IAgentContext context)
+    {
+        var language = context.EnvironmentVariables.TryGetValue(LanguageKey, out var chosen) && chosen is string own ? own : _configuration["Assistant:Language"];
+        return string.Equals(language, "en", StringComparison.OrdinalIgnoreCase) ? "inglés" : "español";
+    }
+
+    /// <summary>Fecha y hora local de la organización: sin ella el modelo crea eventos en UTC o en una fecha inventada.</summary>
+    private static string LocalTimeLine(IAgentContext context)
+    {
+        if (!context.EnvironmentVariables.TryGetValue(TimeZoneKey, out var value) || value is not string id
+            || !TimeZoneInfo.TryFindSystemTimeZoneById(id, out var zone))
+            return $"\n\nFecha y hora actual (UTC): {DateTime.UtcNow:yyyy-MM-dd HH:mm}.";
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone);
+        var offset = zone.GetUtcOffset(DateTime.UtcNow);
+        return $"\n\nFecha y hora local de la organización ({id}, UTC{(offset < TimeSpan.Zero ? "-" : "+")}{offset:hh\\:mm}): {local:yyyy-MM-dd HH:mm}. Usa esta zona al crear eventos.";
+    }
 
     private string BuildToolsCatalog()
     {

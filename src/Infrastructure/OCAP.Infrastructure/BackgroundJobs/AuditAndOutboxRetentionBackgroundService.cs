@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -116,12 +117,53 @@ public class AuditAndOutboxRetentionBackgroundService : BackgroundService
             _logger.LogInformation("Retention: purged {InboxCount} InboxMessages older than {InboxDays} days.", inboxDeleted, options.InboxRetentionDays);
         }
 
+        await PurgeCustomerConversationsAsync(dbContext, cancellationToken);
+
         _logger.LogInformation(
             "Retention Summary: Purged {AuditCount} expired AuditLogs (Cutoff: {AuditDays} days) and {OutboxCount} processed OutboxMessages (Cutoff: {OutboxDays} days).",
             totalAuditLogsDeleted,
             options.AuditLogRetentionDays,
             totalOutboxMessagesDeleted,
             options.OutboxRetentionDays);
+    }
+
+    /// <summary>
+    /// Retención que elige cada organización en el panel: borra los mensajes de clientes más antiguos y las
+    /// conversaciones sin actividad desde entonces. Sin valor, se conservan.
+    /// </summary>
+    private async Task PurgeCustomerConversationsAsync(OCAPDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var tenants = await dbContext.Tenants.IgnoreQueryFilters().Select(t => new { t.Id, t.SettingsJson }).ToListAsync(cancellationToken);
+        foreach (var tenant in tenants)
+        {
+            if (System.Text.Json.Nodes.JsonNode.Parse(tenant.SettingsJson)?[OCAP.Infrastructure.Services.OrganizationPreferences.Section]
+                    ?.Deserialize<OCAP.Infrastructure.Services.OrganizationPreferences>()?.ConversationRetentionDays is not { } days
+                || days < OCAP.Infrastructure.Services.OrganizationPreferences.MinRetentionDays)
+                continue;
+
+            var cutoff = DateTime.UtcNow.AddDays(-days);
+            var messages = dbContext.Messages.IgnoreQueryFilters().Where(m => m.TenantId == tenant.Id && m.CreatedAt < cutoff);
+            var conversations = dbContext.Conversations.IgnoreQueryFilters().Where(c => c.TenantId == tenant.Id && c.LastActivityAt < cutoff);
+            int removed;
+            if (dbContext.Database.IsRelational())
+            {
+                removed = await messages.ExecuteDeleteAsync(cancellationToken);
+                await conversations.Where(c => !dbContext.Messages.IgnoreQueryFilters().Any(m => m.ConversationId == c.Id)).ExecuteDeleteAsync(cancellationToken);
+            }
+            else
+            {
+                var stale = await messages.ToListAsync(cancellationToken);
+                dbContext.Messages.RemoveRange(stale);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                removed = stale.Count;
+                dbContext.Conversations.RemoveRange(await conversations
+                    .Where(c => !dbContext.Messages.IgnoreQueryFilters().Any(m => m.ConversationId == c.Id))
+                    .ToListAsync(cancellationToken));
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            if (removed > 0)
+                _logger.LogInformation("Retention: {Count} mensajes de clientes de la organización {TenantId} con más de {Days} días.", removed, tenant.Id, days);
+        }
     }
 
     private static async Task<int> RemoveInMemoryAsync(OCAPDbContext dbContext, DateTime cutoffDate, CancellationToken cancellationToken)

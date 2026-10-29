@@ -198,7 +198,10 @@ public sealed class TeamService
 
         var path = $"/accept?token={token}";
         var emailed = false;
-        var panelUrl = _configuration["App:PublicPanelUrl"]?.TrimEnd('/');
+        // La dirección que eligió la organización en Ajustes o, si no, la del servidor.
+        var preferences = await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+            _db, user.TenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken);
+        var panelUrl = (preferences?.PanelUrl ?? _configuration["App:PublicPanelUrl"])?.TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(panelUrl) && await _email.IsConfiguredAsync(user.TenantId, cancellationToken))
         {
             var subject = isInvitation ? "Te invitaron a OCAP" : "Restablece tu contraseña de OCAP";

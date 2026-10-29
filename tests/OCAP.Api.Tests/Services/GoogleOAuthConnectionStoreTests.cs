@@ -80,7 +80,7 @@ public class GoogleOAuthConnectionStoreTests
             ["Google:ClientId"] = "client-id",
             ["Google:ClientSecret"] = "client-secret"
         }).Build();
-        var client = new GoogleOAuthClient(new HttpClient(google), configuration);
+        var client = new GoogleOAuthClient(new HttpClient(google), configuration, new OrganizationGoogleSettings(db, vault));
         return (new GoogleOAuthConnectionStore(db, vault, client, NullLogger<GoogleOAuthConnectionStore>.Instance), db, google);
     }
 

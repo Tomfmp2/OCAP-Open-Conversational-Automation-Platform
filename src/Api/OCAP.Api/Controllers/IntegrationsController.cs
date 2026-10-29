@@ -16,7 +16,8 @@ namespace OCAP.Api.Controllers;
 public record ConnectIntegrationRequestDto(
     string AuthCode,
     string? RedirectUri,
-    string? Scopes
+    string? Scopes,
+    string? State = null
 );
 
 public record IntegrationStatusDto(
@@ -98,6 +99,37 @@ public class IntegrationsController : ControllerBase
         return Ok(integration);
     }
 
+    /// <summary>
+    /// Dirección de consentimiento de Google con el cliente OAuth de la organización. El panel redirige ahí y Google
+    /// vuelve a <paramref name="redirectUri"/> (registrada en Google Cloud) con el código y el state firmado.
+    /// </summary>
+    [HttpGet("google/authorize-url")]
+    public async Task<IActionResult> GetGoogleAuthorizeUrl(
+        [FromQuery] string redirectUri,
+        [FromServices] GoogleOAuthState state,
+        CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var redirect) || (redirect.Scheme != Uri.UriSchemeHttps && redirect.Host != "localhost"))
+            return BadRequest(new { message = "La dirección de retorno debe ser https (o localhost)." });
+        if (await _google.ResolveAsync(_tenantContext.TenantId, cancellationToken) is not { } settings)
+            return BadRequest(new { message = "Configura el cliente OAuth de Google en Ajustes." });
+
+        var scopes = settings.Scopes.Count > 0 ? settings.Scopes : GoogleOAuthClient.DefaultScopes.ToList();
+        var query = new Dictionary<string, string>
+        {
+            ["response_type"] = "code",
+            ["client_id"] = settings.ClientId,
+            ["redirect_uri"] = redirectUri,
+            ["scope"] = string.Join(' ', scopes),
+            // Refresh token para que el asistente siga usando Gmail/Calendar sin volver a pedir permiso.
+            ["access_type"] = "offline",
+            ["prompt"] = "consent",
+            ["state"] = state.Create(_tenantContext.TenantId, _userContext.UserId)
+        };
+        var url = "https://accounts.google.com/o/oauth2/v2/auth?" + string.Join('&', query.Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value)}"));
+        return Ok(new { url });
+    }
+
     [HttpGet("{provider}")]
     public async Task<ActionResult<IntegrationStatusDto>> GetIntegrationStatus(string provider, CancellationToken cancellationToken)
     {
@@ -117,7 +149,11 @@ public class IntegrationsController : ControllerBase
     }
 
     [HttpPost("{provider}/connect")]
-    public async Task<ActionResult<IntegrationStatusDto>> ConnectIntegration(string provider, [FromBody] ConnectIntegrationRequestDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult<IntegrationStatusDto>> ConnectIntegration(
+        string provider,
+        [FromBody] ConnectIntegrationRequestDto request,
+        [FromServices] GoogleOAuthState state,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.AuthCode))
         {
@@ -135,15 +171,19 @@ public class IntegrationsController : ControllerBase
                 $"El intercambio OAuth real para '{provider}' aún no está implementado.");
         }
 
-        if (!_google.IsConfigured)
+        // Sin un state emitido por esta API para esta misma sesión, el código podría venir de otra cuenta (CSRF).
+        if (!state.IsValid(request.State, _tenantContext.TenantId, _userContext.UserId))
         {
-            return StatusCode(StatusCodes.Status501NotImplemented,
-                "Se requieren Google:ClientId y Google:ClientSecret para intercambiar el código OAuth.");
+            return BadRequest("La conexión con Google caducó o no se inició desde este panel. Vuelve a intentarlo.");
         }
 
-        var googleSettings = _google.Settings;
+        if (await _google.ResolveAsync(_tenantContext.TenantId, cancellationToken) is not { } googleSettings)
+        {
+            return BadRequest("Configura el cliente OAuth de Google en Ajustes.");
+        }
+
         var redirectUri = string.IsNullOrWhiteSpace(request.RedirectUri)
-            ? googleSettings.RedirectUri
+            ? _google.ServerSettings.RedirectUri
             : request.RedirectUri;
         if (string.IsNullOrWhiteSpace(redirectUri))
         {
@@ -153,7 +193,7 @@ public class IntegrationsController : ControllerBase
         GoogleTokenGrant grant;
         try
         {
-            grant = await _google.ExchangeCodeAsync(request.AuthCode, redirectUri, cancellationToken);
+            grant = await _google.ExchangeCodeAsync(_tenantContext.TenantId, request.AuthCode, redirectUri, cancellationToken);
         }
         catch (HttpRequestException ex)
         {

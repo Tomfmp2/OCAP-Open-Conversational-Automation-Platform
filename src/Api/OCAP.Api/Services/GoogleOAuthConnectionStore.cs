@@ -72,14 +72,14 @@ public sealed class GoogleOAuthConnectionStore
         }
 
         var refreshToken = await RevealAsync(tenantId, connection.RefreshToken, cancellationToken);
-        if (refreshToken is null || !_client.IsConfigured)
+        if (refreshToken is null || !await _client.IsConfiguredAsync(tenantId, cancellationToken))
         {
             return connection.TokenExpiration > DateTime.UtcNow ? accessToken : null;
         }
 
         try
         {
-            var grant = await _client.RefreshAsync(refreshToken, cancellationToken);
+            var grant = await _client.RefreshAsync(tenantId, refreshToken, cancellationToken);
             await SaveAsync(tenantId, connection.UserId, grant with { RefreshToken = grant.RefreshToken ?? refreshToken },
                 connection.Scopes, cancellationToken);
             return grant.AccessToken;

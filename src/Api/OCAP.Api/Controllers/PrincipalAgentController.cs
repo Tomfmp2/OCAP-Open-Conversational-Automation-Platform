@@ -159,6 +159,13 @@ public class PrincipalAgentController : ControllerBase
         {
             var context = new AgentContext(_assistantAgent.GlobalAgentId, tenantId, userId, message);
             context.EnvironmentVariables[EnterpriseAssistantAgent.AttachmentsKey] = media;
+            var db = HttpContext.RequestServices.GetRequiredService<OCAP.Infrastructure.Persistence.Context.OCAPDbContext>();
+            if (await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+                    db, tenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken) is { } preferences)
+            {
+                if (preferences.Language is { } language) context.EnvironmentVariables[EnterpriseAssistantAgent.LanguageKey] = language;
+                if (preferences.TimeZone is { } zone) context.EnvironmentVariables[EnterpriseAssistantAgent.TimeZoneKey] = zone;
+            }
             context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = untrusted || conversation?.HasUntrustedContent == true;
             context.EnvironmentVariables[EnterpriseAssistantAgent.HistoryKey] = previous
                 .Select(m => m.Role == AssistantRoles.User ? PromptMessage.User(m.Content) : PromptMessage.Assistant(m.Content))
