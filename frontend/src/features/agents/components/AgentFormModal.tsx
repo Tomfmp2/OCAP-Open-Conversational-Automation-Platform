@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { useChannels } from "@/features/channels/api/useChannelsData";
 import { Button, FormError, Input, Modal, Textarea } from "@/shared/components/ui";
 import { useAgentTools, useDeleteAgent, useSaveAgent, type Agent } from "../api/useAgentsData";
 
@@ -112,15 +114,35 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
 
 function DeleteAgent({ agent, onCancel, onDone }: { agent: Agent; onCancel: () => void; onDone: () => void }) {
   const remove = useDeleteAgent();
+  const channels = useChannels();
+  const usedBy = channels.data?.filter((c) => c.agentId === agent.id) ?? [];
+
   return (
     <div className="space-y-5">
-      <p className="text-sm text-neutral-700">Los canales que lo usan pasan a responder con el agente de atención.</p>
+      {usedBy.length > 0 ? (
+        <div role="alert" className="rounded-lg border border-warning/30 bg-warning-subtle p-4 text-sm">
+          <p className="font-medium text-warning">Este agente está en uso</p>
+          <p className="mt-1 text-neutral-700">
+            Responde en: {usedBy.map((c) => c.name).join(", ")}. Asígnales otro agente antes de eliminarlo.
+          </p>
+          <Link href="/channels" className="mt-2 inline-block font-medium text-neutral-950 underline underline-offset-2">
+            Ir a Canales
+          </Link>
+        </div>
+      ) : (
+        <p className="text-sm text-neutral-700">Se elimina con sus instrucciones. No se puede deshacer.</p>
+      )}
       <FormError error={remove.error} />
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button variant="danger" loading={remove.isPending} onClick={() => remove.mutate(agent.id, { onSuccess: onDone })}>
+        <Button
+          variant="danger"
+          loading={remove.isPending}
+          disabled={channels.isLoading || usedBy.length > 0}
+          onClick={() => remove.mutate(agent.id, { onSuccess: onDone })}
+        >
           Eliminar agente
         </Button>
       </div>

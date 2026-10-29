@@ -77,8 +77,25 @@ public class AgentsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Policy = OcapPermissions.AgentWrite)]
-    public async Task<IActionResult> DeleteAgent(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteAgent(
+        Guid id,
+        [FromServices] OCAP.Channels.Abstractions.Contracts.IChannelConnectionManager channels,
+        [FromServices] ITenantContext tenant,
+        CancellationToken cancellationToken)
     {
+        // Un agente que responde en algún canal no se borra: el canal pasaría sin aviso a otro agente.
+        var usedBy = (await channels.GetTenantConnectionsAsync(tenant.TenantId, cancellationToken))
+            .Where(c => c.ConfigurationMetadata.GetValueOrDefault(OCAP.Api.Services.ChannelConversationService.AgentIdMetadataKey) == id.ToString())
+            .Select(c => c.DisplayName)
+            .ToList();
+        if (usedBy.Count > 0)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "El agente está en uso",
+                detail: $"Responde en: {string.Join(", ", usedBy)}. Asígnales otro agente en Canales antes de eliminarlo.");
+        }
+
         try
         {
             await _agentService.DeleteAgentAsync(id, cancellationToken);
