@@ -4,14 +4,16 @@ import React from "react";
 import { Button, FormError, Input, Modal } from "@/shared/components/ui";
 import { cn } from "@/shared/utils/cn";
 import { useConnectChannelMutation } from "../api/useChannelsData";
+import { WhatsAppCloudForm } from "./WhatsAppCloudForm";
 import { WhatsAppLinkPanel } from "./WhatsAppLinkPanel";
 
-type Provider = "WhatsApp" | "Telegram" | "WebChat";
+type Provider = "WhatsApp" | "WhatsAppCloud" | "Telegram" | "WebChat";
 
-const PROVIDERS: Array<{ id: Provider; description: string }> = [
-  { id: "WhatsApp", description: "Vincula un número escaneando un QR." },
-  { id: "Telegram", description: "Conecta un bot con su token." },
-  { id: "WebChat", description: "Un chat para tu sitio web." },
+const PROVIDERS: Array<{ id: Provider; label: string; description: string }> = [
+  { id: "WhatsApp", label: "WhatsApp", description: "Vincula un número escaneando un QR." },
+  { id: "WhatsAppCloud", label: "WhatsApp Business", description: "API oficial de Meta, con tu app." },
+  { id: "Telegram", label: "Telegram", description: "Conecta un bot con su token." },
+  { id: "WebChat", label: "WebChat", description: "Un chat para tu sitio web." },
 ];
 
 export function ChannelConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -32,7 +34,7 @@ export function ChannelConnectModal({ open, onClose }: { open: boolean; onClose:
       <div className="space-y-5">
         <fieldset>
           <legend className="mb-2 text-sm font-medium text-neutral-800">Tipo de canal</legend>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2">
             {PROVIDERS.map((option) => (
               <label
                 key={option.id}
@@ -52,7 +54,7 @@ export function ChannelConnectModal({ open, onClose }: { open: boolean; onClose:
                   }}
                   className="sr-only"
                 />
-                <span className="block text-sm font-medium text-neutral-950">{option.id}</span>
+                <span className="block text-sm font-medium text-neutral-950">{option.label}</span>
                 <span className="mt-0.5 block text-xs text-neutral-600">{option.description}</span>
               </label>
             ))}
@@ -61,6 +63,8 @@ export function ChannelConnectModal({ open, onClose }: { open: boolean; onClose:
 
         {provider === "WhatsApp" ? (
           <WhatsAppLinkPanel active={open} onLinked={close} />
+        ) : provider === "WhatsAppCloud" ? (
+          <WhatsAppCloudForm onCancel={close} onDone={close} />
         ) : (
           <form
             className="space-y-4"

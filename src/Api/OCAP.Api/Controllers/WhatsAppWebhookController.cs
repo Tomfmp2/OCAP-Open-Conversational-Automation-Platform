@@ -23,6 +23,7 @@ public class WhatsAppWebhookController : ControllerBase
     private readonly IConversationResponder _responder;
     private readonly WhatsAppApiClient _cloudClient;
     private readonly IInboxStore _inbox;
+    private readonly OCAP.Security.Abstractions.ICredentialVault _vault;
     private readonly ILogger<WhatsAppWebhookController> _logger;
 
     public WhatsAppWebhookController(
@@ -31,6 +32,7 @@ public class WhatsAppWebhookController : ControllerBase
         IConversationResponder responder,
         WhatsAppApiClient cloudClient,
         IInboxStore inbox,
+        OCAP.Security.Abstractions.ICredentialVault vault,
         ILogger<WhatsAppWebhookController> logger)
     {
         _validator = validator;
@@ -38,24 +40,47 @@ public class WhatsAppWebhookController : ControllerBase
         _responder = responder;
         _cloudClient = cloudClient;
         _inbox = inbox;
+        _vault = vault;
         _logger = logger;
     }
 
     [HttpGet]
-    public IActionResult VerifyWebhook(
+    public async Task<IActionResult> VerifyWebhook(
         [FromQuery(Name = "hub.mode")] string? mode,
         [FromQuery(Name = "hub.verify_token")] string? verifyToken,
-        [FromQuery(Name = "hub.challenge")] string? challenge)
+        [FromQuery(Name = "hub.challenge")] string? challenge,
+        CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(mode) && !string.IsNullOrWhiteSpace(verifyToken))
-        {
-            if (_validator.ValidateVerifyToken(mode, verifyToken))
-            {
-                return Ok(challenge);
-            }
-        }
+        if (mode != "subscribe" || string.IsNullOrWhiteSpace(verifyToken)) return Forbid();
 
-        return Forbid();
+        // El token del servidor (.env) o el que generó el panel al conectar un número Cloud.
+        var valid = _validator.ValidateVerifyToken(mode, verifyToken)
+            || (await CloudConnectionsAsync(cancellationToken))
+                .Any(c => WhatsAppCloudSecrets.Matches(verifyToken, c.ConfigurationMetadata.GetValueOrDefault(WhatsAppCloudSecrets.VerifyTokenHashKey)));
+        return valid ? Ok(challenge) : Forbid();
+    }
+
+    private async Task<IReadOnlyList<OCAP.Security.Domain.Entities.ChannelConnection>> CloudConnectionsAsync(CancellationToken cancellationToken) =>
+        (await _connections.GetAllConnectionsByProviderAsync("WhatsApp", cancellationToken))
+            .Where(c => c.ConfigurationMetadata.GetValueOrDefault("ConnectionMode") == "cloud")
+            .ToList();
+
+    /// <summary>
+    /// Firma de Meta con el App Secret del número que recibe el mensaje (guardado cifrado al conectarlo) o con el del
+    /// servidor. Se lee el phone_number_id del cuerpo antes de verificar, pero nada se procesa hasta que la firma vale.
+    /// </summary>
+    private async Task<bool> SignatureIsValidAsync(string rawBody, string? signatureHeader, WhatsAppCloudWebhookPayload? payload, CancellationToken cancellationToken)
+    {
+        if (_validator.ValidateSignature(rawBody, signatureHeader)) return true;
+
+        var phoneNumberId = payload?.Entry.SelectMany(e => e.Changes).Select(c => c.Value.Metadata?.PhoneNumberId).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+        if (phoneNumberId is null) return false;
+        var connection = (await CloudConnectionsAsync(cancellationToken))
+            .FirstOrDefault(c => c.ConfigurationMetadata.GetValueOrDefault("PhoneNumberId") == phoneNumberId);
+        if (connection?.ConfigurationMetadata.GetValueOrDefault(WhatsAppCloudSecrets.AppSecretRefKey) is not { } reference) return false;
+
+        var secret = await _vault.RetrieveSecretAsync(connection.TenantId, reference, cancellationToken);
+        return secret is not null && WhatsAppWebhookValidator.SignatureMatches(rawBody, signatureHeader, secret);
     }
 
     [HttpPost]
@@ -65,18 +90,6 @@ public class WhatsAppWebhookController : ControllerBase
 
         using var reader = new StreamReader(Request.Body);
         var rawBody = await reader.ReadToEndAsync(cancellationToken);
-
-        // 1. Validar token o secreto de seguridad en headers.
-        if (!_validator.ValidateSignature(rawBody, signatureHeader))
-        {
-            _logger.LogWarning("Token secreto de Webhook de WhatsApp no válido o ausente.");
-            return Unauthorized(new ApiResponse<object>
-            {
-                Success = false,
-                Message = "Firma o token de webhook inválido.",
-                Data = null
-            });
-        }
 
         WhatsAppCloudWebhookPayload? payload = null;
         try
@@ -88,6 +101,18 @@ public class WhatsAppWebhookController : ControllerBase
         catch (System.Text.Json.JsonException ex)
         {
             _logger.LogError(ex, "Error deserializando payload de WhatsApp.");
+        }
+
+        // 1. Firma de Meta antes de usar nada del cuerpo.
+        if (!await SignatureIsValidAsync(rawBody, signatureHeader, payload, cancellationToken))
+        {
+            _logger.LogWarning("Firma del webhook de WhatsApp Cloud no válida o ausente.");
+            return Unauthorized(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Firma o token de webhook inválido.",
+                Data = null
+            });
         }
 
         if (payload == null)

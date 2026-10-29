@@ -31,27 +31,17 @@ public class WhatsAppWebhookValidator
         return false;
     }
 
-    public bool ValidateSignature(string payload, string? signatureHeader)
-    {
-        if (string.IsNullOrWhiteSpace(signatureHeader) || string.IsNullOrWhiteSpace(_settings.AppSecret))
-        {
-            // En Evolution no hay firma Meta; se valida con apikey/webhook secret aparte.
-            return false;
-        }
+    /// <summary>Firma con el App Secret del servidor (WhatsAppCloud:AppSecret), si existe.</summary>
+    public bool ValidateSignature(string payload, string? signatureHeader) =>
+        !string.IsNullOrWhiteSpace(_settings.AppSecret) && SignatureMatches(payload, signatureHeader, _settings.AppSecret);
 
-        try
-        {
-            var expectedSignature = signatureHeader.Replace("sha256=", "");
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_settings.AppSecret));
-            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
-            var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            return hashString == expectedSignature;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error al validar la firma del webhook de WhatsApp.");
-            return false;
-        }
+    /// <summary>X-Hub-Signature-256 de Meta: HMAC-SHA256 del cuerpo con el App Secret, comparado en tiempo constante.</summary>
+    public static bool SignatureMatches(string payload, string? signatureHeader, string appSecret)
+    {
+        if (string.IsNullOrWhiteSpace(signatureHeader) || string.IsNullOrWhiteSpace(appSecret)) return false;
+        var expected = signatureHeader.StartsWith("sha256=", StringComparison.Ordinal) ? signatureHeader[7..] : signatureHeader;
+        var actual = Convert.ToHexStringLower(HMACSHA256.HashData(Encoding.UTF8.GetBytes(appSecret), Encoding.UTF8.GetBytes(payload)));
+        return CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(actual), Encoding.ASCII.GetBytes(expected.ToLowerInvariant()));
     }
 
     public bool ValidatePayload(WhatsAppCloudWebhookPayload payload)

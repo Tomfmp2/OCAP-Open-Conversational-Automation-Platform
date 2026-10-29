@@ -1,3 +1,4 @@
+using OCAP.Api.Services;
 using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,8 @@ public class CreateWhatsAppConnectionRequest
     public string DisplayName { get; set; } = string.Empty;
     public string PhoneNumberId { get; set; } = string.Empty;
     public string ApiToken { get; set; } = string.Empty;
+    /// <summary>App Secret de la app de Meta: firma los webhooks. Se guarda cifrado en la conexión.</summary>
+    public string AppSecret { get; set; } = string.Empty;
 }
 
 [ApiController]
@@ -138,7 +141,11 @@ public class WhatsAppChannelController : ControllerBase
     }
 
     [HttpPost("connect")]
-    public async Task<IActionResult> ConnectChannel([FromBody] CreateWhatsAppConnectionRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ConnectChannel(
+        [FromBody] CreateWhatsAppConnectionRequest request,
+        [FromServices] ICredentialVault vault,
+        [FromServices] OCAP.Channels.Abstractions.Contracts.IChannelConnectionManager connections,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -148,9 +155,10 @@ public class WhatsAppChannelController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Tenant no identificado.", Data = null });
         }
 
-        if (request == null || string.IsNullOrWhiteSpace(request.PhoneNumberId) || string.IsNullOrWhiteSpace(request.ApiToken) || string.IsNullOrWhiteSpace(request.DisplayName))
+        if (request == null || string.IsNullOrWhiteSpace(request.PhoneNumberId) || string.IsNullOrWhiteSpace(request.ApiToken)
+            || string.IsNullOrWhiteSpace(request.DisplayName) || string.IsNullOrWhiteSpace(request.AppSecret))
         {
-            return BadRequest(new ApiResponse<object> { Success = false, Message = "DisplayName, PhoneNumberId y ApiToken son requeridos (modo Cloud). Para vincular por QR usa POST /link.", Data = null });
+            return BadRequest(new ApiResponse<object> { Success = false, Message = "Nombre, Phone number ID, token de acceso y App Secret son requeridos (modo Cloud). Para vincular por QR usa POST /link.", Data = null });
         }
 
         try
@@ -161,6 +169,13 @@ public class WhatsAppChannelController : ControllerBase
                 request.PhoneNumberId,
                 request.ApiToken,
                 cancellationToken);
+
+            // Secretos del webhook por conexión, sin .env: el App Secret cifrado y un token de verificación generado aquí
+            // (se muestra una sola vez; se guarda su hash).
+            var appSecretRef = await vault.StoreSecretAsync(tenantId, $"whatsapp-app-secret-{connection.Id:N}", request.AppSecret.Trim(), cancellationToken);
+            var verifyToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            await connections.SetMetadataValueAsync(tenantId, connection.Id, WhatsAppCloudSecrets.AppSecretRefKey, appSecretRef, cancellationToken);
+            await connections.SetMetadataValueAsync(tenantId, connection.Id, WhatsAppCloudSecrets.VerifyTokenHashKey, WhatsAppCloudSecrets.Hash(verifyToken), cancellationToken);
 
             var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
             await _auditService.LogSecurityEventAsync(
@@ -175,8 +190,8 @@ public class WhatsAppChannelController : ControllerBase
             return Created($"/api/channels/connections/{connection.Id}", new ApiResponse<object>
             {
                 Success = true,
-                Message = "Canal de WhatsApp Cloud registrado.",
-                Data = connection
+                Message = "Canal de WhatsApp Cloud registrado. Copia el token de verificación en Meta: no se vuelve a mostrar.",
+                Data = new { connection.Id, connection.DisplayName, verifyToken, webhookPath = "/api/channels/whatsapp/webhook" }
             });
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
