@@ -18,6 +18,8 @@ public class AssistantConversation
     /// conversación ejecuta herramientas.
     /// </summary>
     public bool HasUntrustedContent { get; private set; }
+    /// <summary>Hasta dónde se extrajo memoria del usuario del panel.</summary>
+    public DateTime? MemoryExtractedAt { get; private set; }
 
     private AssistantConversation() { }
 
@@ -39,6 +41,8 @@ public class AssistantConversation
     public void Touch() => UpdatedAt = DateTime.UtcNow;
 
     public void MarkUntrustedContent() => HasUntrustedContent = true;
+
+    public void MarkMemoryExtracted(DateTime at) => MemoryExtractedAt = at;
 
     private static string TitleFrom(string text)
     {

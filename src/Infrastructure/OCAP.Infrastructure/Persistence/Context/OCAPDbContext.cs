@@ -37,6 +37,7 @@ public class OCAPDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<ContactMemory> ContactMemories => Set<ContactMemory>();
     public DbSet<Session> Sessions => Set<Session>();
     public DbSet<ToolExecution> ToolExecutions => Set<ToolExecution>();
     public DbSet<AgentToolPermission> AgentToolPermissions => Set<AgentToolPermission>();

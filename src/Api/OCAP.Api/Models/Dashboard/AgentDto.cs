@@ -11,5 +11,7 @@ public class AgentDto
     public List<string> EnabledTools { get; set; } = new();
     /// <summary>Colecciones de conocimiento que consulta; vacía, todas.</summary>
     public List<Guid> KnowledgeBaseIds { get; set; } = new();
+    /// <summary>Recuerda a los contactos entre conversaciones (memoria de la organización).</summary>
+    public bool RememberContacts { get; set; } = true;
     public DateTime CreatedAt { get; set; }
 }

@@ -118,6 +118,7 @@ public class AuditAndOutboxRetentionBackgroundService : BackgroundService
         }
 
         await PurgeCustomerConversationsAsync(dbContext, cancellationToken);
+        await PurgeExpiredMemoriesAsync(dbContext, cancellationToken);
 
         _logger.LogInformation(
             "Retention Summary: Purged {AuditCount} expired AuditLogs (Cutoff: {AuditDays} days) and {OutboxCount} processed OutboxMessages (Cutoff: {OutboxDays} days).",
@@ -125,6 +126,29 @@ public class AuditAndOutboxRetentionBackgroundService : BackgroundService
             options.AuditLogRetentionDays,
             totalOutboxMessagesDeleted,
             options.OutboxRetentionDays);
+    }
+
+    /// <summary>
+    /// Recuerdos de los agentes vencidos (el plazo de memoria de la organización contado desde la última confirmación),
+    /// incluidos los reemplazados: el historial dura lo mismo que el dato.
+    /// </summary>
+    private async Task PurgeExpiredMemoriesAsync(OCAPDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var expired = dbContext.ContactMemories.IgnoreQueryFilters().Where(m => m.ExpiresAt <= now);
+        int removed;
+        if (dbContext.Database.IsRelational())
+        {
+            removed = await expired.ExecuteDeleteAsync(cancellationToken);
+        }
+        else
+        {
+            var rows = await expired.ToListAsync(cancellationToken);
+            dbContext.ContactMemories.RemoveRange(rows);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            removed = rows.Count;
+        }
+        if (removed > 0) _logger.LogInformation("Retention: {Count} recuerdos vencidos borrados.", removed);
     }
 
     /// <summary>

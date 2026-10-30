@@ -26,6 +26,12 @@ public class Conversation
     /// <summary>Conexión del canal que recibió la conversación (bot, número vinculado).</summary>
     public Guid? ChannelConnectionId { get; private set; }
 
+    /// <summary>Resumen de los mensajes anteriores a <see cref="SummarizedUntil"/>: el agente no los recibe uno a uno.</summary>
+    public string? Summary { get; private set; }
+    public DateTime? SummarizedUntil { get; private set; }
+    /// <summary>Hasta dónde se extrajo memoria del contacto (hechos y episodio).</summary>
+    public DateTime? MemoryExtractedAt { get; private set; }
+
     /// <summary>Mientras una persona atiende la conversación, el agente no responde.</summary>
     public bool IsHandledByHuman => Status == ConversationStatus.WaitingHuman;
 
@@ -78,6 +84,14 @@ public class Conversation
     }
 
     /// <summary>Registra por dónde llega la conversación, para poder contestar desde el panel.</summary>
+    public void UpdateSummary(string summary, DateTime summarizedUntil)
+    {
+        Summary = summary;
+        SummarizedUntil = summarizedUntil;
+    }
+
+    public void MarkMemoryExtracted(DateTime at) => MemoryExtractedAt = at;
+
     public void AttachChannel(string channel, string externalContactId, Guid? channelConnectionId)
     {
         if (string.IsNullOrWhiteSpace(channel)) throw new ArgumentException("El canal es obligatorio.", nameof(channel));

@@ -201,7 +201,14 @@ public class SettingsController : ControllerBase
             && !(await authorization.AuthorizeAsync(User, OcapPermissions.SecurityManage)).Succeeded)
             return Problem(statusCode: StatusCodes.Status403Forbidden, title: "Cambiar la dirección del panel requiere el permiso de seguridad.");
 
-        var preferences = new OCAP.Infrastructure.Services.OrganizationPreferences(language, timeZone, panelUrl, request.ConversationRetentionDays);
+        if (request.MemoryDays is { } memoryDays && memoryDays is < 0 or > OCAP.Infrastructure.Services.OrganizationPreferences.MaxRetentionDays)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "La memoria va de 0 (desactivada) a 3650 días.");
+        var notice = Clean(request.PrivacyNotice);
+        if (notice is { Length: > OCAP.Infrastructure.Services.OrganizationPreferences.MaxPrivacyNoticeLength })
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El aviso de privacidad admite hasta 600 caracteres.");
+
+        var preferences = new OCAP.Infrastructure.Services.OrganizationPreferences(
+            language, timeZone, panelUrl, request.ConversationRetentionDays, request.MemoryDays, notice);
         await OCAP.Infrastructure.Services.TenantSettingsSections.WriteAsync(
             _dbContext, _tenantContext.TenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, preferences, cancellationToken);
         await AuditAsync("Organization_PreferencesUpdated",

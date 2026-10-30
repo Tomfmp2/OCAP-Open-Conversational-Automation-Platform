@@ -161,11 +161,19 @@ public class PrincipalAgentController : ControllerBase
             var context = new AgentContext(_assistantAgent.GlobalAgentId, tenantId, userId, message);
             context.EnvironmentVariables[EnterpriseAssistantAgent.AttachmentsKey] = media;
             var db = HttpContext.RequestServices.GetRequiredService<OCAP.Infrastructure.Persistence.Context.OCAPDbContext>();
-            if (await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
-                    db, tenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken) is { } preferences)
+            var preferences = await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+                db, tenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken);
+            if (preferences is not null)
             {
                 if (preferences.Language is { } language) context.EnvironmentVariables[EnterpriseAssistantAgent.LanguageKey] = language;
                 if (preferences.TimeZone is { } zone) context.EnvironmentVariables[EnterpriseAssistantAgent.TimeZoneKey] = zone;
+            }
+            // Memoria del usuario salvo que la organización la desactivara.
+            if (preferences is null || preferences.MemoryLifetime is not null)
+            {
+                var recall = await HttpContext.RequestServices.GetRequiredService<OCAP.Api.Services.Memory.ContactMemoryStore>()
+                    .RecallAsync(OCAP.Core.Entities.MemoryOwnerKind.PanelUser, userId, DateTime.UtcNow, cancellationToken);
+                context.EnvironmentVariables[EnterpriseAssistantAgent.MemoryKey] = recall.Facts.Concat(recall.Episodes).ToList();
             }
             context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = untrusted || conversation?.HasUntrustedContent == true;
             context.EnvironmentVariables[EnterpriseAssistantAgent.HistoryKey] = previous
@@ -268,6 +276,21 @@ public class PrincipalAgentController : ControllerBase
         var conversation = await _conversations.FindAsync(_userContext.UserId, id, cancellationToken);
         if (conversation is null) return NotFound();
         await _conversations.DeleteAsync(conversation, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Lo que el asistente recuerda del usuario que pregunta.</summary>
+    [HttpGet("memory")]
+    public async Task<IActionResult> GetMemory([FromServices] OCAP.Api.Services.Memory.ContactMemoryStore memory, CancellationToken cancellationToken)
+    {
+        var items = await memory.ListAsync(OCAP.Core.Entities.MemoryOwnerKind.PanelUser, _userContext.UserId, DateTime.UtcNow, cancellationToken);
+        return Ok(items.Select(MemoryItemDto.From));
+    }
+
+    [HttpDelete("memory/{memoryId:guid?}")]
+    public async Task<IActionResult> ForgetMemory(Guid? memoryId, [FromServices] OCAP.Api.Services.Memory.ContactMemoryStore memory, CancellationToken cancellationToken)
+    {
+        await memory.ForgetAsync(OCAP.Core.Entities.MemoryOwnerKind.PanelUser, _userContext.UserId, memoryId, cancellationToken);
         return NoContent();
     }
 }

@@ -85,6 +85,10 @@ public static partial class ApiServiceExtensions
         services.AddScoped<IChannelConnectionManager, ChannelConnectionManager>();
         services.AddScoped<OCAP.Api.Services.ChannelConversationService>();
         services.AddScoped<IConversationResponder>(sp => sp.GetRequiredService<OCAP.Api.Services.ChannelConversationService>());
+        services.AddScoped<OCAP.Api.Services.Memory.ContactMemoryStore>();
+        services.AddScoped<OCAP.Api.Services.Memory.IMemoryModel, OCAP.Api.Services.Memory.MemoryModel>();
+        services.AddSingleton<OCAP.Api.Services.Memory.ConversationMemoryBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<OCAP.Api.Services.Memory.ConversationMemoryBackgroundService>());
         services.AddSingleton<OCAP.Api.Services.ChannelShutdownBackgroundService>();
         services.AddHostedService(sp => sp.GetRequiredService<OCAP.Api.Services.ChannelShutdownBackgroundService>());
         services.AddScoped<OCAP.Api.Queries.DashboardQueries>();

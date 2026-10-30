@@ -11,6 +11,14 @@ namespace OCAP.Api.Controllers;
 
 public sealed record InboxReplyRequest(string Text);
 
+public sealed record EditMemoryRequest(string Text);
+
+/// <summary>Un recuerdo tal como lo ve el panel.</summary>
+public sealed record MemoryItemDto(Guid Id, string Kind, string? Key, string Text, DateTime ConfirmedAt, DateTime ExpiresAt)
+{
+    public static MemoryItemDto From(OCAP.Core.Entities.ContactMemory m) => new(m.Id, m.Kind.ToString(), m.Key, m.Text, m.ConfirmedAt, m.ExpiresAt);
+}
+
 /// <summary>
 /// Bandeja de conversaciones de los canales: el equipo ve lo que escriben los contactos, toma una conversación
 /// (el agente deja de responder), contesta como persona y la devuelve al agente.
@@ -98,6 +106,42 @@ public sealed class InboxController : ControllerBase
     }
 
     /// <summary>La bandeja solo opera sobre conversaciones de canales, nunca sobre el chat interno del panel.</summary>
+    /// <summary>Lo que los agentes recuerdan del contacto de esta conversación.</summary>
+    [HttpGet("{id:guid}/memory")]
+    public async Task<IActionResult> GetMemory(Guid id, [FromServices] OCAP.Api.Services.Memory.ContactMemoryStore memory, CancellationToken cancellationToken)
+    {
+        var conversation = await FindChannelConversationAsync(id, cancellationToken);
+        if (conversation is null) return NotFound();
+        var items = await memory.ListAsync(OCAP.Core.Entities.MemoryOwnerKind.Contact, conversation.UserId, DateTime.UtcNow, cancellationToken);
+        return Ok(items.Select(MemoryItemDto.From));
+    }
+
+    [HttpPut("{id:guid}/memory/{memoryId:guid}")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
+    public async Task<IActionResult> EditMemory(Guid id, Guid memoryId, [FromBody] EditMemoryRequest request,
+        [FromServices] OCAP.Api.Services.Memory.ContactMemoryStore memory, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > OCAP.Core.Entities.ContactMemory.MaxTextLength)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Escribe el recuerdo (hasta 500 caracteres).");
+        var conversation = await FindChannelConversationAsync(id, cancellationToken);
+        if (conversation is null) return NotFound();
+        return await memory.EditAsync(OCAP.Core.Entities.MemoryOwnerKind.Contact, conversation.UserId, memoryId, request.Text, DateTime.UtcNow, cancellationToken)
+            ? NoContent()
+            : NotFound();
+    }
+
+    /// <summary>Borra un recuerdo o, sin <paramref name="memoryId"/>, todo lo que se recuerda del contacto.</summary>
+    [HttpDelete("{id:guid}/memory/{memoryId:guid?}")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
+    public async Task<IActionResult> ForgetMemory(Guid id, Guid? memoryId,
+        [FromServices] OCAP.Api.Services.Memory.ContactMemoryStore memory, CancellationToken cancellationToken)
+    {
+        var conversation = await FindChannelConversationAsync(id, cancellationToken);
+        if (conversation is null) return NotFound();
+        await memory.ForgetAsync(OCAP.Core.Entities.MemoryOwnerKind.Contact, conversation.UserId, memoryId, cancellationToken);
+        return NoContent();
+    }
+
     private async Task<Conversation?> FindChannelConversationAsync(Guid id, CancellationToken cancellationToken)
     {
         var conversation = await _conversations.GetByIdAsync(id, cancellationToken);

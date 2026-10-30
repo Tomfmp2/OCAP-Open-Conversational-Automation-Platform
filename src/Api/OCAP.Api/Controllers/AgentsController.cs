@@ -54,7 +54,8 @@ public class AgentsController : ControllerBase
             request.SystemPrompt, 
             request.AllowedTools ?? new List<string>(), 
             cancellationToken,
-            request.KnowledgeBaseIds);
+            request.KnowledgeBaseIds,
+            request.RememberContacts);
 
         var dto = ToDto(agent);
 
@@ -67,7 +68,7 @@ public class AgentsController : ControllerBase
     {
         try
         {
-            await _agentService.UpdateAgentAsync(id, request.Name, request.Description, request.SystemPrompt, request.AllowedTools ?? new List<string>(), cancellationToken, request.KnowledgeBaseIds);
+            await _agentService.UpdateAgentAsync(id, request.Name, request.Description, request.SystemPrompt, request.AllowedTools ?? new List<string>(), cancellationToken, request.KnowledgeBaseIds, request.RememberContacts);
             return NoContent();
         }
         catch (KeyNotFoundException)
@@ -205,6 +206,7 @@ public class AgentsController : ControllerBase
         SystemPrompt = agent.Configuration.SystemPrompt,
         EnabledTools = agent.Configuration.AllowedToolNames.ToList(),
         KnowledgeBaseIds = agent.Configuration.KnowledgeBaseIds.ToList(),
+        RememberContacts = agent.Configuration.RemembersContacts,
         CreatedAt = agent.CreatedAt
     };
 }
@@ -214,8 +216,8 @@ public record AgentTestRequest(string Message, List<AgentTestTurn>? History);
 public record AgentTestResponse(string Reply, string ProviderUsed, string AgentName, bool TransferToHuman);
 public record AgentToolDto(string Name, string Description);
 
-public record CreateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools, List<Guid>? KnowledgeBaseIds = null);
-public record UpdateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools, List<Guid>? KnowledgeBaseIds = null);
+public record CreateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools, List<Guid>? KnowledgeBaseIds = null, bool RememberContacts = true);
+public record UpdateAgentRequest(string Name, string Description, string SystemPrompt, List<string> AllowedTools, List<Guid>? KnowledgeBaseIds = null, bool RememberContacts = true);
 
 public class AgentRuntimeStatusDto
 {

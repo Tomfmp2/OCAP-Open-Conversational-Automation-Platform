@@ -26,21 +26,21 @@ public class AgentService
         return await _agentRepository.GetAllAsync(cancellationToken);
     }
 
-    public async Task<Agent> CreateAgentAsync(string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default, IReadOnlyCollection<Guid>? knowledgeBaseIds = null)
+    public async Task<Agent> CreateAgentAsync(string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default, IReadOnlyCollection<Guid>? knowledgeBaseIds = null, bool rememberContacts = true)
     {
         await EnsureUniqueNameAsync(name, exceptId: null, cancellationToken);
-        var configuration = new AgentConfiguration(systemPrompt, KnowledgeParameters(knowledgeBaseIds), allowedTools);
+        var configuration = new AgentConfiguration(systemPrompt, Parameters(knowledgeBaseIds, rememberContacts), allowedTools);
         var agent = new Agent(Guid.NewGuid(), new AgentName(name), description, configuration);
         
         await _agentRepository.AddAsync(agent, cancellationToken);
         return agent;
     }
 
-    public async Task UpdateAgentAsync(Guid id, string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default, IReadOnlyCollection<Guid>? knowledgeBaseIds = null)
+    public async Task UpdateAgentAsync(Guid id, string name, string description, string systemPrompt, List<string> allowedTools, CancellationToken cancellationToken = default, IReadOnlyCollection<Guid>? knowledgeBaseIds = null, bool rememberContacts = true)
     {
         var agent = await GetAgentAsync(id, cancellationToken);
         await EnsureUniqueNameAsync(name, exceptId: id, cancellationToken);
-        var configuration = new AgentConfiguration(systemPrompt, KnowledgeParameters(knowledgeBaseIds), allowedTools);
+        var configuration = new AgentConfiguration(systemPrompt, Parameters(knowledgeBaseIds, rememberContacts), allowedTools);
         
         agent.UpdateProfile(new AgentName(name), description);
         agent.UpdateConfiguration(configuration);
@@ -48,10 +48,13 @@ public class AgentService
         await _agentRepository.UpdateAsync(agent, cancellationToken);
     }
 
-    private static Dictionary<string, string>? KnowledgeParameters(IReadOnlyCollection<Guid>? knowledgeBaseIds) =>
-        knowledgeBaseIds is { Count: > 0 }
-            ? new Dictionary<string, string> { [AgentConfiguration.KnowledgeBaseIdsParameter] = string.Join(',', knowledgeBaseIds.Distinct()) }
-            : null;
+    private static Dictionary<string, string> Parameters(IReadOnlyCollection<Guid>? knowledgeBaseIds, bool rememberContacts)
+    {
+        var parameters = new Dictionary<string, string>();
+        if (knowledgeBaseIds is { Count: > 0 }) parameters[AgentConfiguration.KnowledgeBaseIdsParameter] = string.Join(',', knowledgeBaseIds.Distinct());
+        if (!rememberContacts) parameters[AgentConfiguration.RememberContactsParameter] = "false";
+        return parameters;
+    }
 
     public async Task DeleteAgentAsync(Guid id, CancellationToken cancellationToken = default)
     {

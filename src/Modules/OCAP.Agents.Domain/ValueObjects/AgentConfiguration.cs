@@ -17,6 +17,11 @@ public class AgentConfiguration
             ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(v => Guid.TryParse(v, out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty).ToList()
             : [];
 
+    /// <summary>Parámetro "false" si el agente no debe recordar a los contactos entre conversaciones.</summary>
+    public const string RememberContactsParameter = "RememberContacts";
+
+    public bool RemembersContacts => !Parameters.TryGetValue(RememberContactsParameter, out var value) || value != "false";
+
     // Lista de herramientas o capacidades habilitadas para este agente.
     public IReadOnlyCollection<string> AllowedToolNames { get; private set; }
 

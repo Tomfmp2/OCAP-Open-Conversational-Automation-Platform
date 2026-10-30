@@ -43,6 +43,8 @@ public sealed class ChannelConversationService : IConversationResponder
     private readonly IChannelConnectionManager _connections;
     private readonly ChannelAgentRunner _agent;
     private readonly IEventBus? _eventBus;
+    private readonly Memory.ContactMemoryStore _memory;
+    private readonly OCAP.Infrastructure.Persistence.Context.OCAPDbContext _db;
     private readonly ILogger<ChannelConversationService> _logger;
 
     public ChannelConversationService(
@@ -52,9 +54,13 @@ public sealed class ChannelConversationService : IConversationResponder
         IMessageRepository messages,
         IChannelConnectionManager connections,
         ChannelAgentRunner agent,
+        Memory.ContactMemoryStore memory,
+        OCAP.Infrastructure.Persistence.Context.OCAPDbContext db,
         ILogger<ChannelConversationService> logger,
         IEventBus? eventBus = null)
     {
+        _memory = memory;
+        _db = db;
         _users = users;
         _receiveMessage = receiveMessage;
         _conversations = conversations;
@@ -82,7 +88,8 @@ public sealed class ChannelConversationService : IConversationResponder
         var userId = ContactUserId(message.ChannelName, tenantId, message.ExternalUserId);
         if (!await AcceptsAsync(channelConnectionId, userId, cancellationToken)) return null;
 
-        if (await _users.GetByIdAsync(userId, cancellationToken) is null)
+        var isNewContact = await _users.GetByIdAsync(userId, cancellationToken) is null;
+        if (isNewContact)
         {
             var name = string.IsNullOrWhiteSpace(displayName) ? message.ExternalUserId : displayName;
             await _users.SaveAsync(new User(userId, name, tenantId), cancellationToken);
@@ -117,16 +124,31 @@ public sealed class ChannelConversationService : IConversationResponder
                 conversation.Id, HumanHandoffTimeout.TotalMinutes);
         }
 
+        var preferences = await OCAP.Infrastructure.Services.TenantSettingsSections.ReadAsync<OCAP.Infrastructure.Services.OrganizationPreferences>(
+            _db, tenantId, OCAP.Infrastructure.Services.OrganizationPreferences.Section, cancellationToken);
+
+        // «Olvídame»: borra lo que el agente recuerda de este contacto, sin pasar por el modelo.
+        if (IsForgetRequest(message.Message))
+        {
+            await _memory.ForgetAsync(Core.Entities.MemoryOwnerKind.Contact, userId, null, cancellationToken);
+            const string forgotten = "Listo: borré lo que recordaba de ti. Si quieres, seguimos conversando.";
+            await _receiveMessage.RecordReplyAsync(conversation.Id, forgotten, SenderType.Agent, cancellationToken);
+            return forgotten;
+        }
+
         string reply;
         try
         {
             var history = (await _messages.GetRecentAsync(conversation.Id, HistoryTurns + 1, cancellationToken))
                 .SkipLast(1) // el último es el mensaje que se está respondiendo
                 .Where(m => m.SenderType != SenderType.System)
+                // Lo ya resumido llega como resumen, no repetido.
+                .Where(m => conversation.SummarizedUntil is null || m.CreatedAt > conversation.SummarizedUntil)
                 .Select(m => new ChannelTurn(m.SenderType == SenderType.User, m.Content.Value))
                 .ToList();
 
             var assignment = await AssignmentAsync(tenantId, channelConnectionId, cancellationToken);
+            var memory = await RecallAsync(userId, conversation, preferences, cancellationToken);
             var result = await _agent.ReplyAsync(
                 new ChannelAgentRequest(
                     tenantId,
@@ -137,7 +159,8 @@ public sealed class ChannelConversationService : IConversationResponder
                     string.IsNullOrWhiteSpace(displayName) ? message.ExternalUserId : displayName,
                     history,
                     message.Message,
-                    AiProviderConfigId: assignment.AiProviderConfigId),
+                    AiProviderConfigId: assignment.AiProviderConfigId,
+                    Memory: memory),
                 cancellationToken);
             reply = result.Text;
 
@@ -153,8 +176,36 @@ public sealed class ChannelConversationService : IConversationResponder
             reply = FallbackReply;
         }
 
+        // Aviso de tratamiento de datos (Ajustes) con la primera respuesta a un contacto nuevo.
+        if (isNewContact && !string.IsNullOrWhiteSpace(preferences?.PrivacyNotice))
+            reply = $"{preferences.PrivacyNotice.Trim()}\n\n{reply}";
+
         await _receiveMessage.RecordReplyAsync(conversation.Id, reply, SenderType.Agent, cancellationToken);
         return reply;
+    }
+
+    /// <summary>
+    /// Resumen de esta conversación y lo recordado de otras. Sin memoria si la organización la desactivó (los datos
+    /// guardados se ignoran y caducan solos).
+    /// </summary>
+    private async Task<ChannelMemory?> RecallAsync(Guid contactId, Conversation conversation,
+        OCAP.Infrastructure.Services.OrganizationPreferences? preferences, CancellationToken cancellationToken)
+    {
+        var remembers = preferences is null || preferences.MemoryLifetime is not null;
+        var recall = remembers
+            ? await _memory.RecallAsync(Core.Entities.MemoryOwnerKind.Contact, contactId, DateTime.UtcNow, cancellationToken)
+            : Memory.MemoryRecall.Empty;
+        if (recall.IsEmpty && conversation.Summary is null) return null;
+        return new ChannelMemory(conversation.Summary, recall.Facts, recall.Episodes);
+    }
+
+    /// <summary>Petición corta y explícita de borrar los datos: un mensaje largo que la menciona no cuenta.</summary>
+    internal static bool IsForgetRequest(string text)
+    {
+        var clean = text.Trim().ToLowerInvariant();
+        return clean.Length <= 60
+               && (clean.Contains("olvídame") || clean.Contains("olvidame") || clean.Contains("borra mis datos")
+                   || clean.Contains("elimina mis datos") || clean.Contains("forget me") || clean.Contains("delete my data"));
     }
 
     /// <summary>
