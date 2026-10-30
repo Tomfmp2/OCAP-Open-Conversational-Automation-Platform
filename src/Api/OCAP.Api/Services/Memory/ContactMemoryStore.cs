@@ -77,13 +77,31 @@ public sealed class ContactMemoryStore
         return true;
     }
 
-    /// <summary>Borra un recuerdo, o todos (con su historial reemplazado) si no se indica cuál: «olvídame».</summary>
+    /// <summary>
+    /// Borra un recuerdo o, si no se indica cuál, todo («olvídame»): los recuerdos con su historial reemplazado y,
+    /// de un contacto, también el resumen de sus conversaciones; lo dicho antes no vuelve a extraerse.
+    /// </summary>
     public async Task<int> ForgetAsync(MemoryOwnerKind ownerKind, Guid ownerId, Guid? memoryId, CancellationToken cancellationToken)
     {
         var query = _db.ContactMemories.Where(m => m.OwnerKind == ownerKind && m.OwnerId == ownerId);
         if (memoryId is { } id) query = query.Where(m => m.Id == id);
         var rows = await query.ToListAsync(cancellationToken);
         _db.ContactMemories.RemoveRange(rows);
+
+        if (memoryId is null)
+        {
+            var now = DateTime.UtcNow;
+            if (ownerKind == MemoryOwnerKind.Contact)
+            {
+                foreach (var conversation in await _db.Conversations.Where(c => c.UserId == ownerId).ToListAsync(cancellationToken))
+                    conversation.ForgetUntil(now);
+            }
+            else
+            {
+                foreach (var conversation in await _db.Set<OCAP.Agents.Domain.Entities.AssistantConversation>().Where(c => c.UserId == ownerId).ToListAsync(cancellationToken))
+                    conversation.MarkMemoryExtracted(now);
+            }
+        }
         await _db.SaveChangesAsync(cancellationToken);
         return rows.Count;
     }

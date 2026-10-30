@@ -80,6 +80,10 @@ public class ContactMemoryTests
         // «Olvídame» lo borra todo sin pasar por el modelo.
         (await Send("olvídame")).Should().Contain("borré lo que recordaba");
         (await admin.GetFromJsonAsync<List<MemoryItem>>($"/api/inbox/{conversation.Id}/memory")).Should().BeEmpty();
+        // Lo dicho antes del «olvídame» no vuelve a extraerse.
+        var before = factory.Model.Extractions;
+        await job.RunOnceAsync(DateTime.UtcNow.AddMinutes(11), CancellationToken.None);
+        factory.Model.Extractions.Should().Be(before);
 
         // Lo que se vuelve a guardar caduca con el plazo de la organización.
         await Send("Soy Ana otra vez");

@@ -92,6 +92,17 @@ public class Conversation
 
     public void MarkMemoryExtracted(DateTime at) => MemoryExtractedAt = at;
 
+    /// <summary>
+    /// «Olvídame»: sin resumen, y lo anterior queda fuera tanto del historial que recibe el agente como de una nueva
+    /// extracción de memoria.
+    /// </summary>
+    public void ForgetUntil(DateTime at)
+    {
+        Summary = null;
+        SummarizedUntil = at;
+        MemoryExtractedAt = at;
+    }
+
     public void AttachChannel(string channel, string externalContactId, Guid? channelConnectionId)
     {
         if (string.IsNullOrWhiteSpace(channel)) throw new ArgumentException("El canal es obligatorio.", nameof(channel));
