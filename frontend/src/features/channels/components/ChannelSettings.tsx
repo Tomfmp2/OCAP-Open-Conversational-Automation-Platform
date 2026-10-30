@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Button, FormError, Input, Modal } from "@/shared/components/ui";
-import { useConfigureWidget, useDeleteChannel, useRenameChannel, type ChannelConnection } from "../api/useChannelsData";
+import { useChannelPower, useConfigureWidget, useDeleteChannel, useRenameChannel, type ChannelConnection } from "../api/useChannelsData";
 import { ChannelAgentSelect } from "./ChannelAgentSelect";
 import { ChannelAiSelect } from "./ChannelAiSelect";
 import { WebChatWidgetForm } from "./WebChatWidgetForm";
@@ -36,6 +36,10 @@ export function ChannelSettings({ channel, open, onClose }: { channel: ChannelCo
         <div className="space-y-8">
           <RenameForm channel={channel} />
 
+          <Group title="Estado">
+            <PowerControl channel={channel} />
+          </Group>
+
           {channel.provider.toLowerCase() !== "webchat" && (
             <Group title="Quién responde">
               <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
@@ -64,6 +68,30 @@ export function ChannelSettings({ channel, open, onClose }: { channel: ChannelCo
         </div>
       )}
     </Modal>
+  );
+}
+
+const POWER_TEXT: Record<ChannelConnection["power"], string> = {
+  on: "Encendido: responde a todos los chats.",
+  stopping: "Apagándose: termina los chats en curso y no acepta nuevos. Se apaga cuando pasan 5 minutos sin mensajes.",
+  off: "Apagado: no responde hasta que lo enciendas.",
+};
+
+function PowerControl({ channel }: { channel: ChannelConnection }) {
+  const power = useChannelPower();
+  const turnOn = channel.power !== "on";
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-4">
+        <p role="status" className="min-w-0 flex-1 text-sm text-neutral-700">
+          {POWER_TEXT[channel.power]}
+        </p>
+        <Button variant="secondary" size="sm" loading={power.isPending} onClick={() => power.mutate({ id: channel.id, on: turnOn })}>
+          {turnOn ? "Encender" : "Apagar"}
+        </Button>
+      </div>
+      <FormError error={power.error} />
+    </div>
   );
 }
 

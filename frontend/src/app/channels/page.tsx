@@ -58,7 +58,13 @@ function ChannelRow({ channel, responder }: { channel: ChannelConnection; respon
         <p className="flex flex-wrap items-center gap-2">
           <span className="truncate text-sm font-medium text-neutral-950">{channel.name}</span>
           {channel.status === "Pending" && <Badge tone="warning">Falta escanear el QR</Badge>}
-          {channel.status === "Disconnected" && <Badge tone="danger">Desconectado</Badge>}
+          {channel.power === "off" ? (
+            <Badge>Apagado</Badge>
+          ) : channel.power === "stopping" ? (
+            <Badge tone="warning">Apagándose</Badge>
+          ) : (
+            channel.status === "Disconnected" && <Badge tone="danger">Desconectado</Badge>
+          )}
         </p>
         <p className="truncate text-sm text-neutral-600">
           {channel.provider}

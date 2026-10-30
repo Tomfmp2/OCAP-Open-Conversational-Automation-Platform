@@ -74,6 +74,8 @@ public sealed class ChannelConversationService : IConversationResponder
         CancellationToken cancellationToken)
     {
         var userId = ContactUserId(message.ChannelName, tenantId, message.ExternalUserId);
+        if (!await AcceptsAsync(channelConnectionId, userId, cancellationToken)) return null;
+
         if (await _users.GetByIdAsync(userId, cancellationToken) is null)
         {
             var name = string.IsNullOrWhiteSpace(displayName) ? message.ExternalUserId : displayName;
@@ -134,6 +136,28 @@ public sealed class ChannelConversationService : IConversationResponder
 
         await _receiveMessage.RecordReplyAsync(conversation.Id, reply, SenderType.Agent, cancellationToken);
         return reply;
+    }
+
+    /// <summary>
+    /// Un canal apagado no responde. Uno en apagado (<see cref="ChannelShutdown"/>) solo sigue los chats en curso: el
+    /// contacto escribió hace menos de 5 minutos. Los demás mensajes se ignoran sin guardarse.
+    /// </summary>
+    private async Task<bool> AcceptsAsync(Guid? channelConnectionId, Guid contactId, CancellationToken cancellationToken)
+    {
+        if (channelConnectionId is not { } id) return true;
+        var connection = await _connections.FindConnectionAsync(id, cancellationToken);
+        if (connection is null) return true;
+        if (!connection.Enabled)
+        {
+            _logger.LogInformation("Mensaje ignorado: el canal {ConnectionId} está apagado.", id);
+            return false;
+        }
+        if (!ChannelShutdown.IsShuttingDown(connection.ConfigurationMetadata)) return true;
+
+        var conversation = await _conversations.GetByUserIdAsync(contactId, cancellationToken);
+        var ongoing = conversation is not null && ChannelShutdown.IsOngoing(conversation.LastActivityAt, DateTime.UtcNow);
+        if (!ongoing) _logger.LogInformation("Mensaje ignorado: el canal {ConnectionId} se está apagando y este chat no estaba en curso.", id);
+        return ongoing;
     }
 
     /// <summary>Agente y proveedor de IA asignados a la conexión del canal; null = los de la organización.</summary>

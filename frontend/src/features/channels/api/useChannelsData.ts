@@ -17,6 +17,8 @@ export interface ChannelConnection {
   aiProviderConfigId: string | null;
   /** Solo WebChat: lo necesario para incrustar el widget en el sitio del cliente. */
   widget?: WebChatWidget;
+  /** on: responde; stopping: termina los chats en curso (5 min sin mensajes) y se apaga; off: no responde. */
+  power: "on" | "stopping" | "off";
 }
 
 export interface WebChatWidget {
@@ -48,6 +50,7 @@ function toChannel(item: ConnectionResponse): ChannelConnection {
     accountIdentifier: item.accountIdentifier || null,
     agentId: meta.AgentId ?? null,
     aiProviderConfigId: meta.AiProviderConfigId ?? null,
+    power: !item.enabled ? "off" : meta.ShuttingDownSince ? "stopping" : "on",
     widget:
       item.provider.toLowerCase() === "webchat" && meta.PublicKey
         ? { publicKey: meta.PublicKey, title: meta.WidgetTitle ?? "", allowedOrigins: (meta.AllowedOrigins ?? "").split(",").filter(Boolean) }
@@ -192,5 +195,14 @@ export function useRotateWidgetKey() {
   return useMutation({
     mutationFn: (connectionId: string) => apiClient.post<{ publicKey: string }>(`/api/channels/webchat/${connectionId}/widget/key`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Apagar (gradual: termina los chats en curso) o volver a encender un canal. */
+export function useChannelPower() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (m: { id: string; on: boolean }) => apiClient.post(`/api/channels/${m.id}/${m.on ? "enable" : "shutdown"}`, {}),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
   });
 }

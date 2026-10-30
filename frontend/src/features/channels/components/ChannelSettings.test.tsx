@@ -7,9 +7,11 @@ import { ChannelSettings } from "./ChannelSettings";
 const mutation = () => ({ mutate: vi.fn(), isPending: false, error: null, data: undefined, isSuccess: false });
 const rename = mutation();
 const remove = mutation();
+const power = mutation();
 vi.mock("../api/useChannelsData", () => ({
   useRenameChannel: () => rename,
   useDeleteChannel: () => remove,
+  useChannelPower: () => power,
   useConfigureWidget: () => mutation(),
   useRotateWidgetKey: () => mutation(),
   useAssignChannelAgent: () => mutation(),
@@ -27,9 +29,25 @@ const channel: ChannelConnection = {
   accountIdentifier: null,
   agentId: null,
   aiProviderConfigId: null,
+  power: "on",
 };
 
 describe("ChannelSettings", () => {
+  it("apagar pide el apagado gradual del canal", async () => {
+    render(<ChannelSettings channel={channel} open onClose={vi.fn()} />);
+    expect(screen.getByText(/Encendido: responde/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Apagar" }));
+
+    expect(power.mutate).toHaveBeenCalledWith({ id: "ch1", on: false });
+  });
+
+  it("un canal apagándose explica que termina los chats en curso y se puede volver a encender", () => {
+    render(<ChannelSettings channel={{ ...channel, power: "stopping" }} open onClose={vi.fn()} />);
+    expect(screen.getByText(/termina los chats en curso/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Encender" })).toBeInTheDocument();
+  });
+
   afterEach(() => {
     cleanup();
     rename.mutate.mockReset();

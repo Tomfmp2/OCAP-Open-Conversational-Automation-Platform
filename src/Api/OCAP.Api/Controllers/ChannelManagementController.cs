@@ -254,7 +254,10 @@ public class ChannelManagementController : ControllerBase
     // POST /api/channels/{id}/enable - Habilita una conexión de canal.
     [HttpPost("{id:guid}/enable")]
     [Authorize(Policy = OcapPermissions.ChannelManage)]
-    public async Task<IActionResult> EnableChannel(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> EnableChannel(
+        Guid id,
+        [FromServices] OCAP.Channels.Telegram.Services.TelegramApiClient telegram,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -264,16 +267,50 @@ public class ChannelManagementController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto no válido.", Data = null });
         }
 
+        var before = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
         var success = await _connectionManager.EnableChannelAsync(tenantId, id, cancellationToken);
-        if (!success)
+        if (!success || before is null)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
         }
+
+        // Un bot de Telegram apagado acumula los mensajes que le escribieron; al encenderlo no se responden tarde.
+        if (!before.Enabled && before.Provider == "Telegram"
+            && before.ConfigurationMetadata.GetValueOrDefault("ConnectionMode") != "webhook"
+            && await _connectionManager.GetCredentialsAsync(before, cancellationToken) is { Length: > 0 } token)
+        {
+            await telegram.DeleteWebhookAsync(token, cancellationToken, dropPendingUpdates: true);
+        }
+
+        // Encender también cancela un apagado en curso.
+        await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelShutdown.ShuttingDownSinceKey, null, cancellationToken);
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
         await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Enabled", $"Conexión de canal {id} habilitada.", ipAddress, true, cancellationToken);
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión habilitada exitosamente.", Data = null });
+    }
+
+    /// <summary>
+    /// Apagado gradual: no acepta chats nuevos y sigue los que están en curso hasta 5 minutos sin mensajes; después
+    /// el canal queda apagado hasta que se encienda de nuevo.
+    /// </summary>
+    [HttpPost("{id:guid}/shutdown")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> ShutDownChannel(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var connection = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
+        if (connection is null) return NotFound();
+        if (!connection.Enabled) return NoContent();
+
+        await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelShutdown.ShuttingDownSinceKey, DateTime.UtcNow.ToString("O"), cancellationToken);
+        await _auditService.LogSecurityEventAsync(tenantId, _userContext.UserId, "Channel_Connection_ShuttingDown",
+            $"Canal {id} en apagado: termina los chats en curso.", HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", true, cancellationToken);
+        return NoContent();
     }
 
     // POST /api/channels/{id}/disable - Deshabilita una conexión de canal.

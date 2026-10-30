@@ -115,15 +115,15 @@ public class TelegramApiClient
         }
     }
 
-    // Elimina la URL del Webhook en Telegram API.
-    public async Task<bool> DeleteWebhookAsync(string? overrideToken = null, CancellationToken cancellationToken = default)
+    // Elimina la URL del Webhook en Telegram API. Con dropPendingUpdates descarta además los mensajes sin entregar.
+    public async Task<bool> DeleteWebhookAsync(string? overrideToken = null, CancellationToken cancellationToken = default, bool dropPendingUpdates = false)
     {
         var token = !string.IsNullOrWhiteSpace(overrideToken) ? overrideToken : _options.BotToken;
         if (string.IsNullOrWhiteSpace(token)) return false;
 
         try
         {
-            var url = $"https://api.telegram.org/bot{token}/deleteWebhook";
+            var url = $"https://api.telegram.org/bot{token}/deleteWebhook{(dropPendingUpdates ? "?drop_pending_updates=true" : string.Empty)}";
             var response = await _httpClient.PostAsync(url, null, cancellationToken);
             return response.IsSuccessStatusCode;
         }
