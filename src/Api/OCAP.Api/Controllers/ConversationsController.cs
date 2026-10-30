@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OCAP.Application.UseCases;
@@ -17,6 +19,7 @@ public record ConversationSummaryDto(
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.ConversationRead)]
 public class ConversationsController : ControllerBase
 {
     private readonly GetConversationHistoryUseCase _getConversationHistoryUseCase;
@@ -98,6 +101,7 @@ public class ConversationsController : ControllerBase
 
     // DELETE /api/conversations/{id} - Elimina una conversación de la base de datos
     [HttpDelete("{id}")]
+    [Authorize(Policy = OcapPermissions.ConversationWrite)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var conversation = await _dbContext.Conversations.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);

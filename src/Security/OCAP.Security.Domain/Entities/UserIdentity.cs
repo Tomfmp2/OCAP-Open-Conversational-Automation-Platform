@@ -12,8 +12,12 @@ public class UserIdentity
     public bool IsActive { get; private set; } = true;
     public bool IsLocked { get; private set; } = false;
     public DateTime? LockoutEndUtc { get; private set; }
+    /// <summary>Contraseñas incorrectas seguidas desde el último login correcto.</summary>
+    public int FailedLoginCount { get; private set; }
     public bool IsEmailVerified { get; private set; } = false;
+    /// <summary>Hash (SHA-256) del enlace de un solo uso para definir la contraseña: invitación o recuperación.</summary>
     public string? PasswordResetToken { get; private set; }
+    public DateTime? PasswordResetTokenExpiresUtc { get; private set; }
     public string? InviteToken { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -42,7 +46,7 @@ public class UserIdentity
     {
         PasswordHash = newPasswordHash;
         Salt = newSalt;
-        PasswordResetToken = null;
+        ClearPasswordResetToken();
     }
 
     public void ChangeEmail(string email)
@@ -70,6 +74,27 @@ public class UserIdentity
     {
         IsLocked = false;
         LockoutEndUtc = null;
+        FailedLoginCount = 0;
+    }
+
+    /// <summary>Bloqueado ahora: un bloqueo temporal vencido ya no cuenta.</summary>
+    public bool IsLockedOut(DateTime utcNow) => IsLocked && (LockoutEndUtc is null || LockoutEndUtc > utcNow);
+
+    /// <summary>Cuenta una contraseña incorrecta; al llegar a <paramref name="maxAttempts"/> bloquea por <paramref name="lockout"/>.</summary>
+    public void RegisterFailedLogin(int maxAttempts, TimeSpan lockout)
+    {
+        FailedLoginCount++;
+        if (FailedLoginCount >= maxAttempts)
+        {
+            Lock(lockout);
+            FailedLoginCount = 0;
+        }
+    }
+
+    public void RegisterSuccessfulLogin()
+    {
+        FailedLoginCount = 0;
+        if (IsLocked && LockoutEndUtc <= DateTime.UtcNow) Unlock();
     }
 
     public void VerifyEmail()
@@ -77,13 +102,32 @@ public class UserIdentity
         IsEmailVerified = true;
     }
 
-    public void SetPasswordResetToken(string token)
+    /// <summary>Guarda el hash de un enlace para definir la contraseña; reemplaza cualquier enlace anterior.</summary>
+    public void IssuePasswordSetup(string tokenHash, DateTime expiresUtc)
     {
-        PasswordResetToken = token;
+        PasswordResetToken = tokenHash;
+        PasswordResetTokenExpiresUtc = expiresUtc;
+    }
+
+    public bool HasValidPasswordSetup(string tokenHash, DateTime utcNow) =>
+        PasswordResetToken is not null
+        && PasswordResetTokenExpiresUtc > utcNow
+        && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.ASCII.GetBytes(PasswordResetToken), System.Text.Encoding.ASCII.GetBytes(tokenHash));
+
+    /// <summary>Define la contraseña con el enlace: lo consume, verifica el correo y levanta un bloqueo por intentos.</summary>
+    public void CompletePasswordSetup(string passwordHash, string salt)
+    {
+        PasswordHash = passwordHash;
+        Salt = salt;
+        ClearPasswordResetToken();
+        IsEmailVerified = true;
+        Unlock();
     }
 
     public void ClearPasswordResetToken()
     {
         PasswordResetToken = null;
+        PasswordResetTokenExpiresUtc = null;
     }
 }

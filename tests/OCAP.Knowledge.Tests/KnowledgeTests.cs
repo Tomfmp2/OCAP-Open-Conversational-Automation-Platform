@@ -29,6 +29,7 @@ public class KnowledgeTests
         {
             new PdfDocumentParser(),
             new DocxDocumentParser(),
+            new XlsxDocumentParser(),
             new TxtDocumentParser(),
             new MarkdownDocumentParser(),
             new CsvDocumentParser(),
@@ -39,7 +40,8 @@ public class KnowledgeTests
 
         var factory = new DocumentParserFactory(parsers);
 
-        foreach (var type in Enum.GetValues<DocumentType>())
+        // PDF, Word y Excel son binarios y tienen sus propios tests con archivos reales (DocumentReadingTests).
+        foreach (var type in Enum.GetValues<DocumentType>().Except([DocumentType.Pdf, DocumentType.Docx, DocumentType.Xlsx]))
         {
             var parser = factory.GetParser(type);
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Sample content text for testing document ingestion."));
@@ -191,6 +193,37 @@ public class KnowledgeTests
         Assert.NotNull(doc);
         Assert.Equal(DocumentStatus.Indexed, doc.Status);
         Assert.NotEmpty(searchResults);
+    }
+
+    [Fact]
+    public async Task SearchInBases_OnlyReturnsDocumentsOfTheChosenCollections()
+    {
+        var kbRepo = new InMemoryKnowledgeBaseRepository();
+        var docRepo = new InMemoryKnowledgeDocumentRepository();
+        var chunkRepo = new InMemoryKnowledgeChunkRepository();
+        var generator = new EmbeddingGenerator(
+            [new FakeEmbeddingProvider()],
+            Options.Create(new KnowledgeOptions { DefaultEmbeddingProvider = "Fake", DefaultEmbeddingModel = "unit" }));
+        var vectorDb = new InMemoryVectorDatabase(NullLogger<InMemoryVectorDatabase>.Instance);
+        var retriever = new KnowledgeRetriever(vectorDb, generator, chunkRepo, docRepo, NullLogger<KnowledgeRetriever>.Instance);
+        var service = new KnowledgeService(kbRepo, docRepo, chunkRepo, new InMemoryDocumentProcessingJobRepository(),
+            new DocumentParserFactory([new TxtDocumentParser()]), new ChunkerFactory([new ParagraphChunker()]),
+            generator, vectorDb, retriever, new FileUploadValidator(), NullLogger<KnowledgeService>.Instance);
+
+        var tenantId = Guid.NewGuid();
+        var prices = await service.CreateKnowledgeBaseAsync(tenantId, "Precios", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        var hours = await service.CreateKnowledgeBaseAsync(tenantId, "Horarios", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        var other = await service.CreateKnowledgeBaseAsync(tenantId, "Interno", "", ChunkingStrategy.Paragraph, VectorDbProviderType.PgVector);
+        foreach (var (kb, text) in new[] { (prices, "El pan cuesta 2 euros en la tienda."), (hours, "La tienda abre a las 9."), (other, "Clave interna de la tienda.") })
+        {
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
+            await service.UploadDocumentAsync(tenantId, kb.Id, stream, $"{kb.Name}.txt", DocumentType.Txt, DocumentCategory.General);
+        }
+
+        var results = await retriever.SearchInBasesAsync(tenantId, [prices.Id, hours.Id], "tienda", topK: 5, minScore: 0);
+
+        Assert.NotEmpty(results);
+        Assert.DoesNotContain(results, r => r.Content.Contains("Clave interna"));
     }
 
     [Theory]
@@ -366,7 +399,10 @@ public class EmbeddingProviderTests
         var vectors = await provider.GenerateEmbeddingsAsync(["local"], "nomic-embed-text");
 
         Assert.Single(vectors);
-        Assert.Equal([0.7f, 0.1f, 0.2f], vectors[0].Values);
+        // Se completa con ceros hasta la dimensión de la columna: la similitud coseno no cambia.
+        Assert.Equal(1536, vectors[0].Values.Length);
+        Assert.Equal([0.7f, 0.1f, 0.2f], vectors[0].Values[..3]);
+        Assert.All(vectors[0].Values[3..], v => Assert.Equal(0f, v));
         Assert.Equal("Ollama", vectors[0].Provider);
     }
 
@@ -454,7 +490,7 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
 {
     public string ProviderName => "Fake";
 
-    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<KnowledgeChunk> chunks, string model, CancellationToken cancellationToken = default)
+    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<KnowledgeChunk> chunks, string model, EmbeddingCredential? credential = null, CancellationToken cancellationToken = default)
     {
         var vectors = chunks.Select(c => new EmbeddingVector(
             c.Id,
@@ -469,7 +505,7 @@ internal sealed class FakeEmbeddingProvider : IEmbeddingProvider
         return Task.FromResult(vectors);
     }
 
-    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<string> texts, string model, CancellationToken cancellationToken = default)
+    public Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(List<string> texts, string model, EmbeddingCredential? credential = null, CancellationToken cancellationToken = default)
     {
         var vectors = texts.Select(t => new EmbeddingVector(Guid.NewGuid(), ProviderName, model, 8, TextToVector(t))).ToList();
         return Task.FromResult(vectors);

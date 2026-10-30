@@ -49,6 +49,7 @@ public sealed class OpenAiEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<KnowledgeChunk> chunks,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(chunks);
@@ -57,6 +58,7 @@ public sealed class OpenAiEmbeddingProvider : IEmbeddingProvider
         var vectors = await EmbedTextsAsync(
             chunks.Select(c => c.Content).ToList(),
             model,
+            credential,
             cancellationToken);
 
         if (vectors.Count != chunks.Count)
@@ -70,24 +72,27 @@ public sealed class OpenAiEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<string> texts,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(texts);
-        var vectors = await EmbedTextsAsync(texts, model, cancellationToken);
+        var vectors = await EmbedTextsAsync(texts, model, credential, cancellationToken);
         return vectors
             .Select((v, i) => EmbeddingVectorFactory.FromText(Guid.NewGuid(), ProviderName, model, v))
             .ToList();
     }
 
-    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, CancellationToken cancellationToken)
+    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, EmbeddingCredential? credential, CancellationToken cancellationToken)
     {
         var cfg = _options.OpenAI;
-        var apiKey = ResolveApiKey(cfg.ApiKey);
+        // La key de la organización (IA y modelos) tiene prioridad sobre la del .env.
+        var apiKey = !string.IsNullOrWhiteSpace(credential?.ApiKey) ? credential.ApiKey : ResolveApiKey(cfg.ApiKey);
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "mock-key")
             throw new InvalidOperationException("OpenAI embedding API key is not configured (Knowledge:OpenAI:ApiKey or AiProviders:OpenAI:ApiKey).");
 
         var resolvedModel = string.IsNullOrWhiteSpace(model) ? cfg.DefaultModel : model;
-        var baseUrl = string.IsNullOrWhiteSpace(cfg.BaseUrl) ? "https://api.openai.com/v1" : cfg.BaseUrl.TrimEnd('/');
+        var configuredBase = credential?.BaseUrl ?? cfg.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configuredBase) ? "https://api.openai.com/v1" : configuredBase.TrimEnd('/');
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/embeddings");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -162,12 +167,13 @@ public sealed class GeminiEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<KnowledgeChunk> chunks,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(chunks);
         if (chunks.Count == 0) return [];
 
-        var vectors = await EmbedTextsAsync(chunks.Select(c => c.Content).ToList(), model, cancellationToken);
+        var vectors = await EmbedTextsAsync(chunks.Select(c => c.Content).ToList(), model, credential, cancellationToken);
         if (vectors.Count != chunks.Count)
             throw new InvalidOperationException($"Gemini returned {vectors.Count} embeddings for {chunks.Count} chunks.");
 
@@ -179,26 +185,28 @@ public sealed class GeminiEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<string> texts,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(texts);
-        var vectors = await EmbedTextsAsync(texts, model, cancellationToken);
+        var vectors = await EmbedTextsAsync(texts, model, credential, cancellationToken);
         return vectors
             .Select(v => EmbeddingVectorFactory.FromText(Guid.NewGuid(), ProviderName, model, v))
             .ToList();
     }
 
-    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, CancellationToken cancellationToken)
+    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, EmbeddingCredential? credential, CancellationToken cancellationToken)
     {
         var cfg = _options.Gemini;
-        var apiKey = ResolveApiKey(cfg.ApiKey);
+        var apiKey = !string.IsNullOrWhiteSpace(credential?.ApiKey) ? credential.ApiKey : ResolveApiKey(cfg.ApiKey);
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "mock-key")
             throw new InvalidOperationException("Gemini embedding API key is not configured (Knowledge:Gemini:ApiKey or AiProviders:Gemini:ApiKey).");
 
         var resolvedModel = string.IsNullOrWhiteSpace(model) ? cfg.DefaultModel : model;
-        var baseUrl = string.IsNullOrWhiteSpace(cfg.BaseUrl)
+        var configuredBase = credential?.BaseUrl ?? cfg.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configuredBase)
             ? "https://generativelanguage.googleapis.com/v1beta"
-            : cfg.BaseUrl.TrimEnd('/');
+            : configuredBase.TrimEnd('/');
 
         // Prefer batch endpoint when available; fall back to per-text embedContent.
         if (texts.Count > 1)
@@ -325,12 +333,13 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<KnowledgeChunk> chunks,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(chunks);
         if (chunks.Count == 0) return [];
 
-        var vectors = await EmbedTextsAsync(chunks.Select(c => c.Content).ToList(), model, cancellationToken);
+        var vectors = await EmbedTextsAsync(chunks.Select(c => c.Content).ToList(), model, credential, cancellationToken);
         if (vectors.Count != chunks.Count)
             throw new InvalidOperationException($"Ollama returned {vectors.Count} embeddings for {chunks.Count} chunks.");
 
@@ -342,25 +351,27 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider
     public async Task<List<EmbeddingVector>> GenerateEmbeddingsAsync(
         List<string> texts,
         string model,
+        EmbeddingCredential? credential = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(texts);
-        var vectors = await EmbedTextsAsync(texts, model, cancellationToken);
+        var vectors = await EmbedTextsAsync(texts, model, credential, cancellationToken);
         return vectors
             .Select(v => EmbeddingVectorFactory.FromText(Guid.NewGuid(), ProviderName, model, v))
             .ToList();
     }
 
-    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, CancellationToken cancellationToken)
+    private async Task<List<float[]>> EmbedTextsAsync(List<string> texts, string model, EmbeddingCredential? credential, CancellationToken cancellationToken)
     {
         var cfg = _options.Ollama;
         var resolvedModel = string.IsNullOrWhiteSpace(model) ? cfg.DefaultModel : model;
-        var baseUrl = string.IsNullOrWhiteSpace(cfg.BaseUrl) ? "http://localhost:11434" : cfg.BaseUrl.TrimEnd('/');
+        var configuredBase = credential?.BaseUrl ?? cfg.BaseUrl;
+        var baseUrl = string.IsNullOrWhiteSpace(configuredBase) ? "http://localhost:11434" : configuredBase.TrimEnd('/');
 
         // Prefer /api/embed (batch) then fall back to /api/embeddings.
         try
         {
-            return await EmbedBatchAsync(baseUrl, resolvedModel, texts, cancellationToken);
+            return PadToColumn(await EmbedBatchAsync(baseUrl, resolvedModel, texts, cancellationToken), resolvedModel);
         }
         catch (Exception ex)
         {
@@ -373,7 +384,23 @@ public sealed class OllamaEmbeddingProvider : IEmbeddingProvider
             result.Add(await EmbedOneAsync(baseUrl, resolvedModel, text, cancellationToken));
         }
 
-        return result;
+        return PadToColumn(result, resolvedModel);
+    }
+
+    /// <summary>
+    /// Los modelos de Ollama dan otras dimensiones (nomic-embed-text: 768) y la columna de pgvector es fija. Completar
+    /// con ceros no cambia el producto punto ni la norma, así que la similitud coseno queda exactamente igual.
+    /// </summary>
+    private List<float[]> PadToColumn(List<float[]> vectors, string model)
+    {
+        var target = _options.EmbeddingDimensions;
+        return vectors.Select(v => v.Length switch
+        {
+            _ when v.Length == target => v,
+            _ when v.Length < target => [.. v, .. new float[target - v.Length]],
+            _ => throw new InvalidOperationException(
+                $"El modelo de Ollama '{model}' genera {v.Length} dimensiones y la base admite hasta {target}. Usa un modelo de embeddings más chico (p. ej. nomic-embed-text).")
+        }).ToList();
     }
 
     private async Task<List<float[]>> EmbedBatchAsync(
@@ -430,16 +457,18 @@ public sealed class EmbeddingGenerator : IEmbeddingGenerator
 {
     private readonly IEnumerable<IEmbeddingProvider> _providers;
     private readonly KnowledgeOptions _options;
+    private readonly IEmbeddingTargetResolver? _targets;
 
     public EmbeddingGenerator(IEnumerable<IEmbeddingProvider> providers)
         : this(providers, Microsoft.Extensions.Options.Options.Create(new KnowledgeOptions()))
     {
     }
 
-    public EmbeddingGenerator(IEnumerable<IEmbeddingProvider> providers, IOptions<KnowledgeOptions> options)
+    public EmbeddingGenerator(IEnumerable<IEmbeddingProvider> providers, IOptions<KnowledgeOptions> options, IEmbeddingTargetResolver? targets = null)
     {
         _providers = providers ?? throw new ArgumentNullException(nameof(providers));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _targets = targets;
     }
 
     public async Task<float[]> GenerateVectorAsync(
@@ -448,12 +477,11 @@ public sealed class EmbeddingGenerator : IEmbeddingGenerator
         string? model = null,
         CancellationToken cancellationToken = default)
     {
-        var resolvedProvider = string.IsNullOrWhiteSpace(provider) ? _options.DefaultEmbeddingProvider : provider;
-        var resolvedModel = string.IsNullOrWhiteSpace(model) ? _options.DefaultEmbeddingModel : model;
-        var target = ResolveProvider(resolvedProvider);
-        var vectors = await target.GenerateEmbeddingsAsync(new List<string> { text }, resolvedModel, cancellationToken);
+        var target = await ResolveAsync(provider, model, cancellationToken);
+        var vectors = await ResolveProvider(target.Provider)
+            .GenerateEmbeddingsAsync(new List<string> { text }, target.Model, target.Credential, cancellationToken);
         return vectors.FirstOrDefault()?.Values
-               ?? throw new InvalidOperationException($"Embedding provider '{resolvedProvider}' returned no vector.");
+               ?? throw new InvalidOperationException($"Embedding provider '{target.Provider}' returned no vector.");
     }
 
     public async Task<List<EmbeddingVector>> GenerateVectorsForChunksAsync(
@@ -462,10 +490,23 @@ public sealed class EmbeddingGenerator : IEmbeddingGenerator
         string? model = null,
         CancellationToken cancellationToken = default)
     {
-        var resolvedProvider = string.IsNullOrWhiteSpace(provider) ? _options.DefaultEmbeddingProvider : provider;
-        var resolvedModel = string.IsNullOrWhiteSpace(model) ? _options.DefaultEmbeddingModel : model;
-        var target = ResolveProvider(resolvedProvider);
-        return await target.GenerateEmbeddingsAsync(chunks, resolvedModel, cancellationToken);
+        var target = await ResolveAsync(provider, model, cancellationToken);
+        return await ResolveProvider(target.Provider).GenerateEmbeddingsAsync(chunks, target.Model, target.Credential, cancellationToken);
+    }
+
+    // Sin proveedor explícito: el de la organización (IA y modelos) y, si no hay, la configuración global.
+    private async Task<EmbeddingTarget> ResolveAsync(string? provider, string? model, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(provider) && _targets is not null
+            && await _targets.ResolveAsync(cancellationToken) is { } tenantTarget)
+        {
+            return string.IsNullOrWhiteSpace(model) ? tenantTarget : tenantTarget with { Model = model };
+        }
+
+        return new EmbeddingTarget(
+            string.IsNullOrWhiteSpace(provider) ? _options.DefaultEmbeddingProvider : provider,
+            string.IsNullOrWhiteSpace(model) ? _options.DefaultEmbeddingModel : model,
+            null);
     }
 
     private IEmbeddingProvider ResolveProvider(string providerName)

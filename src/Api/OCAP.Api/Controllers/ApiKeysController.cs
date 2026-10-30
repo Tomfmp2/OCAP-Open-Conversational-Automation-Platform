@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Security;
 using OCAP.Api.Security;
@@ -8,6 +9,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.SecurityManage)]
 public class ApiKeysController : ControllerBase
 {
     private readonly IApiKeyService _apiKeyService;

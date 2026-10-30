@@ -7,6 +7,11 @@ public class AgentDto
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Status { get; set; } = "Active";
+    public string SystemPrompt { get; set; } = string.Empty;
     public List<string> EnabledTools { get; set; } = new();
+    /// <summary>Colecciones de conocimiento que consulta; vacía, todas.</summary>
+    public List<Guid> KnowledgeBaseIds { get; set; } = new();
+    /// <summary>Recuerda a los contactos entre conversaciones (memoria de la organización).</summary>
+    public bool RememberContacts { get; set; } = true;
     public DateTime CreatedAt { get; set; }
 }

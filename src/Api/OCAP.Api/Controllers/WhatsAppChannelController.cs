@@ -1,5 +1,9 @@
+using OCAP.Api.Services;
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Channels.WhatsApp.Evolution;
 using OCAP.Channels.WhatsApp.Services;
 using OCAP.Security.Abstractions;
 
@@ -16,19 +20,18 @@ public class CreateWhatsAppConnectionRequest
     public string DisplayName { get; set; } = string.Empty;
     public string PhoneNumberId { get; set; } = string.Empty;
     public string ApiToken { get; set; } = string.Empty;
-}
-
-public class CreateWhatsAppQrRequest
-{
-    public string DisplayName { get; set; } = string.Empty;
-    public string? InstanceName { get; set; }
+    /// <summary>App Secret de la app de Meta: firma los webhooks. Se guarda cifrado en la conexión.</summary>
+    public string AppSecret { get; set; } = string.Empty;
 }
 
 [ApiController]
 [Route("api/channels/whatsapp")]
+[Authorize(Policy = OcapPermissions.ChannelManage)]
 public class WhatsAppChannelController : ControllerBase
 {
     private readonly IWhatsAppRuntimeManager _whatsAppRuntime;
+    private readonly WhatsAppLinkService _link;
+    private readonly EvolutionApiClient _evolution;
     private readonly ITenantContext _tenantContext;
     private readonly IUserContext _userContext;
     private readonly ISecurityAuditService _auditService;
@@ -36,108 +39,113 @@ public class WhatsAppChannelController : ControllerBase
 
     public WhatsAppChannelController(
         IWhatsAppRuntimeManager whatsAppRuntime,
+        WhatsAppLinkService link,
+        EvolutionApiClient evolution,
         ITenantContext tenantContext,
         IUserContext userContext,
         ISecurityAuditService auditService,
         ILogger<WhatsAppChannelController> logger)
     {
         _whatsAppRuntime = whatsAppRuntime;
+        _link = link;
+        _evolution = evolution;
         _tenantContext = tenantContext;
         _userContext = userContext;
         _auditService = auditService;
         _logger = logger;
     }
 
-    /// <summary>Conexión fácil vía Evolution API: crea instancia y devuelve QR para escanear.</summary>
-    [HttpPost("connect-qr")]
-    public async Task<IActionResult> ConnectWithQr([FromBody] CreateWhatsAppQrRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Vincula el WhatsApp de la organización con Evolution: devuelve el QR para escanear desde el teléfono
+    /// (WhatsApp → Dispositivos vinculados), o el estado vinculado si ya lo estaba. Es idempotente.
+    /// </summary>
+    [HttpPost("link")]
+    [ProducesResponseType(typeof(WhatsAppLinkStatus), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Link(CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
-        if (tenantId == Guid.Empty)
-        {
-            return Unauthorized(new ApiResponse<object> { Success = false, Message = "Tenant no identificado.", Data = null });
-        }
-
-        if (request == null || string.IsNullOrWhiteSpace(request.DisplayName))
-        {
-            return BadRequest(new ApiResponse<object> { Success = false, Message = "DisplayName es requerido.", Data = null });
-        }
+        if (tenantId == Guid.Empty) return Unauthorized();
 
         try
         {
-            var result = await _whatsAppRuntime.ConnectWithQrAsync(
-                tenantId,
-                request.DisplayName.Trim(),
-                request.InstanceName,
-                cancellationToken);
-
+            var status = await _link.LinkAsync(tenantId, cancellationToken);
             await _auditService.LogSecurityEventAsync(
                 tenantId,
                 _userContext.UserId,
-                "WhatsAppEvolutionQrCreated",
-                $"WhatsApp Evolution instance {result.InstanceName} creada.",
+                "WhatsAppLinkRequested",
+                "Se solicitó vincular WhatsApp por QR.",
                 HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
                 true,
                 cancellationToken);
-
-            return Ok(new ApiResponse<object>
-            {
-                Success = true,
-                Message = "Escanea el QR con WhatsApp (Dispositivos vinculados).",
-                Data = new
-                {
-                    connectionId = result.Connection.Id,
-                    instanceName = result.InstanceName,
-                    qrBase64 = result.Qr.Base64,
-                    qrCode = result.Qr.Code,
-                    pairingCode = result.Qr.PairingCode,
-                    status = result.Qr.Status
-                }
-            });
+            return Ok(status);
         }
-        catch (Exception ex)
+        catch (WhatsAppNotConfiguredException ex)
         {
-            _logger.LogError(ex, "Error connect-qr WhatsApp Evolution.");
-            return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message, Data = null });
+            return Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "WhatsApp no está configurado", detail: ex.Message);
+        }
+        catch (Exception ex) when (ex is EvolutionApiException or HttpRequestException)
+        {
+            _logger.LogError(ex, "Evolution API falló al vincular WhatsApp.");
+            return Problem(
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "No se pudo contactar el servicio de WhatsApp",
+                detail: "Comprueba que el contenedor evolution-api esté en marcha e inténtalo de nuevo.");
         }
     }
 
-    [HttpGet("qr/{instanceName}")]
-    public async Task<IActionResult> RefreshQr(string instanceName, CancellationToken cancellationToken)
+    /// <summary>Estado de la vinculación; con <c>qr=true</c> incluye el QR vigente mientras está pendiente.</summary>
+    [HttpGet("link")]
+    [ProducesResponseType(typeof(WhatsAppLinkStatus), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLink([FromQuery] bool qr, CancellationToken cancellationToken)
     {
-        if (_tenantContext.TenantId == Guid.Empty)
-        {
-            return Unauthorized();
-        }
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
 
-        var qr = await _whatsAppRuntime.RefreshQrAsync(instanceName, cancellationToken);
-        return Ok(new ApiResponse<object>
+        try
         {
-            Success = !string.IsNullOrWhiteSpace(qr.Base64),
-            Message = "QR Evolution",
-            Data = new { instanceName = qr.InstanceName, qrBase64 = qr.Base64, qrCode = qr.Code, pairingCode = qr.PairingCode, status = qr.Status }
-        });
+            return Ok(await _link.GetStatusAsync(tenantId, qr, cancellationToken));
+        }
+        catch (Exception ex) when (ex is EvolutionApiException or HttpRequestException)
+        {
+            _logger.LogError(ex, "Evolution API falló al consultar el estado de WhatsApp.");
+            return Problem(statusCode: StatusCodes.Status502BadGateway, title: "No se pudo contactar el servicio de WhatsApp");
+        }
     }
 
-    [HttpGet("evolution/state/{instanceName}")]
-    public async Task<IActionResult> EvolutionState(string instanceName, CancellationToken cancellationToken)
+    /// <summary>Desvincula el número: cierra la sesión en el teléfono y borra la instancia.</summary>
+    [HttpDelete("link")]
+    public async Task<IActionResult> Unlink(CancellationToken cancellationToken)
     {
-        if (_tenantContext.TenantId == Guid.Empty)
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        try
         {
-            return Unauthorized();
+            await _link.UnlinkAsync(tenantId, cancellationToken);
+        }
+        catch (Exception ex) when (ex is EvolutionApiException or HttpRequestException)
+        {
+            _logger.LogError(ex, "Evolution API falló al desvincular WhatsApp.");
+            return Problem(statusCode: StatusCodes.Status502BadGateway, title: "No se pudo contactar el servicio de WhatsApp");
         }
 
-        var state = await _whatsAppRuntime.GetEvolutionStateAsync(instanceName, cancellationToken);
-        return Ok(new ApiResponse<object>
-        {
-            Success = true,
-            Message = state.State,
-            Data = new { instanceName = state.InstanceName, state = state.State, isOpen = state.IsOpen }
-        });
+        await _auditService.LogSecurityEventAsync(
+            tenantId,
+            _userContext.UserId,
+            "WhatsAppUnlinked",
+            "WhatsApp desvinculado.",
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+            true,
+            cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("connect")]
-    public async Task<IActionResult> ConnectChannel([FromBody] CreateWhatsAppConnectionRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> ConnectChannel(
+        [FromBody] CreateWhatsAppConnectionRequest request,
+        [FromServices] ICredentialVault vault,
+        [FromServices] OCAP.Channels.Abstractions.Contracts.IChannelConnectionManager connections,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -147,9 +155,10 @@ public class WhatsAppChannelController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Tenant no identificado.", Data = null });
         }
 
-        if (request == null || string.IsNullOrWhiteSpace(request.PhoneNumberId) || string.IsNullOrWhiteSpace(request.ApiToken) || string.IsNullOrWhiteSpace(request.DisplayName))
+        if (request == null || string.IsNullOrWhiteSpace(request.PhoneNumberId) || string.IsNullOrWhiteSpace(request.ApiToken)
+            || string.IsNullOrWhiteSpace(request.DisplayName) || string.IsNullOrWhiteSpace(request.AppSecret))
         {
-            return BadRequest(new ApiResponse<object> { Success = false, Message = "DisplayName, PhoneNumberId y ApiToken son requeridos (modo Cloud). Para QR usa POST /connect-qr.", Data = null });
+            return BadRequest(new ApiResponse<object> { Success = false, Message = "Nombre, Phone number ID, token de acceso y App Secret son requeridos (modo Cloud). Para vincular por QR usa POST /link.", Data = null });
         }
 
         try
@@ -160,6 +169,13 @@ public class WhatsAppChannelController : ControllerBase
                 request.PhoneNumberId,
                 request.ApiToken,
                 cancellationToken);
+
+            // Secretos del webhook por conexión, sin .env: el App Secret cifrado y un token de verificación generado aquí
+            // (se muestra una sola vez; se guarda su hash).
+            var appSecretRef = await vault.StoreSecretAsync(tenantId, $"whatsapp-app-secret-{connection.Id:N}", request.AppSecret.Trim(), cancellationToken);
+            var verifyToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+            await connections.SetMetadataValueAsync(tenantId, connection.Id, WhatsAppCloudSecrets.AppSecretRefKey, appSecretRef, cancellationToken);
+            await connections.SetMetadataValueAsync(tenantId, connection.Id, WhatsAppCloudSecrets.VerifyTokenHashKey, WhatsAppCloudSecrets.Hash(verifyToken), cancellationToken);
 
             var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
             await _auditService.LogSecurityEventAsync(
@@ -174,47 +190,43 @@ public class WhatsAppChannelController : ControllerBase
             return Created($"/api/channels/connections/{connection.Id}", new ApiResponse<object>
             {
                 Success = true,
-                Message = "Canal de WhatsApp Cloud registrado.",
-                Data = connection
+                Message = "Canal de WhatsApp Cloud registrado. Copia el token de verificación en Meta: no se vuelve a mostrar.",
+                Data = new { connection.Id, connection.DisplayName, verifyToken, webhookPath = "/api/channels/whatsapp/webhook" }
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _logger.LogError(ex, "Error al registrar canal de WhatsApp Cloud.");
             return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message, Data = null });
         }
     }
 
+    /// <summary>Salud del servicio de WhatsApp: con <c>phoneNumberId</c> y <c>apiToken</c> valida WhatsApp Cloud (Meta).</summary>
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus([FromQuery] string? phoneNumberId, [FromQuery] string? apiToken, CancellationToken cancellationToken)
     {
-        WhatsAppHealthResultDto result;
-        if (string.IsNullOrWhiteSpace(phoneNumberId) || string.IsNullOrWhiteSpace(apiToken))
+        if (!string.IsNullOrWhiteSpace(phoneNumberId) && !string.IsNullOrWhiteSpace(apiToken))
         {
-            result = await _whatsAppRuntime.HealthCheckEvolutionAsync(cancellationToken);
-        }
-        else
-        {
-            result = await _whatsAppRuntime.HealthCheckAsync(phoneNumberId, apiToken, cancellationToken);
+            var cloud = await _whatsAppRuntime.HealthCheckAsync(phoneNumberId, apiToken, cancellationToken);
+            return Ok(new ApiResponse<WhatsAppHealthResultDto> { Success = cloud.IsHealthy, Message = cloud.StatusMessage, Data = cloud });
         }
 
-        return Ok(new ApiResponse<WhatsAppHealthResultDto>
-        {
-            Success = result.IsHealthy,
-            Message = result.StatusMessage,
-            Data = result
-        });
+        return await Health(cancellationToken);
     }
 
     [HttpGet("health")]
     public async Task<IActionResult> Health(CancellationToken cancellationToken)
     {
-        var result = await _whatsAppRuntime.HealthCheckEvolutionAsync(cancellationToken);
+        var configured = _link.IsConfigured;
+        var reachable = configured && await _evolution.PingAsync(cancellationToken);
+        var message = !configured
+            ? "WhatsApp no está configurado en el servidor."
+            : reachable ? "Evolution API disponible." : "Evolution API no responde.";
         return Ok(new ApiResponse<object>
         {
-            Success = result.IsHealthy,
-            Message = result.StatusMessage,
-            Data = result
+            Success = reachable,
+            Message = message,
+            Data = new { provider = "Evolution", configured, reachable }
         });
     }
 

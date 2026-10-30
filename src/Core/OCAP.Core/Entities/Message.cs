@@ -7,7 +7,9 @@ public enum SenderType
 {
     User,
     Agent,
-    System
+    System,
+    /// <summary>Una persona del equipo respondiendo desde el panel.</summary>
+    Operator
 }
 
 // Entidad Mensaje en el Dominio DDD.

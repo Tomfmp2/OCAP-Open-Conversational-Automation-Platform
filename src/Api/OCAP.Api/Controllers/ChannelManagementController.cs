@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.DTOs.Requests;
 using OCAP.Api.DTOs.Responses;
@@ -9,6 +11,7 @@ namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/channels")]
+[Authorize(Policy = OcapPermissions.DashboardRead)]
 public class ChannelManagementController : ControllerBase
 {
     private readonly IChannelRegistry _channelRegistry;
@@ -95,6 +98,7 @@ public class ChannelManagementController : ControllerBase
 
     // POST /api/channels/connect - Registra una nueva conexión de canal para el Tenant.
     [HttpPost("connect")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> ConnectChannel(
         [FromBody] CreateChannelConnectionRequest request,
         CancellationToken cancellationToken)
@@ -118,6 +122,28 @@ public class ChannelManagementController : ControllerBase
             {
                 Success = false,
                 Message = "Proveedor y credenciales son obligatorios.",
+                Data = null
+            });
+        }
+
+        if (string.Equals(request.Provider.Trim(), "WhatsApp", StringComparison.OrdinalIgnoreCase))
+        {
+            // WhatsApp tiene sus propios flujos (QR o Cloud API) que fijan la metadata reservada del canal.
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "WhatsApp se conecta con POST /api/channels/whatsapp/link (QR) o /api/channels/whatsapp/connect (Cloud API).",
+                Data = null
+            });
+        }
+
+        if (string.Equals(request.Provider.Trim(), "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            // El bot se identifica con getMe sobre el token (BotId): esa metadata no puede venir del cliente.
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Telegram se conecta con POST /api/channels/telegram/bots.",
                 Data = null
             });
         }
@@ -155,7 +181,7 @@ public class ChannelManagementController : ControllerBase
                 Data = response
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new ApiResponse<object>
             {
@@ -166,9 +192,105 @@ public class ChannelManagementController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Asigna el agente que responde en este canal; <c>agentId</c> null vuelve al agente de atención por defecto.
+    /// </summary>
+    [HttpPut("connections/{id:guid}/agent")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> AssignAgent(
+        Guid id,
+        [FromBody] AssignChannelAgentRequest request,
+        [FromServices] OCAP.Agents.Application.Services.AgentService agents,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        if (request.AgentId is { } agentId)
+        {
+            try
+            {
+                // Filtrado por la organización: un agente de otra organización no existe para esta.
+                await agents.GetAgentAsync(agentId, cancellationToken);
+            }
+            catch (KeyNotFoundException)
+            {
+                return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El agente no existe en esta organización.");
+            }
+        }
+
+        var updated = await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelConversationService.AgentIdMetadataKey, request.AgentId?.ToString(), cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Asigna el proveedor de IA (una configuración de «IA y modelos») que usa este canal; null vuelve al proveedor
+    /// activo de la organización.
+    /// </summary>
+    /// <summary>
+    /// Qué puede usar el agente en este canal: colecciones de conocimiento (vacía = todas) y herramientas. Mandan sobre
+    /// las del agente, así el mismo agente puede atender distinto en cada canal.
+    /// </summary>
+    [HttpPut("connections/{id:guid}/capabilities")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> SetCapabilities(
+        Guid id,
+        [FromBody] ChannelCapabilitiesRequest request,
+        [FromServices] OCAP.Knowledge.Application.Services.KnowledgeService knowledge,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var bases = (request.KnowledgeBaseIds ?? []).Distinct().ToList();
+        var ownBases = (await knowledge.GetKnowledgeBasesAsync(tenantId, cancellationToken)).Select(b => b.Id).ToHashSet();
+        if (bases.Any(b => !ownBases.Contains(b)))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Alguna colección no existe en esta organización.");
+
+        // Solo herramientas pensadas para hablar con clientes: el resto no se puede conceder a un canal.
+        var tools = (request.Tools ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var unknown = tools.Where(t => !OCAP.Agents.Application.Services.ChannelAgentRunner.ContactSafeTools.Contains(t)).ToList();
+        if (unknown.Count > 0)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"Acción no disponible en canales: {string.Join(", ", unknown)}.");
+
+        var ok = await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelConversationService.KnowledgeBasesMetadataKey,
+                     string.Join(',', bases), cancellationToken)
+                 && await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelConversationService.ToolsMetadataKey,
+                     string.Join(',', tools), cancellationToken);
+        return ok ? NoContent() : NotFound();
+    }
+
+    [HttpPut("connections/{id:guid}/ai")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> AssignAiProvider(
+        Guid id,
+        [FromBody] AssignChannelAiRequest request,
+        [FromServices] OCAP.Intelligence.Abstractions.IAiProviderConfigurationService aiConfigurations,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        if (request.AiProviderConfigId is { } configId)
+        {
+            var config = await aiConfigurations.GetConfigurationByIdAsync(tenantId, configId, cancellationToken);
+            if (config is null) return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El proveedor de IA no existe en esta organización.");
+            if (!config.IsEnabled) return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El proveedor de IA está deshabilitado.");
+        }
+
+        var updated = await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelConversationService.AiProviderMetadataKey, request.AiProviderConfigId?.ToString(), cancellationToken);
+        return updated ? NoContent() : NotFound();
+    }
+
     // POST /api/channels/{id}/enable - Habilita una conexión de canal.
     [HttpPost("{id:guid}/enable")]
-    public async Task<IActionResult> EnableChannel(Guid id, CancellationToken cancellationToken)
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> EnableChannel(
+        Guid id,
+        [FromServices] OCAP.Channels.Telegram.Services.TelegramApiClient telegram,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -178,11 +300,23 @@ public class ChannelManagementController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto no válido.", Data = null });
         }
 
+        var before = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
         var success = await _connectionManager.EnableChannelAsync(tenantId, id, cancellationToken);
-        if (!success)
+        if (!success || before is null)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
         }
+
+        // Un bot de Telegram apagado acumula los mensajes que le escribieron; al encenderlo no se responden tarde.
+        if (!before.Enabled && before.Provider == "Telegram"
+            && before.ConfigurationMetadata.GetValueOrDefault("ConnectionMode") != "webhook"
+            && await _connectionManager.GetCredentialsAsync(before, cancellationToken) is { Length: > 0 } token)
+        {
+            await telegram.DeleteWebhookAsync(token, cancellationToken, dropPendingUpdates: true);
+        }
+
+        // Encender también cancela un apagado en curso.
+        await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelShutdown.ShuttingDownSinceKey, null, cancellationToken);
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
         await _auditService.LogSecurityEventAsync(tenantId, userId, "Channel_Connection_Enabled", $"Conexión de canal {id} habilitada.", ipAddress, true, cancellationToken);
@@ -190,8 +324,31 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión habilitada exitosamente.", Data = null });
     }
 
+    /// <summary>
+    /// Apagado gradual: no acepta chats nuevos y sigue los que están en curso hasta 5 minutos sin mensajes; después
+    /// el canal queda apagado hasta que se encienda de nuevo.
+    /// </summary>
+    [HttpPost("{id:guid}/shutdown")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> ShutDownChannel(Guid id, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var connection = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
+        if (connection is null) return NotFound();
+        if (!connection.Enabled) return NoContent();
+
+        await _connectionManager.SetMetadataValueAsync(
+            tenantId, id, OCAP.Api.Services.ChannelShutdown.ShuttingDownSinceKey, DateTime.UtcNow.ToString("O"), cancellationToken);
+        await _auditService.LogSecurityEventAsync(tenantId, _userContext.UserId, "Channel_Connection_ShuttingDown",
+            $"Canal {id} en apagado: termina los chats en curso.", HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", true, cancellationToken);
+        return NoContent();
+    }
+
     // POST /api/channels/{id}/disable - Deshabilita una conexión de canal.
     [HttpPost("{id:guid}/disable")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> DisableChannel(Guid id, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -214,9 +371,32 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = "Conexión deshabilitada exitosamente.", Data = null });
     }
 
-    // DELETE /api/channels/{id} - Elimina una conexión de canal.
+    /// <summary>Cambia el nombre visible del canal.</summary>
+    [HttpPatch("connections/{id:guid}")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> RenameChannel(Guid id, [FromBody] RenameChannelRequest request, CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var name = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 100)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El nombre es obligatorio (máximo 100 caracteres).");
+
+        return await _connectionManager.RenameAsync(tenantId, id, name, cancellationToken) ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Elimina el canal y deja limpio su servicio externo: WhatsApp por QR cierra la sesión del teléfono y borra la
+    /// instancia; un bot de Telegram en modo webhook deja de enviar updates. El resto solo se borra de OCAP.
+    /// </summary>
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> RemoveChannel(Guid id, CancellationToken cancellationToken)
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> RemoveChannel(
+        Guid id,
+        [FromServices] OCAP.Channels.WhatsApp.Services.WhatsAppLinkService whatsApp,
+        [FromServices] OCAP.Channels.Telegram.Services.TelegramApiClient telegram,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -226,10 +406,35 @@ public class ChannelManagementController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Contexto no válido.", Data = null });
         }
 
-        var success = await _connectionManager.RemoveConnectionAsync(tenantId, id, cancellationToken);
-        if (!success)
+        var connection = (await _connectionManager.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id);
+        if (connection is null)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión no encontrada.", Data = null });
+        }
+
+        var mode = connection.ConfigurationMetadata.GetValueOrDefault("ConnectionMode");
+        if (connection.Provider == "WhatsApp" && mode == "evolution")
+        {
+            try
+            {
+                await whatsApp.UnlinkAsync(tenantId, cancellationToken);
+            }
+            catch (Exception ex) when (ex is OCAP.Channels.WhatsApp.Evolution.EvolutionApiException or HttpRequestException)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "No se pudo desvincular WhatsApp",
+                    detail: "Comprueba que el servicio de WhatsApp esté en marcha e inténtalo de nuevo.");
+            }
+        }
+        else
+        {
+            if (connection.Provider == "Telegram" && mode == "webhook")
+            {
+                var token = await _connectionManager.GetCredentialsAsync(connection, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(token)) await telegram.DeleteWebhookAsync(token, cancellationToken);
+            }
+            await _connectionManager.RemoveConnectionAsync(tenantId, id, cancellationToken);
         }
 
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
@@ -295,6 +500,7 @@ public class ChannelManagementController : ControllerBase
 
     // GET /api/channels/{provider}/configuration
     [HttpGet("{provider}/configuration")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> GetProviderConfiguration(string provider, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -348,3 +554,9 @@ public class ChannelManagementController : ControllerBase
         return Ok(new ApiResponse<object> { Success = true, Message = $"Estad?sticas del canal {provider} obtenidas.", Data = response });
     }
 }
+
+public sealed record AssignChannelAgentRequest(Guid? AgentId);
+public sealed record AssignChannelAiRequest(Guid? AiProviderConfigId);
+public sealed record RenameChannelRequest(string DisplayName);
+
+public sealed record ChannelCapabilitiesRequest(List<Guid>? KnowledgeBaseIds, List<string>? Tools);

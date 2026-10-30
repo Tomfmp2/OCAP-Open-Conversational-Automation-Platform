@@ -51,21 +51,32 @@ public class ChannelConnectionTests
     }
 
     [Fact]
-    public async Task CreateConnection_DuplicateProviderForSameTenant_ThrowsInvalidOperationException()
+    public async Task CreateConnection_SeveralTelegramBotsInTheSameTenant_AreAllowed()
     {
-        // Arrange
         using var dbContext = CreateDbContext();
         var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
-        var registry = new ChannelRegistry();
-        var manager = new ChannelConnectionManager(dbContext, vault, registry, NullLogger<ChannelConnectionManager>.Instance);
-
+        var manager = new ChannelConnectionManager(dbContext, vault, new ChannelRegistry(), NullLogger<ChannelConnectionManager>.Instance);
         var tenantId = Guid.NewGuid();
-        await manager.CreateConnectionAsync(tenantId, "Telegram", "Bot 1", "SECRET_1");
 
-        // Act & Assert
-        var act = async () => await manager.CreateConnectionAsync(tenantId, "Telegram", "Bot 2", "SECRET_2");
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*Ya existe una conexión registrada*");
+        await manager.CreateConnectionAsync(tenantId, "Telegram", "Ventas", "SECRET_1");
+        await manager.CreateConnectionAsync(tenantId, "Telegram", "Soporte", "SECRET_2");
+
+        (await manager.GetTenantConnectionsAsync(tenantId)).Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task CreateConnection_SecondWhatsAppInTheSameTenant_Throws()
+    {
+        // WhatsApp por QR es una sola instancia de Evolution por organización.
+        using var dbContext = CreateDbContext();
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!");
+        var manager = new ChannelConnectionManager(dbContext, vault, new ChannelRegistry(), NullLogger<ChannelConnectionManager>.Instance);
+        var tenantId = Guid.NewGuid();
+        await manager.CreateConnectionAsync(tenantId, "WhatsApp", "Tienda", "SECRET_1");
+
+        var act = async () => await manager.CreateConnectionAsync(tenantId, "WhatsApp", "Otra", "SECRET_2");
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Ya hay un canal WhatsApp*");
     }
 
     [Fact]

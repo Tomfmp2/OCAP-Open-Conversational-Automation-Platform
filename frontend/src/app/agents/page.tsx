@@ -1,62 +1,85 @@
 "use client";
 
 import React from "react";
-import { Bot, Plus, RefreshCw } from "lucide-react";
-import { useAgentsData, AgentDto } from "@/features/agents/api/useAgentsData";
-import { AgentCard } from "@/features/agents/components/AgentCard";
-import { ReasoningTraceInspector } from "@/features/agents/components/ReasoningTraceInspector";
-import { CreateAgentModal } from "@/features/agents/components/CreateAgentModal";
-import { AgentsSkeleton } from "@/features/agents/components/AgentsSkeleton";
-import { PageHeader } from "@/shared/components/ui/PageHeader";
-import { Button } from "@/shared/components/ui/Button";
-import { MetricCard } from "@/shared/components/ui/MetricCard";
-import { EmptyState } from "@/shared/components/ui/EmptyState";
-import { ErrorState } from "@/shared/components/ui/ErrorState";
+import { Plus } from "lucide-react";
+import { DEFAULT_AGENT_ID, useAgents, type Agent } from "@/features/agents/api/useAgentsData";
+import { AgentFormModal } from "@/features/agents/components/AgentFormModal";
+import { AgentTestPanel } from "@/features/agents/components/AgentTestPanel";
+import { Badge, Button, ErrorState, ListSkeleton, Page, PageHeader } from "@/shared/components/ui";
 
 export default function AgentsPage() {
- const { data, isLoading, isError, error, refetch, isFetching } = useAgentsData();
- const [modalOpen, setModalOpen] = React.useState(false);
+  const agents = useAgents();
+  const [editing, setEditing] = React.useState<Agent | null>(null);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [testing, setTesting] = React.useState<{ id: string; name: string } | null>(null);
 
- if (isLoading) {
- return <AgentsSkeleton />;
- }
+  const openForm = (agent: Agent | null) => {
+    setEditing(agent);
+    setFormOpen(true);
+  };
 
- if (isError) {
- return <div className="mx-auto max-w-7xl"><ErrorState message={error instanceof Error ? error.message : undefined} onRetry={() => void refetch()} /></div>;
- }
+  return (
+    <Page>
+      <PageHeader
+        title="Agentes"
+        description="Cada agente responde con sus propias instrucciones. Asígnalos a un canal en Canales."
+        actions={
+          <Button onClick={() => openForm(null)}>
+            <Plus className="h-4 w-4" aria-hidden /> Crear agente
+          </Button>
+        }
+      />
 
- const { agents, recentTraces } = data || { agents: [], recentTraces: [] };
+      {agents.isLoading ? (
+        <ListSkeleton label="Cargando agentes" />
+      ) : agents.isError ? (
+        <ErrorState message={agents.error instanceof Error ? agents.error.message : undefined} onRetry={() => void agents.refetch()} />
+      ) : (
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+          <AgentRow
+            name="Agente de atención"
+            summary="Responde en los canales sin un agente asignado. Usa tu conocimiento y puede pasar la conversación a tu equipo."
+            onTest={() => setTesting({ id: DEFAULT_AGENT_ID, name: "Agente de atención" })}
+          />
+          {agents.data?.map((agent) => (
+            <AgentRow
+              key={agent.id}
+              name={agent.name}
+              summary={agent.description || agent.systemPrompt}
+              inactive={agent.status !== "Active"}
+              onTest={() => setTesting({ id: agent.id, name: agent.name })}
+              onEdit={() => openForm(agent)}
+            />
+          ))}
+        </ul>
+      )}
 
- return (
- <div className="mx-auto max-w-7xl space-y-6">
- <PageHeader
- title="Agentes"
- description="Agentes registrados en el runtime y sus herramientas disponibles."
- icon={<Bot className="h-5 w-5 text-neutral-700" />}
- actions={<>
- <Button variant="secondary" size="sm" onClick={() => void refetch()} loading={isFetching}><RefreshCw className="h-3.5 w-3.5" /> Actualizar</Button>
- <Button size="sm" onClick={() => setModalOpen(true)}><Plus className="h-3.5 w-3.5" /> Crear agente</Button>
- </>}
- />
- <div className="max-w-sm"><MetricCard title="Agentes registrados" value={agents.length} icon={Bot} tone="info" /></div>
- {agents.length === 0 ? (
- <EmptyState title="No hay agentes registrados" description="Crea un agente cuando tengas definido su propósito e instrucciones." action={<Button size="sm" onClick={() => setModalOpen(true)}><Plus className="h-4 w-4" /> Crear agente</Button>} />
- ) : (
- <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
- <div className="space-y-4">
- <h2 className="text-sm font-semibold text-neutral-950">Agentes disponibles</h2>
- {agents.map((agent: AgentDto) => (
- <AgentCard key={agent.id} agent={agent} />
- ))}
- </div>
+      <AgentFormModal open={formOpen} agent={editing} onClose={() => setFormOpen(false)} />
+      <AgentTestPanel agent={testing} onClose={() => setTesting(null)} />
+    </Page>
+  );
+}
 
- <div>
- <ReasoningTraceInspector traces={recentTraces} />
- </div>
- </div>
- )}
-
- <CreateAgentModal open={modalOpen} onClose={() => setModalOpen(false)} />
- </div>
- );
+function AgentRow({ name, summary, inactive, onTest, onEdit }: { name: string; summary: string; inactive?: boolean; onTest: () => void; onEdit?: () => void }) {
+  return (
+    <li className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-5">
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 text-sm font-medium text-neutral-950">
+          {name}
+          {inactive && <Badge>Inactivo</Badge>}
+        </p>
+        <p className="mt-0.5 line-clamp-2 text-sm text-neutral-600">{summary}</p>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={onTest} aria-label={`Probar ${name}`}>
+          Probar
+        </Button>
+        {onEdit && (
+          <Button variant="secondary" size="sm" onClick={onEdit} aria-label={`Editar ${name}`}>
+            Editar
+          </Button>
+        )}
+      </div>
+    </li>
+  );
 }

@@ -94,7 +94,7 @@ public class ExternalAuthenticationServiceTests
             .Returns("access_token_jwt");
 
         _refreshTokenMock.Setup(r => r.CreateRefreshTokenAsync(userId, It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new RefreshToken(Guid.NewGuid(), userId, "refresh_token_123", DateTime.UtcNow.AddDays(7)));
+            .ReturnsAsync(new IssuedRefreshToken("refresh_token_123", userId, DateTime.UtcNow.AddDays(7)));
 
         var service = new ExternalAuthenticationService(
             new[] { _providerMock.Object },

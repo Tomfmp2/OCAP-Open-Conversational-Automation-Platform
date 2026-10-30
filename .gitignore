@@ -49,3 +49,12 @@ config/generated.env
 src/Api/OCAP.Api/config/installation.json
 src/Api/OCAP.Api/config/generated.env
 !.gitkeep
+
+# Copias de ocap backup (datos de clientes)
+/backups/
+
+# Estado local del comando ocap (huella de la última construcción)
+.ocap/
+
+# Overrides locales de Compose (el E2E de CI crea uno)
+docker-compose.override.yml

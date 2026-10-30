@@ -1,158 +1,94 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/apiClient";
 
 export interface KnowledgeBase {
- id: string;
- name: string;
- description: string;
- vectorDbProvider: string;
- strategy: string;
- createdAtUtc: string;
- documentCount: number;
- vectorCount: number;
+  id: string;
+  name: string;
+  documentCount: number;
 }
 
-export interface KnowledgeJob {
- id: string;
- status: string;
- type: string;
- createdAtUtc: string;
- completedAtUtc?: string;
+export type DocumentStatus = "Pending" | "Processing" | "Indexed" | "Failed" | "Archived";
+
+export interface KnowledgeDocument {
+  id: string;
+  title: string;
+  fileType: string;
+  status: DocumentStatus;
+  createdAtUtc: string;
 }
 
 export interface KnowledgeSearchResult {
- documentId: string;
- content: string;
- score: number;
- metadata?: Record<string, unknown>;
+  documentTitle: string;
+  content: string;
 }
 
-export interface CreateKnowledgeBasePayload {
- name: string;
- description: string;
- strategy: string;
- vectorDbProvider: string;
+const BASES_KEY = ["knowledge", "bases"];
+const documentsKey = (baseId: string) => ["knowledge", "documents", baseId];
+
+export function useKnowledgeBases() {
+  return useQuery<KnowledgeBase[]>({ queryKey: BASES_KEY, queryFn: () => apiClient.get<KnowledgeBase[]>("/api/knowledge") });
 }
 
-export function useKnowledgeData() {
- const queryClient = useQueryClient();
+export function useKnowledgeDocuments(baseId: string | null) {
+  return useQuery<KnowledgeDocument[]>({
+    queryKey: documentsKey(baseId ?? ""),
+    queryFn: () => apiClient.get<KnowledgeDocument[]>(`/api/knowledge/${baseId}/documents`),
+    enabled: baseId !== null,
+    // Mientras un documento se procesa, la lista se consulta de nuevo para mostrar cuándo queda listo.
+    refetchInterval: (query) => (query.state.data?.some((d) => d.status === "Pending" || d.status === "Processing") ? 3000 : false),
+  });
+}
 
- const listQuery = useQuery<KnowledgeBase[]>({
- queryKey: ["knowledgeBases"],
- queryFn: async () => {
- const data = await apiClient.get<
- Array<{
- id: string;
- name: string;
- description: string;
- vectorDbProvider: string;
- strategy: string;
- createdAtUtc: string;
- documentCount: number;
- vectorCount: number;
- }>
- >("/api/knowledge");
+export function useKnowledgeActions(baseId: string | null) {
+  const queryClient = useQueryClient();
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: BASES_KEY });
+    if (baseId) void queryClient.invalidateQueries({ queryKey: documentsKey(baseId) });
+  };
 
- return data.map((kb) => ({
- id: kb.id,
- name: kb.name,
- description: kb.description,
- vectorDbProvider: kb.vectorDbProvider,
- strategy: kb.strategy,
- createdAtUtc: kb.createdAtUtc,
- documentCount: kb.documentCount ?? 0,
- vectorCount: kb.vectorCount ?? 0,
- }));
- },
- staleTime: 10000,
- });
+  return {
+    createBase: useMutation({
+      mutationFn: (name: string) => apiClient.post<KnowledgeBase>("/api/knowledge", { name, description: "" }),
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: BASES_KEY }),
+    }),
+    upload: useMutation({
+      mutationFn: (file: File) => {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("knowledgeBaseId", baseId ?? "");
+        form.append("category", "General");
+        return apiClient.upload("/api/knowledge/upload", form);
+      },
+      onSettled: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (documentId: string) => apiClient.delete(`/api/knowledge/${documentId}`),
+      onSuccess: refresh,
+    }),
+    reindex: useMutation({
+      mutationFn: () => apiClient.post("/api/knowledge/reindex", { knowledgeBaseId: baseId }),
+      onSuccess: refresh,
+    }),
+    /** Pregunta frecuente o nota escrita en el panel; se indexa como un documento. */
+    addText: useMutation({
+      mutationFn: (m: { title: string; content: string }) => apiClient.post("/api/knowledge/text", { knowledgeBaseId: baseId, ...m }),
+      onSuccess: refresh,
+    }),
+    importUrl: useMutation({
+      mutationFn: (url: string) => apiClient.post("/api/knowledge/url", { knowledgeBaseId: baseId, url }, { timeout: 60_000, skipRetry: true }),
+      onSuccess: refresh,
+    }),
+    search: useMutation({
+      mutationFn: (query: string) => apiClient.get<KnowledgeSearchResult[]>(`/api/knowledge/search?query=${encodeURIComponent(query)}&topK=3`),
+    }),
+  };
+}
 
- const jobsQuery = useQuery<KnowledgeJob[]>({
- queryKey: ["knowledgeJobs"],
- queryFn: async () => {
- const data = await apiClient.get<KnowledgeJob[]>("/api/knowledge/jobs");
- return Array.isArray(data) ? data : [];
- },
- staleTime: 10000,
- });
-
- const statusQuery = useQuery({
- queryKey: ["knowledgeStatus"],
- queryFn: () => apiClient.get("/api/knowledge/status"),
- staleTime: 30000,
- });
-
- const createMutation = useMutation({
- mutationFn: (payload: CreateKnowledgeBasePayload) =>
- apiClient.post("/api/knowledge", payload),
- onSuccess: () => {
- queryClient.invalidateQueries({ queryKey: ["knowledgeBases"] });
- },
- });
-
- const deleteDocumentMutation = useMutation({
- mutationFn: (documentId: string) => apiClient.delete(`/api/knowledge/${documentId}`),
- onSuccess: () => {
- queryClient.invalidateQueries({ queryKey: ["knowledgeBases"] });
- queryClient.invalidateQueries({ queryKey: ["knowledgeJobs"] });
- },
- });
-
- const uploadMutation = useMutation({
- mutationFn: ({
- file,
- knowledgeBaseId,
- category,
- }: {
- file: File;
- knowledgeBaseId: string;
- category: string;
- }) => {
- const formData = new FormData();
- formData.append("file", file);
- formData.append("knowledgeBaseId", knowledgeBaseId);
- formData.append("category", category);
- return apiClient.upload("/api/knowledge/upload", formData);
- },
- onSuccess: () => {
- queryClient.invalidateQueries({ queryKey: ["knowledgeBases"] });
- queryClient.invalidateQueries({ queryKey: ["knowledgeJobs"] });
- },
- });
-
- const searchMutation = useMutation({
- mutationFn: ({
- query,
- strategy = "Hybrid",
- topK = 5,
- }: {
- query: string;
- strategy?: string;
- topK?: number;
- }) =>
- apiClient.get<KnowledgeSearchResult[]>(
- `/api/knowledge/search?query=${encodeURIComponent(query)}&strategy=${strategy}&topK=${topK}`
- ),
- });
-
- const reindexMutation = useMutation({
- mutationFn: (knowledgeBaseId: string) =>
- apiClient.post("/api/knowledge/reindex", { knowledgeBaseId }),
- onSuccess: () => {
- queryClient.invalidateQueries({ queryKey: ["knowledgeBases"] });
- queryClient.invalidateQueries({ queryKey: ["knowledgeJobs"] });
- },
- });
-
- return {
- ...listQuery,
- jobs: jobsQuery.data ?? [],
- status: statusQuery.data,
- createMutation,
- deleteDocumentMutation,
- uploadMutation,
- searchMutation,
- reindexMutation,
- refetchJobs: jobsQuery.refetch,
- };
+/** Lo que OCAP leyó del documento, en fragmentos: es lo que usan los agentes. */
+export function useDocumentContent(documentId: string | null) {
+  return useQuery<{ chunks: string[] }>({
+    queryKey: ["knowledge", "content", documentId],
+    queryFn: () => apiClient.get(`/api/knowledge/documents/${documentId}/content`),
+    enabled: documentId !== null,
+  });
 }

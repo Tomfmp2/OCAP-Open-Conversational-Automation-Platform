@@ -17,6 +17,13 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var useInMemory = string.Equals(configuration["UseInMemory"], "true", StringComparison.OrdinalIgnoreCase);
+        var environment = configuration[Microsoft.Extensions.Hosting.HostDefaults.EnvironmentKey]
+            ?? configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"] ?? "Production";
+        if (useInMemory && string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "UseInMemory=true no está permitido en Production: los datos se perderían al reiniciar. Configura ConnectionStrings:DefaultConnection.");
+        }
         services.AddObjectStorage(configuration);
 
         // Fallback tenant context for non-HTTP hosts; API replaces with HttpTenantContext.
@@ -28,6 +35,7 @@ public static class InfrastructureServiceExtensions
         // Audit Trail Interceptor
         services.AddSingleton(sp => new AuditSaveChangesInterceptor(sp.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>()));
         services.AddScoped<TenantSaveChangesInterceptor>();
+        services.AddScoped<TenantRlsConnectionInterceptor>();
 
         if (useInMemory)
         {
@@ -46,12 +54,13 @@ public static class InfrastructureServiceExtensions
             {
                 var audit = sp.GetRequiredService<AuditSaveChangesInterceptor>();
                 var tenant = sp.GetRequiredService<TenantSaveChangesInterceptor>();
+                var rls = sp.GetRequiredService<TenantRlsConnectionInterceptor>();
                 options.UseNpgsql(connectionString, b =>
                        {
                            b.MigrationsAssembly(typeof(OCAPDbContext).Assembly.FullName);
                            b.UseVector();
                        })
-                       .AddInterceptors(audit, tenant);
+                       .AddInterceptors(audit, tenant, rls);
             });
         }
 
@@ -63,31 +72,16 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<SessionRepository>(); // Registered directly as no port currently exists in Core
         services.AddScoped<OCAP.Agents.Abstractions.Ports.IAgentRepository, AgentRepository>();
+        services.AddScoped<OCAP.Agents.Abstractions.Ports.IAssistantConversationStore, AssistantConversationStore>();
         services.AddScoped<OCAP.Agents.Abstractions.Contracts.IOcapSystemContextProvider, OCAP.Infrastructure.Services.OcapSystemContextProvider>();
         services.AddScoped<IToolExecutionRepository, ToolExecutionRepository>();
         services.AddScoped<IAiExecutionLogRepository, AiExecutionLogRepository>();
         services.AddScoped<IAiConversationMemoryRepository, AiConversationMemoryRepository>();
 
-        // Caching Foundation — MemoryCache + distributed adapter (Redis when ConnectionStrings:Redis is set)
-        services.AddMemoryCache();
-        var redisConnection = configuration.GetConnectionString("Redis");
-        if (!string.IsNullOrWhiteSpace(redisConnection))
-        {
-            services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
-        }
-        else
-        {
-            services.AddDistributedMemoryCache();
-        }
-
-        services.AddSingleton<OCAP.Core.Caching.ICacheService, OCAP.Infrastructure.Caching.DistributedCacheService>();
-
         // Retention & Maintenance Options
         services.Configure<OCAP.Infrastructure.Options.RetentionOptions>(configuration.GetSection(OCAP.Infrastructure.Options.RetentionOptions.SectionName));
 
-        // Background Jobs Foundation
-        services.AddSingleton<OCAP.Infrastructure.BackgroundJobs.IBackgroundTaskQueue>(ctx => new OCAP.Infrastructure.BackgroundJobs.BackgroundTaskQueue(100));
-        services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.BackgroundWorkerService>();
+        // Trabajos en segundo plano: el estado vive en la base (outbox, retención), nunca en colas de memoria.
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.OutboxProcessorBackgroundService>();
         services.AddHostedService<OCAP.Infrastructure.BackgroundJobs.AuditAndOutboxRetentionBackgroundService>();
 
@@ -96,12 +90,13 @@ public static class InfrastructureServiceExtensions
             configuration.GetSection(OCAP.Infrastructure.Events.Distributed.EventBusOptions.SectionName));
         services.PostConfigure<OCAP.Infrastructure.Events.Distributed.EventBusOptions>(opts =>
         {
-            var env = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"];
-            var isDev = string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(env, "Testing", StringComparison.OrdinalIgnoreCase);
+            var isDev = string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase);
+            // Fuera de desarrollo los eventos no pueden vivir solo en memoria del proceso (se pierden al reiniciar y
+            // no llegan a otras réplicas).
             if (!isDev && string.Equals(opts.Provider, "InMemory", StringComparison.OrdinalIgnoreCase))
             {
-                opts.Provider = configuration["EventBus:Provider"] ?? "RabbitMQ";
+                opts.Provider = "RabbitMQ";
             }
 
             if (string.Equals(opts.Provider, "RabbitMQ", StringComparison.OrdinalIgnoreCase)
@@ -133,19 +128,29 @@ public static class InfrastructureServiceExtensions
         return services;
     }
 
-    public static async Task ApplyMigrationsAsync(this IServiceProvider serviceProvider)
+    /// <summary>
+    /// Migra el esquema, aplica las políticas RLS y, si Database:AppRole está configurado, crea o actualiza el rol sin
+    /// privilegios con el que corre la API. Necesita la conexión del dueño de la base (en Docker, el contenedor
+    /// ocap-migrate); la API con el rol limitado arranca con Database:ApplyMigrationsOnStartup=false.
+    /// </summary>
+    public static async Task ApplyMigrationsAsync(this IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
-        
-        // Auto Migration Strategy
-        if (context.Database.IsRelational())
+        if (!context.Database.IsRelational()) return;
+
+        if ((await context.Database.GetPendingMigrationsAsync(cancellationToken)).Any())
         {
-            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-            if (pendingMigrations.Any())
-            {
-                await context.Database.MigrateAsync();
-            }
+            await context.Database.MigrateAsync(cancellationToken);
+        }
+
+        await RowLevelSecurity.ApplyPoliciesAsync(context, cancellationToken);
+
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var appRole = configuration["Database:AppRole"];
+        if (!string.IsNullOrWhiteSpace(appRole))
+        {
+            await RowLevelSecurity.ProvisionAppRoleAsync(context, appRole, configuration["Database:AppPassword"] ?? string.Empty, cancellationToken);
         }
     }
 }

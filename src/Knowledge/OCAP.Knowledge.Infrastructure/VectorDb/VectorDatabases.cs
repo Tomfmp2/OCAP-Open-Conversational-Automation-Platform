@@ -224,9 +224,10 @@ public sealed class PgVectorDatabase : IVectorDatabase
         var tagList = tags?.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
                       ?? [];
 
+        // EF abre la conexión para que pase por el interceptor que fija la organización (RLS). Abrirla a mano la dejaba sin
+        // organización para el resto de la petición: no se veía el modelo de IA ni se podía guardar la respuesta.
+        await _dbContext.Database.OpenConnectionAsync(cancellationToken);
         var connection = _dbContext.Database.GetDbConnection();
-        if (connection.State != ConnectionState.Open)
-            await connection.OpenAsync(cancellationToken);
 
         await using var command = new NpgsqlCommand(
             """
@@ -276,6 +277,7 @@ public sealed class PgVectorDatabase : IVectorDatabase
                     reader.GetDouble(3)));
             }
         }
+        await _dbContext.Database.CloseConnectionAsync();
 
         if (rows.Count == 0)
             return [];

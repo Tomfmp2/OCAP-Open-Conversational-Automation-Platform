@@ -15,6 +15,11 @@ public record EnableMfaResponseDto(
     IReadOnlyList<string> RecoveryCodes
 );
 
+public record MfaStatusDto(
+    bool Enabled,
+    int RecoveryCodesLeft
+);
+
 public record VerifyMfaRequestDto(
     string Code
 );

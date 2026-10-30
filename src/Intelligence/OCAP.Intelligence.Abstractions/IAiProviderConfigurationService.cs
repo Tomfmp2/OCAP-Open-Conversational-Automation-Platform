@@ -29,8 +29,14 @@ public record AiProviderConfigurationResponseDto(
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
 
+/// <summary>Key descifrada y Base URL de una configuración habilitada (p. ej. para generar embeddings).</summary>
+public sealed record AiProviderCredential(string ApiKey, string? BaseUrl);
+
 public interface IAiProviderConfigurationService
 {
+    /// <summary>Credencial de la configuración habilitada de ese proveedor en el tenant; null si no hay.</summary>
+    Task<AiProviderCredential?> GetCredentialAsync(Guid tenantId, string providerName, CancellationToken cancellationToken = default);
+
     Task<AiProviderConfigurationResponseDto> CreateConfigurationAsync(CreateAiProviderConfigurationDto dto, CancellationToken cancellationToken = default);
     Task<AiProviderConfigurationResponseDto?> GetConfigurationByIdAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiProviderConfigurationResponseDto>> GetConfigurationsByTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
@@ -38,4 +44,6 @@ public interface IAiProviderConfigurationService
     Task<bool> SetStatusAsync(Guid tenantId, Guid id, bool enable, CancellationToken cancellationToken = default);
     Task<bool> DeleteConfigurationAsync(Guid tenantId, Guid id, CancellationToken cancellationToken = default);
     Task<IAiProvider?> GetRuntimeProviderForTenantAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default);
+    /// <summary>Proveedor de una configuración concreta del tenant (p. ej. la asignada a un canal); null si no existe, está deshabilitada o no tiene key.</summary>
+    Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default);
 }

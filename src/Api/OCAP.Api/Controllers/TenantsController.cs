@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ using OCAP.Security.Application.UseCases;
 namespace OCAP.Api.Controllers;
 
 // Controlador REST para administración de organizaciones (Tenants) y membresías (CAP-16).
+// Cada sesión solo ve y modifica su propia organización: el catálogo de tenants no tiene filtro por TenantId.
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -16,9 +18,14 @@ public class TenantsController : ControllerBase
 {
     private readonly CreateTenantUseCase _createTenantUseCase;
     private readonly OCAPDbContext _dbContext;
+    private readonly OCAP.Security.Abstractions.ITenantContext _tenantContext;
 
-    public TenantsController(CreateTenantUseCase createTenantUseCase, OCAPDbContext dbContext)
+    public TenantsController(
+        CreateTenantUseCase createTenantUseCase,
+        OCAPDbContext dbContext,
+        OCAP.Security.Abstractions.ITenantContext tenantContext)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _createTenantUseCase = createTenantUseCase ?? throw new ArgumentNullException(nameof(createTenantUseCase));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
@@ -27,8 +34,10 @@ public class TenantsController : ControllerBase
     [ProducesResponseType(typeof(List<TenantDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTenants(CancellationToken cancellationToken)
     {
+        var tenantId = TenantSecurity.RequireTenantId(_tenantContext);
         var tenants = await _dbContext.Tenants
             .AsNoTracking()
+            .Where(t => t.Id == tenantId)
             .Select(t => new TenantDto(t.Id, t.Name, t.Slug, t.IsActive, t.CreatedAtUtc))
             .ToListAsync(cancellationToken);
 
@@ -40,6 +49,8 @@ public class TenantsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTenantById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(id)) return NotFound();
+
         var tenant = await _dbContext.Tenants
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
@@ -49,7 +60,9 @@ public class TenantsController : ControllerBase
         return Ok(new TenantDto(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAtUtc));
     }
 
+    // Crear organizaciones es una operación de plataforma, no de un administrador de organización.
     [HttpPost]
+    [Authorize(Policy = OcapPermissions.FullAccess)]
     [ProducesResponseType(typeof(TenantDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantRequestDto request, CancellationToken cancellationToken)
@@ -60,16 +73,19 @@ public class TenantsController : ControllerBase
             var tenant = await _createTenantUseCase.ExecuteAsync(request.Name, request.Slug, Guid.NewGuid(), ip, cancellationToken);
             return Ok(new TenantDto(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAtUtc));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
     }
 
     [HttpGet("{id:guid}/members")]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTenantMembers([FromRoute] Guid id, CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(id)) return NotFound();
+
         var members = await _dbContext.TenantMembers
             .AsNoTracking()
             .Where(m => m.TenantId == id)
@@ -80,10 +96,12 @@ public class TenantsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/members")]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AddTenantMember([FromRoute] Guid id, [FromBody] AddTenantMemberRequestDto request, CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(id)) return NotFound();
         if (request == null || request.UserId == Guid.Empty)
             return BadRequest(new { error = "El UserId es obligatorio." });
 
@@ -100,4 +118,6 @@ public class TenantsController : ControllerBase
 
         return Ok(new { message = "Miembro añadido exitosamente a la organización." });
     }
+
+    private bool IsOwnTenant(Guid id) => id != Guid.Empty && id == _tenantContext.TenantId;
 }

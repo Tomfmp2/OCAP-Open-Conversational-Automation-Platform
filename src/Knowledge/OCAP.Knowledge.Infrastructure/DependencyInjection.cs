@@ -41,6 +41,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IDocumentParser, PdfDocumentParser>();
         services.AddSingleton<IDocumentParser, DocxDocumentParser>();
+        services.AddSingleton<IDocumentParser, XlsxDocumentParser>();
         services.AddSingleton<IDocumentParser, TxtDocumentParser>();
         services.AddSingleton<IDocumentParser, MarkdownDocumentParser>();
         services.AddSingleton<IDocumentParser, CsvDocumentParser>();
@@ -77,7 +78,11 @@ public static class DependencyInjection
                 sp.GetRequiredService<IOptions<KnowledgeOptions>>(),
                 sp.GetRequiredService<ILogger<OllamaEmbeddingProvider>>()));
 
-        services.AddSingleton<IEmbeddingGenerator, EmbeddingGenerator>();
+        // Scoped: la credencial depende de la organización de la petición (IEmbeddingTargetResolver, si existe).
+        services.AddScoped<IEmbeddingGenerator>(sp => new EmbeddingGenerator(
+            sp.GetServices<IEmbeddingProvider>(),
+            sp.GetRequiredService<IOptions<KnowledgeOptions>>(),
+            sp.GetService<IEmbeddingTargetResolver>()));
 
         var knowledgeOptions = configuration?.GetSection(KnowledgeOptions.SectionName).Get<KnowledgeOptions>() ?? new KnowledgeOptions();
         if (configuration is not null)
@@ -178,9 +183,10 @@ public sealed class PgVectorStartupValidator : IHostedService
 
         try
         {
+            // EF abre la conexión para que pase por el interceptor que fija la organización (RLS). Abrirla a mano la dejaba sin
+            // organización para el resto de la petición: no se veía el modelo de IA ni se podía guardar la respuesta.
+            await dbContext.Database.OpenConnectionAsync(cancellationToken);
             var connection = dbContext.Database.GetDbConnection();
-            if (connection.State != System.Data.ConnectionState.Open)
-                await connection.OpenAsync(cancellationToken);
 
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT 1 FROM pg_extension WHERE extname = 'vector'";

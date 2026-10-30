@@ -11,6 +11,8 @@ namespace OCAP.Infrastructure.Services;
 // Servicio de infraestructura para la gestión en tiempo de ejecución de conexiones de canales por Tenant.
 public class ChannelConnectionManager : IChannelConnectionManager
 {
+    private static readonly HashSet<string> SinglePerTenantProviders = new(StringComparer.OrdinalIgnoreCase) { "WhatsApp" };
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IChannelRegistry _channelRegistry;
@@ -55,12 +57,12 @@ public class ChannelConnectionManager : IChannelConnectionManager
                 $"El proveedor '{normalizedProvider}' está en el catálogo pero aún no tiene adaptador runtime (próximamente).");
         }
 
-        var existing = await _dbContext.ChannelConnections
-            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Provider == normalizedProvider, cancellationToken);
-
-        if (existing != null)
+        // Varios canales del mismo tipo por organización (varios bots de Telegram, varios chats web). WhatsApp por QR
+        // es una sola instancia de Evolution por organización.
+        if (SinglePerTenantProviders.Contains(normalizedProvider)
+            && await _dbContext.ChannelConnections.AnyAsync(c => c.TenantId == tenantId && c.Provider == normalizedProvider, cancellationToken))
         {
-            throw new InvalidOperationException($"Ya existe una conexión registrada para el proveedor '{normalizedProvider}' en este Tenant.");
+            throw new InvalidOperationException($"Ya hay un canal {normalizedProvider} en esta organización.");
         }
 
         var secretRef = await _credentialVault.StoreSecretAsync(tenantId, $"{normalizedProvider}_Credentials", rawSecretCredentials, cancellationToken);
@@ -75,7 +77,16 @@ public class ChannelConnectionManager : IChannelConnectionManager
             enabled: true);
 
         await _dbContext.ChannelConnections.AddAsync(connection, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Índice único de la base (p. ej. el mismo bot de Telegram en otra conexión u organización).
+            _dbContext.Entry(connection).State = EntityState.Detached;
+            throw new InvalidOperationException("Ese canal ya está conectado en OCAP.");
+        }
 
         _logger.LogInformation("Nueva conexión de canal {Provider} (ID: {ConnectionId}) creada para Tenant {TenantId}.",
             normalizedProvider, connection.Id, tenantId);
@@ -157,6 +168,63 @@ public class ChannelConnectionManager : IChannelConnectionManager
             .AsNoTracking()
             .Where(c => c.TenantId == tenantId)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> RenameAsync(Guid tenantId, Guid connectionId, string displayName, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.ChannelConnections
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == connectionId, cancellationToken);
+        if (connection == null) return false;
+
+        // El nombre lo eligió el usuario: los canales que se renombran solos (WhatsApp) lo respetan.
+        var metadata = new Dictionary<string, string>(connection.ConfigurationMetadata) { ["CustomDisplayName"] = "true" };
+        connection.UpdateConfiguration(displayName, connection.CredentialsReference, metadata);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> SetMetadataValueAsync(Guid tenantId, Guid connectionId, string key, string? value, CancellationToken cancellationToken = default)
+    {
+        var connection = await _dbContext.ChannelConnections
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == connectionId, cancellationToken);
+        if (connection == null) return false;
+
+        var metadata = new Dictionary<string, string>(connection.ConfigurationMetadata);
+        if (value is null) metadata.Remove(key);
+        else metadata[key] = value;
+
+        connection.UpdateConfiguration(connection.DisplayName, connection.CredentialsReference, metadata);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public Task<string?> GetCredentialsAsync(ChannelConnection connection, CancellationToken cancellationToken = default) =>
+        _credentialVault.RetrieveSecretAsync(connection.TenantId, connection.CredentialsReference, cancellationToken);
+
+    public async Task<IReadOnlyList<ChannelConnection>> GetEnabledConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => c.Provider == provider && c.Enabled)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ChannelConnection>> GetAllConnectionsByProviderAsync(string provider, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => c.Provider == provider)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ChannelConnection?> FindConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ChannelConnections
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
     }
 
     public async Task<ChannelHealthResult> ValidateConnectionAsync(Guid tenantId, Guid connectionId, CancellationToken cancellationToken = default)

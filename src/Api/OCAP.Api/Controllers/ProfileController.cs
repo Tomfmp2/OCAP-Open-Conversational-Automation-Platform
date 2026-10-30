@@ -42,6 +42,8 @@ public class ProfileController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == Guid.Empty) return Unauthorized();
+        if (OCAP.Api.Security.PasswordRules.Validate(request.NewPassword) is { } rule)
+            return BadRequest(new { error = rule });
 
         var success = await _userService.ChangePasswordAsync(_tenantContext.TenantId, userId, request, cancellationToken);
         if (!success) return BadRequest(new { error = "No se pudo cambiar la contraseña. Verifique su contraseña actual." });

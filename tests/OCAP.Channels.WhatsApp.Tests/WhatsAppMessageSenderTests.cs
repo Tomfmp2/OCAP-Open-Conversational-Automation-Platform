@@ -34,7 +34,6 @@ public class WhatsAppMessageSenderTests
         var settings = Options.Create(new WhatsAppSettings
         {
             BaseUrl = "http://localhost:8080",
-            Instance = "test-instance",
             ApiKey = "test-key"
         });
 
@@ -45,7 +44,8 @@ public class WhatsAppMessageSenderTests
         {
             DestinationUserId = "573001234567",
             Message = "Hola respuesta de prueba",
-            ChannelName = "WhatsApp"
+            ChannelName = "WhatsApp",
+            Metadata = { ["Instance"] = "ocap-test" }
         };
 
         // Act
@@ -74,8 +74,7 @@ public class WhatsAppMessageSenderTests
         var httpClient = new HttpClient(handlerMock.Object);
         var settings = Options.Create(new WhatsAppSettings
         {
-            BaseUrl = "http://localhost:8080",
-            Instance = "test-instance"
+            BaseUrl = "http://localhost:8080"
         });
 
         var apiClient = new EvolutionApiClient(httpClient, settings, NullLogger<EvolutionApiClient>.Instance);
@@ -85,7 +84,8 @@ public class WhatsAppMessageSenderTests
         {
             DestinationUserId = "573001234567",
             Message = "Hola prueba error",
-            ChannelName = "WhatsApp"
+            ChannelName = "WhatsApp",
+            Metadata = { ["Instance"] = "ocap-test" }
         };
 
         // Act

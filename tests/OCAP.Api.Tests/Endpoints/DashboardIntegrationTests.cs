@@ -38,7 +38,7 @@ public class DashboardIntegrationTests
     {
         // Arrange
         using var db = CreateDbContext();
-        var controller = new DashboardController(db);
+        var controller = new DashboardController(new OCAP.Api.Queries.DashboardQueries(db));
 
         // Act - Overview
         var overviewResult = await controller.GetOverview(CancellationToken.None);
@@ -83,10 +83,19 @@ public class DashboardIntegrationTests
         var userContextMock = new Mock<OCAP.Security.Abstractions.IUserContext>();
         using var dbContext = CreateDbContext();
 
-        var controller = new WorkflowsController(engineMock.Object, validatorMock.Object, mapperMock.Object, dbContext, tenantContextMock.Object, userContextMock.Object);
+        var tenantId = Guid.NewGuid();
+        tenantContextMock.Setup(t => t.TenantId).Returns(tenantId);
+        var controller = new WorkflowsController(
+            engineMock.Object,
+            validatorMock.Object,
+            mapperMock.Object,
+            new OCAP.Workflow.Infrastructure.Repositories.EfWorkflowDefinitionRepository(dbContext),
+            new OCAP.Workflow.Infrastructure.Repositories.EfWorkflowExecutionRepository(dbContext),
+            tenantContextMock.Object,
+            userContextMock.Object);
         var workflowId = Guid.NewGuid();
-        
-        var definition = new OCAP.Workflow.Domain.Entities.WorkflowDefinition(workflowId, Guid.NewGuid(), "Test");
+
+        var definition = new OCAP.Workflow.Domain.Entities.WorkflowDefinition(workflowId, tenantId, "Test");
         dbContext.WorkflowDefinitions.Add(definition);
         await dbContext.SaveChangesAsync();
 

@@ -26,6 +26,7 @@ public class EfWorkflowDefinitionRepository : IWorkflowDefinitionRepository
     {
         return await _context.Set<WorkflowDefinition>()
             .AsNoTracking()
+            .Include(d => d.Steps)
             .Where(d => d.TenantId == tenantId)
             .ToListAsync(cancellationToken);
     }
@@ -84,6 +85,25 @@ public class EfWorkflowExecutionRepository : IWorkflowExecutionRepository
         return await _context.Set<WorkflowExecution>()
             .AsNoTracking()
             .Where(e => e.TenantId == tenantId)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkflowExecution>> GetByDefinitionAsync(Guid definitionId, Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<WorkflowExecution>()
+            .AsNoTracking()
+            .Where(e => e.WorkflowDefinitionId == definitionId && e.TenantId == tenantId)
+            .OrderByDescending(e => e.StartedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<WorkflowExecution>> GetRecentAsync(Guid tenantId, int take, CancellationToken cancellationToken = default)
+    {
+        return await _context.Set<WorkflowExecution>()
+            .AsNoTracking()
+            .Where(e => e.TenantId == tenantId)
+            .OrderByDescending(e => e.StartedAtUtc)
+            .Take(take)
             .ToListAsync(cancellationToken);
     }
 

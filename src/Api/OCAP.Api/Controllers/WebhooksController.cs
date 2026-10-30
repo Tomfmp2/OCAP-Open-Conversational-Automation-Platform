@@ -1,3 +1,5 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
 
@@ -6,6 +8,7 @@ namespace OCAP.Api.Controllers;
 /// <summary>Administración de suscripciones e historial de entregas de Webhooks (CAP-12).</summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.SettingsManage)]
 public class WebhooksController : ControllerBase
 {
     private readonly IWebhookService _webhookService;
@@ -37,7 +40,7 @@ public class WebhooksController : ControllerBase
     {
         var tenantId = RequireTenantId();
         var subscriptions = await _webhookService.GetSubscriptionsForTenantAsync(tenantId, cancellationToken);
-        return Ok(subscriptions);
+        return Ok(subscriptions.Select(WebhookSubscriptionDto.From));
     }
 
     [HttpPost]
@@ -58,7 +61,7 @@ public class WebhooksController : ControllerBase
             tenantId, request.Name, request.TargetUrl, request.Secret, request.SubscribedEvents, cancellationToken);
 
         await _auditService.LogSecurityEventAsync(tenantId, Guid.NewGuid(), "Webhook.Created", $"Webhook {request.Name} registrado", "WebhooksController", true, cancellationToken);
-        return CreatedAtAction(nameof(GetWebhooks), new { id = subscription.Id }, subscription);
+        return CreatedAtAction(nameof(GetWebhooks), new { id = subscription.Id }, WebhookSubscriptionDto.From(subscription));
     }
 
     [HttpPut("{id}")]
@@ -69,7 +72,7 @@ public class WebhooksController : ControllerBase
             id, tenantId, request.Name, request.TargetUrl, request.Secret, request.SubscribedEvents, request.IsActive, cancellationToken);
 
         if (updated == null) return NotFound(new ProblemDetails { Title = "No encontrado", Detail = "Suscripción de Webhook no encontrada.", Status = 404 });
-        return Ok(updated);
+        return Ok(WebhookSubscriptionDto.From(updated));
     }
 
     [HttpDelete("{id}")]
@@ -89,6 +92,14 @@ public class WebhooksController : ControllerBase
         var logs = await _webhookService.GetDeliveryHistoryAsync(id, tenantId, cancellationToken);
         return Ok(logs);
     }
+}
+
+// El secreto HMAC nunca vuelve en las respuestas: solo lo conoce quien lo configuró.
+public sealed record WebhookSubscriptionDto(
+    Guid Id, string Name, string TargetUrl, string SubscribedEvents, bool IsActive, DateTime CreatedAtUtc, DateTime? UpdatedAtUtc)
+{
+    public static WebhookSubscriptionDto From(OCAP.Security.Domain.Entities.WebhookSubscription s) =>
+        new(s.Id, s.Name, s.TargetUrl, s.SubscribedEvents, s.IsActive, s.CreatedAtUtc, s.UpdatedAtUtc);
 }
 
 public class CreateWebhookRequestDto

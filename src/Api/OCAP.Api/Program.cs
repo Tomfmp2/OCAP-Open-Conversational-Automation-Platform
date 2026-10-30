@@ -23,16 +23,17 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    var installationConfigPath = builder.Configuration["Installation:ConfigPath"];
-    var installationJson = Path.Combine(
-        string.IsNullOrWhiteSpace(installationConfigPath) ? "config" : installationConfigPath,
-        "installation.json");
-    // installation.json es metadato del wizard; NO debe pisar secretos del .env / variables de entorno.
-    builder.Configuration.AddJsonFile(installationJson, optional: true, reloadOnChange: true);
-    builder.Configuration.AddEnvironmentVariables();
-
     // Replace built-in logging with Serilog
+    // System.Net.Http en Information registra cada URL completa, y la API de Telegram lleva el token del bot en la
+    // ruta: por debajo de Warning nunca. EF Core y ASP.NET Core escribían una línea por consulta y por paso del
+    // pipeline; UseSerilogRequestLogging ya deja una por petición. La configuración puede sobrescribirlos.
     builder.Host.UseSerilog((context, services, configuration) => configuration
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("System.Net.Http", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.Extensions.Http", LogEventLevel.Warning)
+        .MinimumLevel.Override("Polly", LogEventLevel.Warning)
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
         .Enrich.FromLogContext()
@@ -49,6 +50,8 @@ builder.Services.AddApplicationServices();
 
 // Registra el módulo de Knowledge Base y RAG
 builder.Services.AddKnowledgeModule(builder.Configuration);
+// Embeddings con las keys de IA y modelos de cada organización.
+builder.Services.AddScoped<OCAP.Knowledge.Abstractions.IEmbeddingTargetResolver, OCAP.Api.Services.TenantEmbeddingTargetResolver>();
 
 // Registra servicios de infraestructura (EF Core, PostgreSQL, repositorios).
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -73,14 +76,29 @@ builder.Services.AddResponseCompression(options =>
 {
     options.EnableForHttps = true;
 });
-builder.Services.AddResponseCaching();
 
 var app = builder.Build();
 
-// Aplica migraciones pendientes de EF Core antes de aceptar tráfico.
-await app.Services.ApplyMigrationsAsync();
+// `--migrate`: solo migra, aplica RLS y crea el rol de la API, y termina (contenedor ocap-migrate, con la conexión
+// del dueño de la base). La API en Docker corre con un rol limitado que no puede cambiar el esquema.
+if (args.Contains("--migrate"))
+{
+    await app.Services.ApplyMigrationsAsync();
+    Log.Information("Migraciones, políticas RLS y rol de la API aplicados.");
+    return;
+}
+
+// En desarrollo y pruebas la misma API migra al arrancar.
+if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", true))
+{
+    await app.Services.ApplyMigrationsAsync();
+}
 
 // Configuración del pipeline HTTP — el orden importa para la seguridad.
+
+// IP real del cliente detrás del panel o de Nginx: solo se cree X-Forwarded-For de la red interna de Docker.
+app.UseOcapForwardedHeaders(builder.Configuration);
+app.UseInternalOnlyMetrics(builder.Configuration);
 
 // Correlación y request IDs (X-Correlation-Id / X-Request-Id) antes del resto del pipeline.
 app.UseMiddleware<CorrelationIdMiddleware>();
@@ -105,23 +123,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseResponseCompression();
-app.UseResponseCaching();
 
-// CORS debe configurarse antes del routing para que se aplique a todas las rutas.
-app.UseCors("OcapCorsPolicy");
-
-// Rate Limiting protege el gateway antes de que las peticiones lleguen a los controladores.
-var rateLimitingSection = builder.Configuration.GetSection("RateLimiting");
-var enableRateLimiting = rateLimitingSection.GetValue<bool>("EnableRateLimiting");
-if (enableRateLimiting)
-{
-    app.UseRateLimiter();
-}
 
 app.UseRouting();
 
+// Después del routing: la política por defecto es la del panel, y el widget público de WebChat declara la suya
+// ([EnableCors]) por endpoint, algo que antes del routing no se puede leer.
+app.UseCors("OcapCorsPolicy");
+
 // Autenticación y autorización deben ejecutarse después del routing y antes de MapControllers.
 app.UseAuthentication();
+
+// Después del routing (políticas por endpoint, [EnableRateLimiting]) y de la autenticación (el límite global se
+// cuenta por usuario); solo existe si RateLimiting:EnableRateLimiting es true.
+app.UseRateLimiter();
 app.UseAuthorization();
 
 // Serilog Request Logging middleware for structured HTTP logging
@@ -139,9 +154,11 @@ app.MapHealthChecks("/api/health", new Microsoft.AspNetCore.Diagnostics.HealthCh
 await app.RunAsync();
 
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
     Log.Fatal(ex, "OCAP API Server terminated unexpectedly");
+    // Código distinto de 0: Docker reinicia la API y no da por buena una migración fallida (ocap-migrate).
+    Environment.ExitCode = 1;
 }
 finally
 {

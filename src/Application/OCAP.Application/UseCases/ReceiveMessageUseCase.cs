@@ -21,7 +21,20 @@ public class ReceiveMessageUseCase
         _messageRepository = messageRepository;
     }
 
-    public async Task ExecuteAsync(Guid userId, string messageContent, string provider, CancellationToken cancellationToken = default)
+    public async Task ExecuteAsync(Guid userId, string messageContent, string provider, CancellationToken cancellationToken = default) =>
+        await ReceiveAsync(userId, messageContent, provider, externalContactId: null, channelConnectionId: null, cancellationToken);
+
+    /// <summary>
+    /// Registra el mensaje entrante en la conversación abierta del contacto (o en una nueva) y la devuelve.
+    /// Con <paramref name="externalContactId"/> la conversación queda asociada a su canal, para responder desde el panel.
+    /// </summary>
+    public async Task<Conversation> ReceiveAsync(
+        Guid userId,
+        string messageContent,
+        string provider,
+        string? externalContactId,
+        Guid? channelConnectionId,
+        CancellationToken cancellationToken = default)
     {
         // 1. Validar mensaje
         var content = new MessageContent(messageContent);
@@ -44,19 +57,31 @@ public class ReceiveMessageUseCase
         if (conversation == null || conversation.Status == ConversationStatus.Closed)
         {
             conversation = new Conversation(Guid.NewGuid(), userId);
-            await _conversationRepository.SaveAsync(conversation, cancellationToken);
         }
         else
         {
             conversation.UpdateActivity();
-            await _conversationRepository.SaveAsync(conversation, cancellationToken);
         }
+
+        if (!string.IsNullOrWhiteSpace(externalContactId))
+        {
+            conversation.AttachChannel(provider, externalContactId, channelConnectionId);
+        }
+        await _conversationRepository.SaveAsync(conversation, cancellationToken);
 
         // 4. Registrar mensaje
         var message = new Message(Guid.NewGuid(), conversation.Id, content, SenderType.User);
         await _messageRepository.SaveAsync(message, cancellationToken);
+        return conversation;
+    }
 
-        // 5. Generar evento correspondiente (opcionalmente gestionado por un mediador, por ahora se delega)
-        // conversation events are registered internally
+    /// <summary>Máximo que admite un mensaje guardado (y que aceptan WhatsApp y Telegram en un solo envío).</summary>
+    public const int MaxMessageLength = 4096;
+
+    /// <summary>Guarda en la conversación la respuesta del agente o de un operador (recortada a <see cref="MaxMessageLength"/>).</summary>
+    public async Task RecordReplyAsync(Guid conversationId, string text, SenderType sender, CancellationToken cancellationToken = default)
+    {
+        var content = text.Length > MaxMessageLength ? text[..MaxMessageLength] : text;
+        await _messageRepository.SaveAsync(new Message(Guid.NewGuid(), conversationId, new MessageContent(content), sender), cancellationToken);
     }
 }

@@ -8,11 +8,13 @@ export interface LoginRequest {
 
 export interface LoginResponse {
  accessToken: string;
- refreshToken: string;
  userId: string;
  tenantId: string;
  email: string;
  roleName: string;
+ /** Contraseña correcta, falta el código de la app autenticadora: sin tokens hasta verificarlo. */
+ mfaRequired?: boolean;
+ mfaToken?: string | null;
 }
 
 export interface ProfileResponse {
@@ -39,18 +41,18 @@ export const authApi = {
  return apiClient.post<LoginResponse>("/api/auth/login", payload, { skipAuth: true });
  },
 
- refresh(refreshToken: string): Promise<LoginResponse> {
+ /** Segundo paso del login con MFA: el desafío del login más el código TOTP o de recuperación. */
+ verifyMfa(mfaToken: string, code: string): Promise<LoginResponse> {
  return apiClient.post<LoginResponse>(
- "/api/auth/refresh",
- { refreshToken },
- { skipAuth: true }
+ "/api/auth/mfa/verify",
+ { mfaToken, code },
+ { skipAuth: true, skipRetry: true }
  );
  },
 
- logout(refreshToken?: string | null): Promise<{ message: string }> {
- return apiClient.post<{ message: string }>("/api/auth/logout", {
- refreshToken: refreshToken || undefined,
- });
+ /** La API revoca el refresh token de la cookie HttpOnly y la borra. */
+ logout(): Promise<{ message: string }> {
+ return apiClient.post<{ message: string }>("/api/auth/logout", undefined, { skipAuth: true, skipRetry: true });
  },
 
  getProfile(): Promise<ProfileResponse> {

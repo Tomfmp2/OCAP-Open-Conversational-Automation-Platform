@@ -195,7 +195,7 @@ public class KnowledgeService
         foreach (var doc in docs)
         {
             var chunks = await _chunkRepository.GetByDocumentAsync(doc.Id, tenantId, cancellationToken);
-            var vectors = await _embeddingGenerator.GenerateVectorsForChunksAsync(chunks.ToList(), "OpenAI", "text-embedding-3-small", cancellationToken);
+            var vectors = await _embeddingGenerator.GenerateVectorsForChunksAsync(chunks.ToList(), cancellationToken: cancellationToken);
             await _vectorDatabase.UpsertVectorsAsync(tenantId, vectors, cancellationToken);
         }
 

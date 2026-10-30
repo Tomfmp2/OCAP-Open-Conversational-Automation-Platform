@@ -8,6 +8,17 @@ namespace OCAP.Security.Abstractions;
 public interface IUserAuthenticationQuery
 {
     Task<UserAuthenticationRecord?> FindByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    Task<UserAuthenticationRecord?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Reemplaza el hash de la contraseña (migración a parámetros más fuertes tras un login correcto).</summary>
+    Task UpgradePasswordHashAsync(Guid userId, string hash, string salt, CancellationToken cancellationToken = default);
+
+    /// <summary>true si el usuario activó el segundo factor (TOTP).</summary>
+    Task<bool> IsMfaEnabledAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Guarda el resultado del intento (contador de fallos y bloqueo temporal).</summary>
+    Task RecordLoginAttemptAsync(Guid userId, bool succeeded, CancellationToken cancellationToken = default);
 }
 
 public sealed record UserAuthenticationRecord(

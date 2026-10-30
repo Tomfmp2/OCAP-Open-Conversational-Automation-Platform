@@ -1,114 +1,78 @@
-import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/apiClient";
+import { getTenantId } from "@/shared/api/tokenStorage";
 
-export interface ChannelProviderHealthDto {
-  provider: string;
-  health: string;
-  latencyMs: number;
-  lastPingAtUtc: string;
-  errorMessage?: string;
-}
+export type ChannelStatus = "Connected" | "Pending" | "Disconnected";
 
-export interface ChannelConnectionDto {
+export interface ChannelConnection {
   id: string;
   name: string;
+  provider: "Telegram" | "WhatsApp" | "WebChat" | string;
+  status: ChannelStatus;
+  /** Número, usuario del bot o dominio, según el canal. */
+  accountIdentifier: string | null;
+  /** Agente que responde en este canal; null = agente de atención por defecto. */
+  agentId: string | null;
+  /** Proveedor de IA (de «Modelos de IA») del canal; null = el activo de la organización. */
+  aiProviderConfigId: string | null;
+  /** Solo WebChat: lo necesario para incrustar el widget en el sitio del cliente. */
+  widget?: WebChatWidget;
+  /** on: responde; stopping: termina los chats en curso (5 min sin mensajes) y se apaga; off: no responde. */
+  power: "on" | "stopping" | "off";
+  /** Colecciones que consulta el agente en este canal ([] = todas); null = aún no se eligió (usa las del agente). */
+  knowledgeBaseIds: string[] | null;
+  /** Acciones que puede hacer el agente en este canal; null = aún no se eligió (usa las del agente). */
+  tools: string[] | null;
+}
+
+export interface WebChatWidget {
+  publicKey: string;
+  title: string;
+  allowedOrigins: string[];
+}
+
+interface ConnectionResponse {
+  id: string;
+  displayName?: string;
   provider: string;
-  status: string;
-  accountIdentifier: string;
-  messagesHandled24h: number;
-  lastSync: string;
-  latencyMs: number;
-  health?: ChannelProviderHealthDto;
+  enabled?: boolean;
+  accountIdentifier?: string;
+  configurationMetadata?: Record<string, string>;
 }
 
-export type ChannelConnection = ChannelConnectionDto;
+const CHANNELS_KEY = ["channels"];
 
-function pickHealth(
-  provider: string,
-  tg: PromiseSettledResult<{ data?: ChannelProviderHealthDto }>,
-  wa: PromiseSettledResult<{ data?: ChannelProviderHealthDto }>,
-  wc: PromiseSettledResult<{ data?: ChannelProviderHealthDto }>
-): ChannelProviderHealthDto | undefined {
-  const p = provider.toLowerCase();
-  if (p === "telegram" && tg.status === "fulfilled") return tg.value.data;
-  if (p === "whatsapp" && wa.status === "fulfilled") return wa.value.data;
-  if (p === "webchat" && wc.status === "fulfilled") return wc.value.data;
-  return undefined;
+function toChannel(item: ConnectionResponse): ChannelConnection {
+  const meta = item.configurationMetadata ?? {};
+  // WhatsApp por QR guarda su estado real (pending/linked/unlinked): habilitada no implica vinculada.
+  const status: ChannelStatus = !item.enabled || meta.Status === "unlinked" ? "Disconnected" : meta.Status === "pending" ? "Pending" : "Connected";
+  return {
+    id: item.id,
+    name: item.displayName || item.provider,
+    provider: item.provider,
+    status,
+    accountIdentifier: item.accountIdentifier || null,
+    agentId: meta.AgentId ?? null,
+    aiProviderConfigId: meta.AiProviderConfigId ?? null,
+    power: !item.enabled ? "off" : meta.ShuttingDownSince ? "stopping" : "on",
+    knowledgeBaseIds: meta.KnowledgeBaseIds === undefined ? null : meta.KnowledgeBaseIds.split(",").filter(Boolean),
+    tools: meta.Tools === undefined ? null : meta.Tools.split(",").filter(Boolean),
+    widget:
+      item.provider.toLowerCase() === "webchat" && meta.PublicKey
+        ? { publicKey: meta.PublicKey, title: meta.WidgetTitle ?? "", allowedOrigins: (meta.AllowedOrigins ?? "").split(",").filter(Boolean) }
+        : undefined,
+  };
 }
 
-export function useChannelsData() {
-  const queryClient = useQueryClient();
-
-  const query = useQuery<ChannelConnectionDto[]>({
-    queryKey: ["channelsData"],
+export function useChannels() {
+  return useQuery<ChannelConnection[]>({
+    queryKey: CHANNELS_KEY,
     queryFn: async () => {
-      const [tgHealth, waHealth, wcHealth, dbConns] = await Promise.allSettled([
-        apiClient.get<{ data?: ChannelProviderHealthDto }>("/api/channels/telegram/health"),
-        apiClient.get<{ data?: ChannelProviderHealthDto }>("/api/channels/whatsapp/health"),
-        apiClient.get<{ data?: ChannelProviderHealthDto }>("/api/channels/webchat/health"),
-        apiClient.get<{ data?: unknown[] } | unknown[]>("/api/channels/connections"),
-      ]);
-
-      const connections: ChannelConnectionDto[] = [];
-
-      if (dbConns.status === "fulfilled") {
-        const raw = dbConns.value;
-        const list = (raw as { data?: unknown[] })?.data || (Array.isArray(raw) ? raw : []);
-        (
-          list as Array<{
-            id: string;
-            displayName?: string;
-            name?: string;
-            provider: string;
-            enabled?: boolean;
-            accountIdentifier?: string;
-            messagesHandled24h?: number;
-            lastSyncAtUtc?: string;
-          }>
-        ).forEach((item) => {
-          const health = pickHealth(item.provider, tgHealth, waHealth, wcHealth);
-          connections.push({
-            id: item.id,
-            name: item.displayName || item.name || `${item.provider} Channel`,
-            provider: item.provider,
-            status: item.enabled ? "Connected" : "Disconnected",
-            accountIdentifier: item.accountIdentifier || "—",
-            messagesHandled24h: item.messagesHandled24h ?? 0,
-            lastSync: item.lastSyncAtUtc
-              ? new Date(item.lastSyncAtUtc).toLocaleString()
-              : "N/D",
-            latencyMs: health?.latencyMs ?? 0,
-            health,
-          });
-        });
-      }
-
-      return connections;
-    },
-    staleTime: 10000,
-    retry: 2,
-  });
-
-  const testConnectionMutation = useMutation({
-    mutationFn: async (channelProviderOrId: string) => {
-      const lower = channelProviderOrId.toLowerCase();
-      const provider = lower.includes("whatsapp")
-        ? "whatsapp"
-        : lower.includes("webchat")
-          ? "webchat"
-          : "telegram";
-
-      const data = await apiClient.get<{ data?: unknown }>(`/api/channels/${provider}/health`);
-      return { success: true, data: data?.data };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["channelsData"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+      const response = await apiClient.get<{ data?: ConnectionResponse[] } | ConnectionResponse[]>("/api/channels/connections");
+      const list = Array.isArray(response) ? response : (response.data ?? []);
+      return list.map(toChannel);
     },
   });
-
-  return { ...query, testConnectionMutation };
 }
 
 export function useConnectChannelMutation() {
@@ -120,8 +84,6 @@ export function useConnectChannelMutation() {
       displayName: string;
       botToken?: string;
       connectionMode?: "webhook" | "polling";
-      phoneNumberId?: string;
-      apiToken?: string;
       widgetTitle?: string;
     }) => {
       const provider = payload.provider.toLowerCase();
@@ -135,12 +97,6 @@ export function useConnectChannelMutation() {
           botToken: payload.botToken,
           connectionMode: payload.connectionMode ?? "polling",
         };
-      } else if (provider === "whatsapp") {
-        // Flujo principal: QR Evolution (gratis). Cloud sigue en POST /connect.
-        url = "/api/channels/whatsapp/connect-qr";
-        bodyData = {
-          displayName: payload.displayName,
-        };
       } else if (provider === "webchat") {
         url = "/api/channels/webchat/connect";
         bodyData = {
@@ -149,143 +105,120 @@ export function useConnectChannelMutation() {
         };
       } else {
         throw new Error(
-          `Proveedor ${payload.provider} no implementado. Disponibles: Telegram, WhatsApp, WebChat.`
+          `Proveedor ${payload.provider} no implementado. Disponibles: Telegram y WebChat (WhatsApp se vincula por QR).`
         );
       }
 
       return apiClient.post(url, bodyData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["channelsData"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
+      queryClient.invalidateQueries({ queryKey: CHANNELS_KEY });
     },
   });
 }
 
-export interface WhatsAppQrData {
-  connectionId: string;
-  instanceName: string;
-  qrBase64?: string;
-  qrCode?: string;
-  pairingCode?: string;
-  status?: string;
-}
-
-export interface WhatsAppEvolutionState {
-  instanceName: string;
-  state: string;
-  isOpen: boolean;
-}
-
-export function useWhatsAppQrConnect() {
+/** Asigna el agente que responde en un canal (null = agente de atención por defecto). */
+export function useAssignChannelAgent() {
   const queryClient = useQueryClient();
-  const [qrData, setQrData] = React.useState<WhatsAppQrData | null>(null);
-  const [connectionState, setConnectionState] = React.useState<WhatsAppEvolutionState | null>(null);
-  const [isConnecting, setIsConnecting] = React.useState(false);
-  const [isPolling, setIsPolling] = React.useState(false);
-  const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPolling = React.useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    setIsPolling(false);
-  }, []);
-
-  const reset = React.useCallback(() => {
-    stopPolling();
-    setQrData(null);
-    setConnectionState(null);
-    setIsConnecting(false);
-  }, [stopPolling]);
-
-  const startPolling = React.useCallback(
-    (instanceName: string) => {
-      stopPolling();
-      setIsPolling(true);
-      pollRef.current = setInterval(() => {
-        void (async () => {
-          try {
-            const res = await apiClient.get<{
-              success?: boolean;
-              data?: WhatsAppEvolutionState;
-            }>(`/api/channels/whatsapp/evolution/state/${encodeURIComponent(instanceName)}`);
-            const state = res?.data;
-            if (state) {
-              setConnectionState(state);
-              if (state.isOpen) {
-                stopPolling();
-                queryClient.invalidateQueries({ queryKey: ["channelsData"] });
-                queryClient.invalidateQueries({ queryKey: ["dashboardOverview"] });
-              }
-            }
-          } catch {
-            // ignore transient poll errors
-          }
-        })();
-      }, 2500);
-    },
-    [queryClient, stopPolling]
-  );
-
-  const connectQr = React.useCallback(
-    async (displayName: string, instanceName?: string) => {
-      setIsConnecting(true);
-      try {
-        const res = await apiClient.post<{
-          success?: boolean;
-          message?: string;
-          data?: WhatsAppQrData;
-        }>("/api/channels/whatsapp/connect-qr", {
-          displayName,
-          instanceName,
-        });
-        if (!res?.data?.instanceName) {
-          throw new Error(res?.message || "No se pudo generar el QR de Evolution.");
-        }
-        setQrData(res.data);
-        startPolling(res.data.instanceName);
-        return res.data;
-      } finally {
-        setIsConnecting(false);
-      }
-    },
-    [startPolling]
-  );
-
-  const refreshQr = React.useCallback(async () => {
-    if (!qrData?.instanceName) return null;
-    const res = await apiClient.get<{
-      success?: boolean;
-      data?: Partial<WhatsAppQrData> & { instanceName: string };
-    }>(`/api/channels/whatsapp/qr/${encodeURIComponent(qrData.instanceName)}`);
-    if (res?.data) {
-      setQrData((prev) =>
-        prev
-          ? {
-              ...prev,
-              qrBase64: res.data?.qrBase64 ?? prev.qrBase64,
-              qrCode: res.data?.qrCode ?? prev.qrCode,
-              pairingCode: res.data?.pairingCode ?? prev.pairingCode,
-              status: res.data?.status ?? prev.status,
-            }
-          : null
-      );
-    }
-    return res?.data ?? null;
-  }, [qrData?.instanceName]);
-
-  React.useEffect(() => () => stopPolling(), [stopPolling]);
-
-  return {
-    connectQr,
-    refreshQr,
-    qrData,
-    connectionState,
-    isConnecting,
-    isPolling,
-    reset,
-  };
+  return useMutation({
+    mutationFn: ({ connectionId, agentId }: { connectionId: string; agentId: string | null }) =>
+      apiClient.put(`/api/channels/connections/${connectionId}/agent`, { agentId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
 }
 
+export interface AiProviderOption {
+  id: string;
+  label: string;
+  enabled: boolean;
+}
+
+/** Proveedores de IA registrados en «IA y modelos» para la organización. */
+export function useAiProviderOptions() {
+  return useQuery<AiProviderOption[]>({
+    queryKey: ["intelligenceProviders", "options"],
+    queryFn: async () => {
+      const tenantId = getTenantId();
+      if (!tenantId) return [];
+      const configs = await apiClient.get<
+        Array<{ id: string; displayName: string; providerName: string; modelName: string; isEnabled: boolean }>
+      >(`/api/aiproviderconfigurations/tenant/${tenantId}`);
+      return configs.map((c) => ({
+        id: c.id,
+        label: `${c.displayName || c.providerName} (${c.modelName})`,
+        enabled: c.isEnabled,
+      }));
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Asigna el proveedor de IA de un canal (null = el activo de la organización). */
+export function useAssignChannelAi() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, aiProviderConfigId }: { connectionId: string; aiProviderConfigId: string | null }) =>
+      apiClient.put(`/api/channels/connections/${connectionId}/ai`, { aiProviderConfigId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Cambia el nombre visible de un canal. */
+export function useRenameChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, displayName }: { connectionId: string; displayName: string }) =>
+      apiClient.patch(`/api/channels/connections/${connectionId}`, { displayName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Elimina un canal; la API limpia el servicio externo (desvincula WhatsApp, quita el webhook de Telegram). */
+export function useDeleteChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (connectionId: string) => apiClient.delete(`/api/channels/${connectionId}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["inbox"] });
+    },
+  });
+}
+
+/** Título y dominios (orígenes) donde puede incrustarse el widget de WebChat. */
+export function useConfigureWidget() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ connectionId, widgetTitle, allowedOrigins }: { connectionId: string; widgetTitle: string; allowedOrigins: string[] }) =>
+      apiClient.put(`/api/channels/webchat/${connectionId}/widget`, { widgetTitle, allowedOrigins }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Clave pública nueva para el widget: la anterior deja de funcionar en los sitios que la usen. */
+export function useRotateWidgetKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (connectionId: string) => apiClient.post<{ publicKey: string }>(`/api/channels/webchat/${connectionId}/widget/key`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Apagar (gradual: termina los chats en curso) o volver a encender un canal. */
+export function useChannelPower() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (m: { id: string; on: boolean }) => apiClient.post(`/api/channels/${m.id}/${m.on ? "enable" : "shutdown"}`, {}),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Conocimiento y acciones que el canal le da a su agente. */
+export function useChannelCapabilities() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (m: { id: string; knowledgeBaseIds: string[]; tools: string[] }) =>
+      apiClient.put(`/api/channels/connections/${m.id}/capabilities`, { knowledgeBaseIds: m.knowledgeBaseIds, tools: m.tools }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}

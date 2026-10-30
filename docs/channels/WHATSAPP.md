@@ -1,97 +1,79 @@
-# OCAP — Integración con WhatsApp (Evolution API Adapter)
+# WhatsApp por QR (Evolution API)
 
-## Descripción General
+Cada organización vincula **su propio número** escaneando un QR desde el teléfono, igual que WhatsApp Web. No hace
+falta WhatsApp Business ni Meta Cloud API. El puente es [Evolution API](https://github.com/EvolutionAPI/evolution-api)
+**v2.3.7** (Baileys), incluido en el `docker-compose.yml`.
 
-El adaptador de WhatsApp para OCAP (`OCAP.Channels.WhatsApp`) permite a la plataforma enviar y recibir mensajes de WhatsApp en tiempo real a través de **Evolution API**.
+> WhatsApp Cloud API (Meta) sigue disponible con `POST /api/channels/whatsapp/connect` y el webhook
+> `/api/channels/whatsapp/webhook`; este documento cubre el flujo por QR.
 
-Esta integración se implementa respetando la **Arquitectura Hexagonal (Ports & Adapters)**:
-- `OCAP.Core` y `OCAP.Application` no conocen detalles de la API de WhatsApp ni de Evolution API.
-- `OCAP.Channels.WhatsApp` actúa únicamente como un adaptador de entrada/salida que traduce payloads HTTP a contratos agnósticos internos (`IncomingChannelMessage`, `OutgoingChannelMessage`).
+## Uso
 
----
+1. `ocap` (o `./ocap install` la primera vez; genera `EVOLUTION_API_KEY` si falta; no hay que configurar nada más).
+2. Panel → **Canales → Conectar canal → WhatsApp → Generar QR**.
+3. En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo → escanear.
+4. El modal pasa a "WhatsApp vinculado · +número". Desde ahí mismo se puede **Desvincular**.
 
-## Arquitectura del Adaptador
+El asistente principal responde los chats individuales. Se ignoran mensajes propios, grupos, estados
+(`status@broadcast`), canales y mensajes sin texto (imágenes, audios).
 
-```
-[ Usuario WhatsApp ]
-         │
-         ▼
-[ Evolution API ]
-         │ (HTTP Webhook POST)
-         ▼
-[ OCAP.Api / WhatsAppWebhookController ] (/api/webhooks/whatsapp)
-         │
-         ▼ (Validar secret & payload)
-[ WhatsAppWebhookValidator ]
-         │
-         ▼ (Mapear a IncomingChannelMessage)
-[ WhatsAppWebhookMapper ]
-         │
-         ▼
-[ WhatsAppMessageReceiver ]
-         │
-         ▼
-[ OCAP.Application / ReceiveMessageUseCase ]
-```
-
-### Respuesta Saliente (Send Flow)
+## Diseño
 
 ```
-[ OCAP.Application / SendResponseUseCase ]
-         │
-         ▼
-[ WhatsAppMessageSender ]
-         │
-         ▼
-[ EvolutionApiClient ] (HttpClientFactory)
-         │ (HTTP POST /message/sendText/{instance})
-         ▼
-[ Evolution API ] ──► [ Usuario WhatsApp ]
+Teléfono ─QR─► Evolution (instancia ocap-{tenantId:N}) ──webhook firmado──► POST /api/webhooks/whatsapp
+                     ▲                                                          │ verifica firma → tenant
+                     └──────────── POST message/sendText/{instancia} ◄──────────┤ conversación + agente
+                                                                                └► SignalR "WhatsAppLinkUpdated" → panel
 ```
 
----
+| Decisión | Por qué |
+|---|---|
+| Una instancia por organización, nombre `ocap-{tenantId:N}` | El webhook sabe de qué organización es un evento sin consultar nada; vincular dos veces reutiliza la misma instancia. |
+| Firma por instancia: `X-OCAP-Webhook-Signature = HMAC-SHA256(clave, instancia)`, con la clave derivada de `EVOLUTION_API_KEY` (o `WHATSAPP_WEBHOOK_SECRET` si se define) | Evolution la envía como cabecera fija del webhook de cada instancia. La firma de una organización no sirve para otra. |
+| El webhook **falla cerrado** | Sin API key de Evolution responde 503. Los eventos que OCAP procesa (QR, conexión, mensajes) sin firma válida reciben 401; los que no procesa se confirman con 200 sin efecto, porque Evolution envía algunos de ciclo de vida sin cabeceras. Nadie puede inyectar mensajes falsos. |
+| Tenant fijado por el servidor (`HttpTenantContext.UseTrustedTenant`) | La petición no tiene sesión; tras verificar la firma, las lecturas y escrituras de EF quedan aisladas en esa organización. |
+| Deduplicación por `key.id` (6 h, memoria) | Evolution reintenta los webhooks que tardan o fallan; un mensaje se responde una sola vez. |
+| Respuesta de respaldo si el agente falla | El contacto nunca queda sin contestación (p. ej. sin proveedor de IA configurado). |
+| Sesiones en el Postgres de OCAP, esquema `evolution_api`, y Redis db 6 | La vinculación sobrevive a reinicios sin otra base ni volumen. |
+| Puerto de Evolution solo en `127.0.0.1` | La API key global de Evolution controla todas las sesiones. |
+| Sin webhook global (`WEBHOOK_GLOBAL_ENABLED=false`) | Cada instancia lleva su propia URL y firma. |
 
-## Instalación de Evolution API con Docker
+## API del panel (requiere sesión)
 
-Para despliegue en entorno local o servidor de desarrollo, se incluye un archivo Docker Compose en `docker/evolution/docker-compose.evolution.yml`:
-
-```bash
-# Iniciar la instancia de Evolution API
-docker compose -f docker/evolution/docker-compose.evolution.yml up -d
-```
-
----
-
-## Configuración en OCAP
-
-Agregue o ajuste la sección `WhatsApp` en el archivo `appsettings.json` o variables de entorno:
-
-```json
-{
-  "WhatsApp": {
-    "Enabled": true,
-    "BaseUrl": "http://localhost:8080",
-    "Instance": "ocap-main",
-    "ApiKey": "tu_api_key_de_evolution",
-    "WebhookSecret": "tu_secreto_de_webhook_opcional"
-  }
-}
-```
-
-### Variables de Entorno Recomendadas
-
-| Variable | Descripción | Ejemplo |
+| Método | Ruta | Resultado |
 |---|---|---|
-| `WhatsApp__Enabled` | Habilita el canal de WhatsApp | `true` |
-| `WhatsApp__BaseUrl` | URL del servidor Evolution API | `http://localhost:8080` |
-| `WhatsApp__Instance` | Nombre de la instancia activa | `ocap-main` |
-| `WhatsApp__ApiKey` | API Key de autenticación | `secret_api_key` |
-| `WhatsApp__WebhookSecret` | Token de seguridad para webhooks | `webhook_secret_token` |
+| `POST` | `/api/channels/whatsapp/link` | Crea o reutiliza la instancia y devuelve `{ state: "pending", qrBase64, pairingCode }`, o `linked` si ya estaba vinculado. 503 si el servidor no tiene WhatsApp configurado; 502 si Evolution no responde. |
+| `GET` | `/api/channels/whatsapp/link?qr=true` | `{ state: "unlinked" \| "pending" \| "linked", qrBase64?, phoneNumber?, profileName? }`. |
+| `DELETE` | `/api/channels/whatsapp/link` | Cierra la sesión del teléfono, borra la instancia y la conexión. 204. |
+| `GET` | `/api/channels/whatsapp/health` | `{ provider, configured, reachable }`. |
 
----
+Todas actúan sobre la organización de la sesión; no aceptan nombres de instancia.
 
-## Seguridad
+Desde la tarjeta del canal (comunes a todos los canales):
 
-1. **Validación de Secreto de Webhook**: `WhatsAppWebhookValidator` comprueba el header `x-webhook-secret` contra la clave configurada.
-2. **Límite de Tamaños de Payload**: Los mensajes entrantes con un cuerpo superior a 10 KB son rechazados para evitar ataques de consumo desmedido de memoria.
-3. **Filtro de Mensajes Propios**: Se ignoran automáticamente los mensajes entrantes con la bandera `fromMe = true` para evitar bucles infintos de auto-respuesta.
+| Método | Ruta | Resultado |
+|---|---|---|
+| `PATCH` | `/api/channels/connections/{id}` | `{ displayName }`, 1–100 caracteres. El nombre elegido se conserva al reconectar el teléfono. 204. |
+| `DELETE` | `/api/channels/{id}` | En WhatsApp por QR equivale a desvincular (cierra la sesión del teléfono y borra la instancia); 502 si Evolution no responde. En Telegram por webhook también quita el webhook del bot. Las conversaciones se conservan. |
+| `PUT` | `/api/channels/connections/{id}/agent` y `/ai` | Agente y proveedor de IA del canal (ver [proveedores de IA](../intelligence/AI_PROVIDERS.md)). |
+
+## Configuración
+
+Compose la inyecta sola. Para la API fuera de Docker (`dotnet run`, puerto 5229) con Evolution en Docker:
+
+| Clave | Docker | Local |
+|---|---|---|
+| `WhatsApp__BaseUrl` | `http://evolution-api:8080` | `http://localhost:8088` (en `appsettings.Development.json`) |
+| `WhatsApp__ApiKey` | `EVOLUTION_API_KEY` | exportar `EVOLUTION_API_KEY` |
+| `WhatsApp__WebhookUrl` | `http://ocap-api:5000/api/webhooks/whatsapp` | `http://host.docker.internal:5229/api/webhooks/whatsapp` |
+| `WhatsApp__WebhookSecret` | opcional (`WHATSAPP_WEBHOOK_SECRET`) | opcional |
+
+Cambiar `EVOLUTION_API_KEY` (o `WHATSAPP_WEBHOOK_SECRET`) invalida las firmas de las instancias existentes; se
+renuevan al pulsar **Generar QR** otra vez (también se actualizan la URL y los eventos del webhook).
+
+## Pruebas
+
+- Unitarias: `tests/OCAP.Channels.WhatsApp.Tests/Evolution/` (contrato HTTP v2, firma, eventos del webhook).
+- Integración: `tests/OCAP.Api.Tests/Endpoints/WhatsAppEvolutionEndpointTests.cs`, con un Evolution en memoria
+  (vincular → escanear → mensaje → respuesta única → desvincular; firmas inválidas; sin secreto).
+- Con un teléfono real: [`docs/testing/WHATSAPP_E2E.md`](../testing/WHATSAPP_E2E.md).

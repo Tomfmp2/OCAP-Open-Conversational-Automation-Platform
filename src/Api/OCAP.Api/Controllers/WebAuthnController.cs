@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,12 +47,13 @@ public class WebAuthnController : ControllerBase
             var device = await _webAuthnService.CompleteRegistrationAsync(_tenantContext.TenantId, userId, request, cancellationToken);
             return Ok(device);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("assertion/options")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(WebAuthnAssertionOptionsDto), StatusCodes.Status200OK)]
@@ -61,6 +63,7 @@ public class WebAuthnController : ControllerBase
         return Ok(options);
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("assertion/complete")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]

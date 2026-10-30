@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -34,6 +35,7 @@ public class SamlController : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(SamlProviderConfigDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> ImportMetadata([FromBody] ImportMetadataRequestDto request, CancellationToken cancellationToken)
     {
         try
@@ -41,7 +43,7 @@ public class SamlController : ControllerBase
             var config = await _samlService.ImportIdpMetadataXmlAsync(_tenantContext.TenantId, request.MetadataXml, cancellationToken);
             return Ok(config);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -51,6 +53,7 @@ public class SamlController : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(SamlProviderConfigDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> GetConfig(CancellationToken cancellationToken)
     {
         var config = await _samlService.GetSamlProviderConfigAsync(_tenantContext.TenantId, cancellationToken);
@@ -63,6 +66,7 @@ public class SamlController : ControllerBase
     [Authorize]
     [ProducesResponseType(typeof(SamlProviderConfigDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Authorize(Policy = OcapPermissions.SecurityManage)]
     public async Task<IActionResult> SaveConfig([FromBody] SaveSamlProviderConfigDto request, CancellationToken cancellationToken)
     {
         try
@@ -70,7 +74,7 @@ public class SamlController : ControllerBase
             var config = await _samlService.SaveSamlProviderConfigAsync(_tenantContext.TenantId, request, cancellationToken);
             return Ok(config);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -87,7 +91,7 @@ public class SamlController : ControllerBase
             var redirect = await _samlService.InitiateSpLoginAsync(tenantId, returnUrl, cancellationToken);
             return Ok(redirect);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -104,7 +108,7 @@ public class SamlController : ControllerBase
             var authResult = await _samlService.ProcessAcsResponseAsync(tenantId, request, cancellationToken);
             return Ok(authResult);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Api.Models.Dashboard;
 using OCAP.Api.Security;
@@ -15,6 +16,7 @@ public class ExecuteToolRequestDto
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.AgentRead)]
 public class ToolsController : ControllerBase
 {
     private readonly IToolRegistry _toolRegistry;
@@ -62,6 +64,7 @@ public class ToolsController : ControllerBase
     }
 
     [HttpPost("{id}/execute")]
+    [Authorize(Policy = OcapPermissions.ToolExecute)]
     public async Task<ActionResult<ToolResult>> ExecuteTool(string id, [FromBody] ExecuteToolRequestDto request, CancellationToken cancellationToken)
     {
         var tool = _toolRegistry.GetTool(id);

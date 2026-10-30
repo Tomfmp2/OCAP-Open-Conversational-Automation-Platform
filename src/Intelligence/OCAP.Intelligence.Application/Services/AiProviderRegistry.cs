@@ -9,10 +9,15 @@ public class AiProviderRegistry : IAiProviderRegistry
 {
     private readonly ConcurrentDictionary<string, IAiProvider> _registeredProviders = new(StringComparer.OrdinalIgnoreCase);
     private readonly HttpClient _httpClient;
+    private readonly HttpClient _localHttpClient;
 
-    public AiProviderRegistry(IEnumerable<IAiProvider> initialProviders, HttpClient? httpClient = null)
+    /// <param name="httpClient">Para los proveedores en internet.</param>
+    /// <param name="localHttpClient">Para Ollama/Local, que pueden estar en tu red. Ambos los crea la API con la política
+    /// de red saliente: la dirección la escribe un usuario.</param>
+    public AiProviderRegistry(IEnumerable<IAiProvider> initialProviders, HttpClient? httpClient = null, HttpClient? localHttpClient = null)
     {
         _httpClient = httpClient ?? new HttpClient();
+        _localHttpClient = localHttpClient ?? _httpClient;
 
         foreach (var provider in initialProviders)
         {
@@ -52,10 +57,11 @@ public class AiProviderRegistry : IAiProviderRegistry
 
         return normName switch
         {
-            "openai" => new OCAP.Providers.OpenAI.OpenAiProvider(_httpClient, settings),
+            // Cualquier API con el formato de OpenAI (NVIDIA NIM, Groq, OpenRouter, DeepSeek, Mistral…) con su propia URL.
+            "openai" or "openaicompatible" => new OCAP.Providers.OpenAI.OpenAiProvider(_httpClient, settings),
             "gemini" => new OCAP.Providers.Gemini.GeminiAiProvider(_httpClient, settings),
-            "ollama" => new OCAP.Providers.Ollama.OllamaAiProvider(_httpClient, settings),
-            "local" => new OCAP.Providers.Ollama.LocalAiProvider(_httpClient, settings),
+            "ollama" => new OCAP.Providers.Ollama.OllamaAiProvider(_localHttpClient, settings),
+            "local" => new OCAP.Providers.Ollama.LocalAiProvider(_localHttpClient, settings),
             "claude" or "anthropic" => new OCAP.Providers.Claude.ClaudeAiProvider(_httpClient, settings),
             _ => GetProvider(providerName) ?? throw new NotSupportedException($"Proveedor de IA no soportado o no configurado: {providerName}")
         };

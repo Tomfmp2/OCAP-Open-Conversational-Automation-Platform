@@ -1,3 +1,4 @@
+using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -9,6 +10,7 @@ namespace OCAP.Api.Controllers;
 [ApiController]
 [Route("api/groups")]
 [Authorize]
+[Authorize(Policy = OcapPermissions.SecurityManage)]
 public class GroupsController : ControllerBase
 {
     private readonly IGroupService _groupService;
@@ -49,7 +51,7 @@ public class GroupsController : ControllerBase
             var group = await _groupService.CreateGroupAsync(_tenantContext.TenantId, request, cancellationToken);
             return CreatedAtAction(nameof(GetGroupById), new { id = group.Id }, group);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

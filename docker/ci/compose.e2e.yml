@@ -1,0 +1,13 @@
+# Override para el E2E local (scripts/ci-local.sh --e2e): el stack corre en su propio proyecto de Compose,
+# sin publicar puertos ni chocar con un OCAP que ya esté levantado. Playwright entra por la red interna.
+services:
+  postgres: { container_name: ocap-ci-postgres, ports: !reset [] }
+  redis: { container_name: ocap-ci-redis, ports: !reset [] }
+  rabbitmq: { container_name: ocap-ci-rabbitmq, ports: !reset [] }
+  nats: { container_name: ocap-ci-nats, ports: !reset [] }
+  evolution-api: { container_name: ocap-ci-evolution-api, ports: !reset [] }
+  storage-permissions: { container_name: ocap-ci-storage-permissions }
+  ocap-migrate: { container_name: ocap-ci-migrate, image: ocap-ci-api:local }
+  # Escritorio y móvil inician sesión muchas veces por minuto desde la misma IP (el contenedor de Playwright).
+  ocap-api: { container_name: ocap-ci-api, image: ocap-ci-api:local, ports: !reset [], environment: { RateLimiting__AuthPermitLimit: "100" } }
+  ocap-frontend: { container_name: ocap-ci-frontend, ports: !reset [] }

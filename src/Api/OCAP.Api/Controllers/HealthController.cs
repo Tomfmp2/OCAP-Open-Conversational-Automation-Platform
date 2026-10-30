@@ -8,11 +8,12 @@ using OCAP.Infrastructure.Persistence.Context;
 namespace OCAP.Api.Controllers;
 
 /// <summary>
-/// Diagnóstico extendido para el instalador (no sustituye /health/ready|/live).
+/// Diagnóstico extendido (no sustituye /health/ready|/live). Detalla los servicios internos: solo para quien
+/// administra el despliegue.
 /// </summary>
 [ApiController]
 [Route("api/health/diagnostic")]
-[AllowAnonymous]
+[Authorize(Policy = OCAP.Api.Security.OcapPermissions.DeploymentManage)]
 public class HealthController : ControllerBase
 {
     [HttpGet]
@@ -67,7 +68,7 @@ public class HealthController : ControllerBase
             {
                 Id = 4,
                 Title = "HealthChecks",
-                Description = "Estado agregado de PostgreSQL, Redis, Event Bus, storage y telemetría.",
+                Description = "Estado agregado de PostgreSQL, Event Bus, storage y telemetría.",
                 Status = report.Status == HealthStatus.Healthy ? "completed" : "error",
                 Details = report.Status.ToString()
             }

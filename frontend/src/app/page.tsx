@@ -4,7 +4,7 @@ import { PrincipalAgentChat } from "@/features/assistant/components/PrincipalAge
 
 export default function HomePage() {
   return (
-    <div className="mx-auto flex h-[calc(100vh-7.5rem)] w-full max-w-4xl flex-col">
+    <div className="flex h-full w-full flex-col px-4 py-4 sm:px-6">
       <PrincipalAgentChat className="h-full" hero />
     </div>
   );

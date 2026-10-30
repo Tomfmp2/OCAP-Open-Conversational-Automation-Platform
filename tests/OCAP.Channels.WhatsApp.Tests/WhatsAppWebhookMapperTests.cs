@@ -15,41 +15,41 @@ public class WhatsAppWebhookMapperTests
         var payload = new WhatsAppCloudWebhookPayload
         {
             Object = "whatsapp_business_account",
-            Entry = new List<WhatsAppCloudEntry>
+            Entry = new List<WhatsAppWebhookEntry>
             {
-                new WhatsAppCloudEntry
+                new WhatsAppWebhookEntry
                 {
                     Id = "123456",
-                    Changes = new List<WhatsAppCloudChange>
+                    Changes = new List<WhatsAppWebhookChange>
                     {
-                        new WhatsAppCloudChange
+                        new WhatsAppWebhookChange
                         {
                             Field = "messages",
-                            Value = new WhatsAppCloudChangeValue
+                            Value = new WhatsAppWebhookValue
                             {
                                 MessagingProduct = "whatsapp",
-                                Metadata = new WhatsAppCloudMetadata
+                                Metadata = new WhatsAppWebhookMetadata
                                 {
                                     DisplayPhoneNumber = "1234567890",
                                     PhoneNumberId = "0987654321"
                                 },
-                                Contacts = new List<WhatsAppCloudContact>
+                                Contacts = new List<WhatsAppWebhookContact>
                                 {
-                                    new WhatsAppCloudContact
+                                    new WhatsAppWebhookContact
                                     {
-                                        Profile = new WhatsAppCloudProfile { Name = "Juan Pérez" },
+                                        Profile = new WhatsAppWebhookProfile { Name = "Juan Pérez" },
                                         WaId = "573001234567"
                                     }
                                 },
-                                Messages = new List<WhatsAppCloudMessage>
+                                Messages = new List<WhatsAppWebhookMessage>
                                 {
-                                    new WhatsAppCloudMessage
+                                    new WhatsAppWebhookMessage
                                     {
                                         From = "573001234567",
                                         Id = "MSG_123456",
                                         Timestamp = "1700000000",
                                         Type = "text",
-                                        Text = new WhatsAppCloudText { Body = "Hola bot" }
+                                        Text = new WhatsAppWebhookText { Body = "Hola bot" }
                                     }
                                 }
                             }
@@ -82,17 +82,17 @@ public class WhatsAppWebhookMapperTests
         var payload = new WhatsAppCloudWebhookPayload
         {
             Object = "whatsapp_business_account",
-            Entry = new List<WhatsAppCloudEntry>
+            Entry = new List<WhatsAppWebhookEntry>
             {
-                new WhatsAppCloudEntry
+                new WhatsAppWebhookEntry
                 {
                     Id = "123456",
-                    Changes = new List<WhatsAppCloudChange>
+                    Changes = new List<WhatsAppWebhookChange>
                     {
-                        new WhatsAppCloudChange
+                        new WhatsAppWebhookChange
                         {
                             Field = "messages",
-                            Value = new WhatsAppCloudChangeValue
+                            Value = new WhatsAppWebhookValue
                             {
                                 MessagingProduct = "whatsapp"
                                 // Messages is null (e.g. status update)

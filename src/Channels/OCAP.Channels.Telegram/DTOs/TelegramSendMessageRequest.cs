@@ -10,6 +10,8 @@ public class TelegramSendMessageRequest
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
+    // Sin formato no se envía el campo: Telegram rechaza parse_mode vacío o nulo con algunos clientes HTTP.
     [JsonPropertyName("parse_mode")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ParseMode { get; set; }
 }

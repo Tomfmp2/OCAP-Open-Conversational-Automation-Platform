@@ -21,7 +21,6 @@ public static class WhatsAppServiceExtensions
                 opts.Enabled = primary.Enabled;
                 opts.Provider = primary.Provider;
                 opts.BaseUrl = primary.BaseUrl;
-                opts.Instance = primary.Instance;
                 opts.ApiKey = primary.ApiKey;
                 opts.WebhookSecret = primary.WebhookSecret;
                 opts.WebhookUrl = primary.WebhookUrl;
@@ -39,7 +38,7 @@ public static class WhatsAppServiceExtensions
 
             if (string.IsNullOrWhiteSpace(opts.BaseUrl))
             {
-                opts.BaseUrl = configuration["EVOLUTION_API_URL"] ?? "http://localhost:8080";
+                opts.BaseUrl = configuration["EVOLUTION_API_URL"] ?? string.Empty;
             }
 
             if (string.IsNullOrWhiteSpace(opts.ApiKey))
@@ -51,17 +50,13 @@ public static class WhatsAppServiceExtensions
             {
                 opts.Provider = "Evolution";
             }
-
-            if (string.IsNullOrWhiteSpace(opts.Instance))
-            {
-                opts.Instance = "ocap-main";
-            }
         });
 
         services.AddHttpClient<WhatsAppApiClient>();
         services.AddHttpClient<EvolutionApiClient>();
 
         services.AddScoped<IWhatsAppRuntimeManager, WhatsAppRuntimeManager>();
+        services.AddScoped<WhatsAppLinkService>();
         services.AddScoped<WhatsAppWebhookValidator>();
         services.AddScoped<WhatsAppMessageReceiver>();
         services.AddScoped<WhatsAppMessageSender>();

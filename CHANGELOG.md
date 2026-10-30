@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Agentes por canal**: cada canal responde con el agente que se le asigna (o con un agente de atención por defecto), usando sus instrucciones, el historial de la conversación y la base de conocimiento; puede pasar la conversación a una persona. Los contactos ya no hablan con el agente madre del panel ni ven datos internos. Chat de prueba en *Agentes*.
+- **Bandeja de conversaciones** (`/inbox`): conversaciones de WhatsApp y Telegram, tomar el control (el agente deja de responder), responder como persona por el mismo canal y devolver al agente. Migración `AddConversationChannel`.
+- **WhatsApp por QR (Evolution API v2.3.7)**: *Canales → Conectar canal → WhatsApp* muestra el QR, el estado llega en vivo por SignalR y el asistente principal responde los chats individuales. Una instancia por organización, sesiones persistentes en Postgres y endpoints `POST/GET/DELETE /api/channels/whatsapp/link`.
+- **Modo demo de IA**: sin keys de IA en el servidor el asistente responde con el proveedor Mock en vez de fallar (`AiProviders__DemoMode=false` lo desactiva).
+- `scripts/ocap-dev.sh` para desarrollar sin Docker en Linux y macOS.
+- **WhatsApp Cloud API responde con el asistente**: el webhook de Meta resuelve la organización por el `PhoneNumberId` conectado (único en OCAP) y responde una vez por mensaje.
+- **Telegram responde con el asistente**: el polling consulta cada bot registrado desde el panel con su propio token (antes solo el token global, así que los bots del panel nunca se atendían) y el modo webhook usa una URL por conexión con un secreto derivado del token del bot (antes el secreto se generaba y se perdía).
+- CI estricto: `TreatWarningsAsErrors`, auditorías de dependencias y Trivy bloqueantes, y un job E2E con Playwright sobre el stack de Docker.
+
+### Changed
+- La API ya no expone mensajes de excepciones inesperadas: responde `ProblemDetails` genérico y registra el detalle.
+- `WorkflowsController` y `DashboardController` dejan de usar `OCAPDbContext` directamente (repositorios y `DashboardQueries`); `ApiServiceExtensions` se divide por área.
+- **Instalación**: el instalador web (modos Dev/Local/Web) se reemplaza por `scripts/ocap-setup.sh`, que genera el `.env` con secretos aleatorios, y por una configuración inicial en `/setup` de tres pasos (cuenta, IA opcional, listo) protegida por un código de un solo uso que la API imprime en sus logs. La API ya no escribe `.env`, `generated.env` ni `installation.json`.
+- Los proveedores de Google Workspace toman el token de la conexión OAuth de la organización (o de `Google:AccessToken`).
+
+### Removed
+- `OCAP.DeploymentManager` y sus pruebas.
+- `OCAP.Dashboard` (Blazor, puerto 8081 y ruta `/blazor/`): el panel es la app Next.js.
+- 15 proyectos vacíos (`OCAP.Modules.*` y los canales Discord, Microsoft Teams y Slack sin implementación).
+- Endpoints `whatsapp/connect-qr`, `whatsapp/qr/{instancia}` y `whatsapp/evolution/state/{instancia}`.
+
+### Security
+- WhatsApp: el webhook falla cerrado y exige una firma HMAC por instancia; los endpoints del panel solo actúan sobre la organización de la sesión (antes aceptaban cualquier instancia); la API key global de Evolution ya no se guarda en las conexiones; Evolution solo escucha en `127.0.0.1`.
+- Next.js 16.4.2 y una imagen del frontend sin npm/yarn/corepack: 0 vulnerabilidades altas o críticas (npm audit de producción y Trivy).
+- Sin credenciales por defecto: no hay admin `admin@ocap.io` ni secretos de respaldo en `docker-compose.yml`; Compose no arranca sin los secretos. El admin por entorno es opcional y exige contraseña fuerte.
+
 ## [2.1.0] - 2026-07-29
 
 ### Added

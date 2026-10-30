@@ -11,8 +11,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
+          // Los datos se refrescan solos al volver a la pestaña: el panel no necesita botones "Actualizar".
           queries: {
-            refetchOnWindowFocus: false,
+            refetchOnWindowFocus: true,
+            staleTime: 30_000,
             retry: 1,
           },
         },

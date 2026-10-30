@@ -1,3 +1,6 @@
+using OCAP.Channels.Abstractions.Contracts;
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Agents.Abstractions.Models;
 using OCAP.Agents.Application.Services;
@@ -55,6 +58,7 @@ public class WebChatChannelController : ControllerBase
     }
 
     [HttpPost("connect")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> Connect([FromBody] CreateWebChatConnectionRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -93,12 +97,59 @@ public class WebChatChannelController : ControllerBase
                 Data = connection
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _logger.LogError(ex, "Error al registrar WebChat.");
             return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message, Data = null });
         }
     }
+
+    /// <summary>
+    /// Configura el widget público: dominios que pueden usarlo (https://tusitio.com) y título. Sin dominios funciona
+    /// en cualquier sitio.
+    /// </summary>
+    [HttpPut("{id:guid}/widget")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> ConfigureWidget(
+        Guid id,
+        [FromBody] ConfigureWidgetRequest request,
+        [FromServices] IChannelConnectionManager connections,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        var origins = (request.AllowedOrigins ?? []).Select(o => o.Trim().TrimEnd('/')).Where(o => o.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (origins.Count > 20) return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Máximo 20 dominios.");
+        var invalid = origins.FirstOrDefault(o => !IsOrigin(o));
+        if (invalid is not null)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"'{invalid}' no es un origen válido. Usa la forma https://tusitio.com, sin rutas.");
+        if (request.WidgetTitle is { Length: > 60 })
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "El título admite hasta 60 caracteres.");
+
+        var found = await connections.SetMetadataValueAsync(
+            tenantId, id, OCAP.Channels.WebChat.Services.WebChatRuntimeManager.AllowedOriginsMetadata,
+            origins.Count == 0 ? null : string.Join(",", origins), cancellationToken);
+        if (!found) return NotFound();
+        if (!string.IsNullOrWhiteSpace(request.WidgetTitle))
+            await connections.SetMetadataValueAsync(tenantId, id, "WidgetTitle", request.WidgetTitle.Trim(), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>Genera una clave pública nueva (la anterior deja de funcionar en los sitios que la usen).</summary>
+    [HttpPost("{id:guid}/widget/key")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> RotateWidgetKey(Guid id, [FromServices] IChannelConnectionManager connections, CancellationToken cancellationToken)
+    {
+        var key = OCAP.Channels.WebChat.Services.WebChatRuntimeManager.NewPublicKey();
+        var found = await connections.SetMetadataValueAsync(
+            _tenantContext.TenantId, id, OCAP.Channels.WebChat.Services.WebChatRuntimeManager.WidgetPublicKeyMetadata, key, cancellationToken);
+        return found ? Ok(new { publicKey = key }) : NotFound();
+    }
+
+    private static bool IsOrigin(string value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+        && uri.AbsolutePath == "/" && string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.UserInfo)
+        && value.Equals(uri.GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
 
     [HttpGet("health")]
     public async Task<IActionResult> Health(CancellationToken cancellationToken)
@@ -119,6 +170,7 @@ public class WebChatChannelController : ControllerBase
     }
 
     [HttpPost("messages")]
+    [Authorize(Policy = OcapPermissions.AiExecute)]
     public async Task<IActionResult> SendMessage([FromBody] WebChatSendMessageRequest request, CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
@@ -206,3 +258,5 @@ public class WebChatChannelController : ControllerBase
         });
     }
 }
+
+public sealed record ConfigureWidgetRequest(string[]? AllowedOrigins, string? WidgetTitle);

@@ -9,15 +9,18 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
     private readonly IEnumerable<ILanguageModelProvider> _staticProviders;
     private readonly IEnumerable<IAiProvider> _aiProviders;
     private readonly IAiProviderConfigurationService? _configurationService;
+    private readonly AiDemoMode _demoMode;
 
     public DefaultLanguageModelProviderSelector(
         IEnumerable<ILanguageModelProvider> staticProviders,
         IEnumerable<IAiProvider> aiProviders,
-        IAiProviderConfigurationService? configurationService = null)
+        IAiProviderConfigurationService? configurationService = null,
+        AiDemoMode? demoMode = null)
     {
         _staticProviders = staticProviders;
         _aiProviders = aiProviders;
         _configurationService = configurationService;
+        _demoMode = demoMode ?? new AiDemoMode(false);
     }
 
     public async Task<ILanguageModelProvider> GetProviderAsync(Guid tenantId, string? preferredProvider = null, CancellationToken cancellationToken = default)
@@ -53,7 +56,16 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
         if (selected == null)
         {
             IAiProvider? ai = null;
-            if (!string.IsNullOrEmpty(preferredProvider))
+
+            // En modo demo los proveedores reales no tienen key: Mock es el único que responde, aunque la
+            // configuración prefiera otro (p. ej. AiProviders:PreferredProvider=Gemini en desarrollo).
+            if (_demoMode.Enabled)
+            {
+                ai = _aiProviders.FirstOrDefault(p =>
+                    string.Equals(p.Name, AiDemoMode.MockProviderName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (ai is null && !string.IsNullOrEmpty(preferredProvider))
             {
                 ai = _aiProviders.FirstOrDefault(p =>
                     string.Equals(p.Name, preferredProvider, StringComparison.OrdinalIgnoreCase));

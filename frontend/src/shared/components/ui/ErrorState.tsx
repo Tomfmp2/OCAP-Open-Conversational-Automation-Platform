@@ -1,6 +1,5 @@
 import React from "react";
 import { AlertCircle } from "lucide-react";
-import { Surface } from "./Surface";
 import { Button } from "./Button";
 
 interface ErrorStateProps {
@@ -10,26 +9,24 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = "No se pudo cargar la información",
-  message = "Revisa la conexión con la API e inténtalo de nuevo.",
+  title = "No se pudo cargar",
+  message = "El servidor no respondió. Comprueba que OCAP esté en marcha e inténtalo de nuevo.",
   onRetry,
 }: ErrorStateProps) {
   return (
-    <Surface
-      role="alert"
-      className="border-neutral-950 px-6 py-12 text-center"
-      padding="none"
-    >
-      <AlertCircle className="mx-auto mb-3 h-6 w-6 text-neutral-950" />
-      <h3 className="text-sm font-semibold text-neutral-950">{title}</h3>
-      <p className="mx-auto mt-1 max-w-md text-xs text-neutral-500">{message}</p>
-      {onRetry && (
-        <div className="mt-4 flex justify-center">
-          <Button type="button" size="sm" onClick={onRetry}>
+    <div role="alert" className="rounded-lg border border-danger/30 bg-danger-subtle px-5 py-4">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-danger">{title}</p>
+          <p className="mt-0.5 text-sm text-neutral-700">{message}</p>
+        </div>
+        {onRetry && (
+          <Button variant="secondary" size="sm" onClick={onRetry}>
             Reintentar
           </Button>
-        </div>
-      )}
-    </Surface>
+        )}
+      </div>
+    </div>
   );
 }

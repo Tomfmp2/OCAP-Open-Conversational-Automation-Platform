@@ -3,8 +3,8 @@
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/context/AuthProvider";
+import { isPublicRoute, requiredPermissionFor } from "@/shared/config/navigation";
 
-const PUBLIC_ROUTES = ["/login", "/installer"];
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -21,9 +21,7 @@ export function AuthGuard({
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPublic = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
+  const isPublic = isPublicRoute(pathname);
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -42,7 +40,7 @@ export function AuthGuard({
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-neutral-50">
-        <div className="text-sm text-neutral-500">Cargando sesión…</div>
+        <div className="text-sm text-neutral-600">Cargando sesión…</div>
       </div>
     );
   }
@@ -51,8 +49,9 @@ export function AuthGuard({
     return null;
   }
 
-  const lacksPermission =
-    !!requiredPermission && !hasPermission(requiredPermission);
+  // Sin permiso explícito, el de la ruta según el menú (p. ej. un Operador no entra a Canales escribiendo la URL).
+  const permission = requiredPermission ?? requiredPermissionFor(pathname);
+  const lacksPermission = !!permission && !hasPermission(permission);
   const lacksRole = !!requiredRole && !hasRole(requiredRole);
 
   if (isAuthenticated && (lacksPermission || lacksRole)) {
@@ -60,7 +59,7 @@ export function AuthGuard({
       <div className="flex h-full w-full items-center justify-center bg-neutral-50 p-6">
         <div className="text-center">
           <h1 className="text-lg font-semibold text-neutral-950">Acceso denegado</h1>
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-neutral-600">
             No tienes los permisos necesarios para ver esta sección.
           </p>
         </div>

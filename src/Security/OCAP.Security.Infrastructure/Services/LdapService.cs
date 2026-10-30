@@ -11,9 +11,11 @@ public class LdapService : ILdapService
 {
     private readonly OCAPDbContext _dbContext;
     private readonly ISecurityAuditService _auditService;
+    private readonly ICredentialVault _vault;
 
-    public LdapService(OCAPDbContext dbContext, ISecurityAuditService auditService)
+    public LdapService(OCAPDbContext dbContext, ISecurityAuditService auditService, ICredentialVault vault)
     {
+        _vault = vault ?? throw new ArgumentNullException(nameof(vault));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _auditService = auditService ?? throw new ArgumentNullException(nameof(auditService));
     }
@@ -38,15 +40,20 @@ public class LdapService : ILdapService
     {
         if (config == null) throw new ArgumentNullException(nameof(config));
 
+        // La contraseña de la cuenta de servicio se guarda cifrada con el vault de la organización; vacía conserva la anterior.
+        var bindPassword = string.IsNullOrWhiteSpace(config.BindPassword)
+            ? string.Empty
+            : await _vault.StoreSecretAsync(tenantId, "ldap-bind-password", config.BindPassword, cancellationToken);
+
         var existing = await _dbContext.LdapProviderConfigs.FirstOrDefaultAsync(c => c.TenantId == tenantId, cancellationToken);
         if (existing == null)
         {
-            existing = new LdapProviderConfig(Guid.NewGuid(), tenantId, config.Server, config.Port, config.UseSsl, config.BindDn, config.BindPassword ?? string.Empty, config.BaseDn, config.UserSearchFilter, config.GroupSearchFilter);
+            existing = new LdapProviderConfig(Guid.NewGuid(), tenantId, config.Server, config.Port, config.UseSsl, config.BindDn, bindPassword, config.BaseDn, config.UserSearchFilter, config.GroupSearchFilter);
             _dbContext.LdapProviderConfigs.Add(existing);
         }
         else
         {
-            existing.Update(config.Server, config.Port, config.UseSsl, config.BindDn, config.BindPassword ?? string.Empty, config.BaseDn, config.UserSearchFilter, config.GroupSearchFilter, null);
+            existing.Update(config.Server, config.Port, config.UseSsl, config.BindDn, bindPassword, config.BaseDn, config.UserSearchFilter, config.GroupSearchFilter, null);
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);

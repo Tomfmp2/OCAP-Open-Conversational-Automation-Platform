@@ -11,7 +11,7 @@ namespace OCAP.Providers.Claude;
 public sealed class ClaudeAiProvider : IAiProvider
 {
     private const string DefaultBaseUrl = "https://api.anthropic.com/v1";
-    private const string DefaultModel = "claude-3-5-sonnet-latest";
+    private const string DefaultModel = "claude-sonnet-5-5";
     private readonly HttpClient _httpClient;
     private readonly AiProviderSettings _settings;
 
@@ -186,8 +186,8 @@ public sealed class ClaudeAiProvider : IAiProvider
             ["max_tokens"] = request.MaxTokens ?? _settings.MaxTokens,
             ["temperature"] = request.Temperature ?? _settings.Temperature,
             ["messages"] = request.ConversationHistory
-                .Select(history => new { role = "user", content = history })
-                .Append(new { role = "user", content = request.UserMessage })
+                .Select(history => (object)new { role = "user", content = history })
+                .Append(new { role = "user", content = UserContent(request) })
                 .ToArray(),
             ["stream"] = stream
         };
@@ -234,4 +234,17 @@ public sealed class ClaudeAiProvider : IAiProvider
         : _settings.BaseUrl.TrimEnd('/');
 
     private string Model => string.IsNullOrWhiteSpace(_settings.ModelName) ? DefaultModel : _settings.ModelName;
+
+    private static object UserContent(AiRequest request)
+    {
+        if (request.Attachments.Count == 0) return request.UserMessage;
+        if (request.Attachments.Any(a => !a.IsImage))
+            throw new UnsupportedAttachmentException("Este modelo solo lee imágenes. Para video usa un modelo de Gemini.");
+
+        var blocks = request.Attachments
+            .Select(a => (object)new { type = "image", source = new { type = "base64", media_type = a.MimeType, data = a.Base64Data } })
+            .ToList();
+        blocks.Add(new { type = "text", text = request.UserMessage });
+        return blocks;
+    }
 }

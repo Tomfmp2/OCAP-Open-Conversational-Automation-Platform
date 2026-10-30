@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using OCAP.Security.Infrastructure.Services;
@@ -41,5 +43,50 @@ public class AesDbCredentialVaultTests
 
         // Assert
         retrievedByTenantB.Should().BeNull();
+    }
+
+    private const string MasterKey = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!";
+
+    [Fact]
+    public async Task RetrieveSecret_WhenTheCipherTextWasAltered_ReturnsNull()
+    {
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, MasterKey);
+        var tenantId = Guid.NewGuid();
+        var secretRef = await vault.StoreSecretAsync(tenantId, "ApiKey", "valor-original");
+        secretRef.Should().StartWith("vault:aesgcm:");
+
+        var parts = secretRef.Split(':');
+        var payload = Convert.FromBase64String(parts[^1]);
+        payload[^1] ^= 0x01;
+        parts[^1] = Convert.ToBase64String(payload);
+
+        (await vault.RetrieveSecretAsync(tenantId, string.Join(':', parts))).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RetrieveSecret_WhenTheSecretNameWasSwapped_ReturnsNull()
+    {
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, MasterKey);
+        var tenantId = Guid.NewGuid();
+        var secretRef = await vault.StoreSecretAsync(tenantId, "webhook-hmac-secret", "valor");
+
+        (await vault.RetrieveSecretAsync(tenantId, secretRef.Replace("webhook-hmac-secret", "ldap-bind-password"))).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RetrieveSecret_StillReadsReferencesWrittenWithAesCbc()
+    {
+        // Formato anterior: vault:aes256 con clave SHA-256(maestra_tenant) e IV | texto cifrado.
+        var tenantId = Guid.NewGuid();
+        using var aes = Aes.Create();
+        aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes($"{MasterKey}_{tenantId:N}"));
+        aes.GenerateIV();
+        var plain = Encoding.UTF8.GetBytes("token-antiguo");
+        var cipher = aes.CreateEncryptor().TransformFinalBlock(plain, 0, plain.Length);
+        var legacyRef = $"vault:aes256:{tenantId:N}:BotToken:{Convert.ToBase64String(aes.IV.Concat(cipher).ToArray())}";
+
+        var vault = new AesDbCredentialVault(NullLogger<AesDbCredentialVault>.Instance, MasterKey);
+
+        (await vault.RetrieveSecretAsync(tenantId, legacyRef)).Should().Be("token-antiguo");
     }
 }

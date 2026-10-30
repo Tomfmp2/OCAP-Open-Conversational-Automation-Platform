@@ -15,14 +15,6 @@ public sealed class LoginRequestDtoValidator : AbstractValidator<LoginRequestDto
     }
 }
 
-public sealed class RefreshTokenRequestDtoValidator : AbstractValidator<RefreshTokenRequestDto>
-{
-    public RefreshTokenRequestDtoValidator()
-    {
-        RuleFor(x => x.RefreshToken).NotEmpty().MinimumLength(16).MaximumLength(2048);
-    }
-}
-
 public sealed class CreateTenantRequestDtoValidator : AbstractValidator<CreateTenantRequestDto>
 {
     public CreateTenantRequestDtoValidator()

@@ -50,7 +50,7 @@ public class OpenAiProvider : IAiProvider
 
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl.TrimEnd('/')}/chat/completions");
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/chat/completions");
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
         httpRequest.Content = jsonContent;
 
@@ -106,7 +106,7 @@ public class OpenAiProvider : IAiProvider
         };
 
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_settings.BaseUrl.TrimEnd('/')}/chat/completions");
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/chat/completions");
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
         httpRequest.Content = jsonContent;
 
@@ -186,7 +186,7 @@ public class OpenAiProvider : IAiProvider
                 };
             }
 
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.BaseUrl.TrimEnd('/')}/models");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/models");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
             stopwatch.Stop();
@@ -240,7 +240,7 @@ public class OpenAiProvider : IAiProvider
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_settings.BaseUrl.TrimEnd('/')}/models");
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/models");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode) return Array.Empty<string>();
@@ -276,7 +276,20 @@ public class OpenAiProvider : IAiProvider
             messages.Add(new { role = "user", content = history });
         }
 
-        messages.Add(new { role = "user", content = request.UserMessage });
+        if (request.Attachments.Count == 0)
+        {
+            messages.Add(new { role = "user", content = request.UserMessage });
+            return messages;
+        }
+
+        if (request.Attachments.Any(a => !a.IsImage))
+            throw new UnsupportedAttachmentException("Este modelo solo lee imágenes. Para video usa un modelo de Gemini.");
+        var content = new List<object> { new { type = "text", text = request.UserMessage } };
+        content.AddRange(request.Attachments.Select(a => new { type = "image_url", image_url = new { url = $"data:{a.MimeType};base64,{a.Base64Data}" } }));
+        messages.Add(new { role = "user", content });
         return messages;
     }
+
+    // Una configuración del panel sin URL propia llega con BaseUrl vacía: sin esto las peticiones iban a "/chat/completions".
+    private string BaseUrl => string.IsNullOrWhiteSpace(_settings.BaseUrl) ? "https://api.openai.com/v1" : _settings.BaseUrl.TrimEnd('/');
 }

@@ -8,7 +8,7 @@ CAP-02 establishes the enterprise runtime management system for communication ch
 
 1. **Channels as Adapters Only:** Channels handle input/output translation to/from `IncomingChannelMessage` and `OutgoingChannelMessage`. Zero business logic, reasoning, or prompt engineering resides in channels.
 2. **Strict Multi-Tenant Isolation:** Every `ChannelConnection` is tied to a specific `TenantId`. Unique composite index on `(TenantId, Provider)`.
-3. **Zero Plaintext Secrets (`ICredentialVault`):** All bot tokens, API keys, and refresh tokens are encrypted using AES-256 (CBC with per-tenant key derivation) and stored securely. Plaintext secrets are never returned in API models or logs.
+3. **Zero Plaintext Secrets (`ICredentialVault`):** All bot tokens, API keys, and refresh tokens are encrypted using AES-256-GCM (per-tenant key derived with HKDF; tenant and secret name bound as associated data) and stored securely. Plaintext secrets are never returned in API models or logs.
 4. **Hexagonal Boundaries:** Channel management components in `OCAP.Channels.Abstractions` have zero dependencies on `OCAP.Intelligence`, `OCAP.Workflow`, or `OCAP.Knowledge`.
 
 ## 3. Integration Points

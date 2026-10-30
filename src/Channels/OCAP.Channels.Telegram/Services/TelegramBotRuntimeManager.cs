@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Telegram.DTOs;
+using OCAP.Channels.Telegram.Webhooks;
 using OCAP.Security.Abstractions;
 using OCAP.Security.Domain.Entities;
 
@@ -63,29 +64,25 @@ public class TelegramBotRuntimeManager : ITelegramBotRuntimeManager
             throw new InvalidOperationException("El Bot Token proporcionado es inválido o no se pudo verificar con Telegram API.");
         }
 
-        // 2. Registrar Webhook si mode == "webhook"
-        string? configuredWebhookUrl = null;
-        if (string.Equals(connectionMode, "webhook", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(webhookBaseUrl))
+        // El mismo bot en dos canales (o dos organizaciones) se pelearía los mensajes: Telegram entrega cada uno una vez.
+        var botId = botInfo.Id.ToString();
+        if ((await _connectionManager.GetAllConnectionsByProviderAsync("Telegram", cancellationToken))
+            .Any(c => c.ConfigurationMetadata.TryGetValue("BotId", out var id) && id == botId))
         {
-            configuredWebhookUrl = $"{webhookBaseUrl.TrimEnd('/')}/api/channels/telegram/webhook";
-            var secretToken = Guid.NewGuid().ToString("N");
-            var webhookSuccess = await _apiClient.SetWebhookAsync(configuredWebhookUrl, secretToken, botToken, cancellationToken);
-            if (!webhookSuccess)
-            {
-                _logger.LogWarning("No se pudo registrar la URL de Webhook {Url} en Telegram API.", configuredWebhookUrl);
-            }
+            throw new InvalidOperationException($"El bot @{botInfo.Username} ya está conectado en OCAP.");
         }
 
-        // 3. Crear metadata de configuración
+        var useWebhook = string.Equals(connectionMode, "webhook", StringComparison.OrdinalIgnoreCase)
+                         && !string.IsNullOrWhiteSpace(webhookBaseUrl);
+
+        // 2. Crear la conexión (en polling, el servicio de polling empieza a atender el bot en el siguiente ciclo)
         var metadata = new Dictionary<string, string>
         {
             ["BotId"] = botInfo.Id.ToString(),
             ["BotUsername"] = botInfo.Username ?? botInfo.FirstName,
-            ["ConnectionMode"] = connectionMode.ToLowerInvariant(),
-            ["WebhookUrl"] = configuredWebhookUrl ?? "polling"
+            ["ConnectionMode"] = useWebhook ? "webhook" : "polling",
+            ["WebhookUrl"] = "polling"
         };
-
-        // 4. Crear la conexión en el gestor multi-tenant de OCAP
         var connection = await _connectionManager.CreateConnectionAsync(
             tenantId,
             "Telegram",
@@ -93,6 +90,22 @@ public class TelegramBotRuntimeManager : ITelegramBotRuntimeManager
             botToken,
             metadata,
             cancellationToken);
+
+        // 3. En modo webhook, la URL lleva el id de la conexión y el secreto se deriva del token del bot,
+        //    así OCAP sabe de qué bot y organización es cada update sin guardar nada más.
+        if (useWebhook)
+        {
+            var webhookUrl = $"{webhookBaseUrl!.TrimEnd('/')}/api/channels/telegram/webhook/{connection.Id}";
+            var secret = TelegramWebhookSecret.For(botToken, connection.Id);
+            if (!await _apiClient.SetWebhookAsync(webhookUrl, secret, botToken, cancellationToken))
+            {
+                _logger.LogWarning("No se pudo registrar la URL de Webhook {Url} en Telegram API.", webhookUrl);
+            }
+
+            metadata["WebhookUrl"] = webhookUrl;
+            connection = await _connectionManager.UpdateConfigurationAsync(
+                tenantId, connection.Id, displayName, botToken, metadata, cancellationToken) ?? connection;
+        }
 
         _logger.LogInformation("Bot de Telegram registrado exitosamente para Tenant {TenantId} con Username @{Username} (ID: {ConnectionId}).",
             tenantId, botInfo.Username, connection.Id);

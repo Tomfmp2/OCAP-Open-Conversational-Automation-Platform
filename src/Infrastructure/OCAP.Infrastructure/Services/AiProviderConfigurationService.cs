@@ -12,6 +12,8 @@ namespace OCAP.Infrastructure.Services;
 // Servicio de infraestructura encargado de la gestión persistente y resolución en tiempo de ejecución de configuraciones de proveedores de IA aislados por Tenant.
 public class AiProviderConfigurationService : IAiProviderConfigurationService
 {
+    public const string OpenAiCompatible = "OpenAICompatible";
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IAiProviderRegistry _providerRegistry;
@@ -39,12 +41,33 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         var normalizedProvider = dto.ProviderName.Trim();
 
-        // 1. Guardar la API Key de forma cifrada en el Credential Vault
-        var vaultRef = await _credentialVault.StoreSecretAsync(
-            dto.TenantId,
-            $"{normalizedProvider}_ApiKey_{Guid.NewGuid():N}",
-            dto.ApiKey ?? string.Empty,
-            cancellationToken);
+        // Puede haber varias configuraciones del mismo proveedor (otra clave, otro modelo, otra API compatible); el nombre
+        // visible las distingue (índice único). Se avisa antes de dejar un secreto huérfano en el vault.
+        var displayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? normalizedProvider : dto.DisplayName.Trim();
+        var exists = await _dbContext.AiProviderConfigurations
+            .AnyAsync(c => c.TenantId == dto.TenantId && c.DisplayName == displayName, cancellationToken);
+        if (exists)
+        {
+            throw new InvalidOperationException($"Ya hay un modelo llamado «{displayName}». Usa otro nombre.");
+        }
+        if (normalizedProvider.Equals(OpenAiCompatible, StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(dto.BaseUrl))
+        {
+            throw new ArgumentException("Indica la dirección de la API compatible con OpenAI (por ejemplo https://integrate.api.nvidia.com/v1).");
+        }
+
+        await EnsureAllowedBaseUrlAsync(normalizedProvider, dto.BaseUrl, dto.SettingsJson, cancellationToken);
+
+        // 1. Guardar la API Key cifrada en el Credential Vault. Ollama corre en tu red y no usa key.
+        var isLocal = IsLocalProvider(normalizedProvider);
+        if (string.IsNullOrWhiteSpace(dto.ApiKey) && !isLocal)
+            throw new ArgumentException($"La API key de {normalizedProvider} es obligatoria.", nameof(dto.ApiKey));
+        var vaultRef = string.IsNullOrWhiteSpace(dto.ApiKey)
+            ? string.Empty
+            : await _credentialVault.StoreSecretAsync(
+                dto.TenantId,
+                $"{normalizedProvider}_ApiKey_{Guid.NewGuid():N}",
+                dto.ApiKey.Trim(),
+                cancellationToken);
 
         // 2. Armar SettingsJson si se proporcionó BaseUrl
         var settingsDict = new Dictionary<string, string>();
@@ -61,7 +84,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         var entity = new AiProviderConfiguration(
             dto.TenantId,
             normalizedProvider,
-            dto.DisplayName,
+            displayName,
             dto.ModelName,
             vaultRef,
             finalSettingsJson);
@@ -102,6 +125,7 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == id, cancellationToken);
 
         if (entity == null) return null;
+        await EnsureAllowedBaseUrlAsync(entity.ProviderName, dto.BaseUrl, dto.SettingsJson, cancellationToken);
 
         var vaultRef = entity.VaultSecretReference;
 
@@ -176,7 +200,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
         if (!string.IsNullOrWhiteSpace(preferredProvider))
         {
-            config = await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
+            // El predeterminado puede ser una configuración concreta (id) o, como antes, un proveedor (nombre).
+            config = Guid.TryParse(preferredProvider, out var preferredId)
+                ? await query.FirstOrDefaultAsync(c => c.Id == preferredId, cancellationToken)
+                : await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
         }
 
         config ??= await query.FirstOrDefaultAsync(cancellationToken);
@@ -189,6 +216,36 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             return null;
         }
 
+        return await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
+    }
+
+    public async Task<AiProviderCredential?> GetCredentialAsync(Guid tenantId, string providerName, CancellationToken cancellationToken = default)
+    {
+        var config = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.IsEnabled && c.ProviderName == providerName, cancellationToken);
+        if (config is null) return null;
+
+        var apiKey = string.IsNullOrWhiteSpace(config.VaultSecretReference)
+            ? string.Empty
+            : await _credentialVault.RetrieveSecretAsync(tenantId, config.VaultSecretReference, cancellationToken) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(apiKey) && !IsLocalProvider(config.ProviderName)) return null;
+
+        return new AiProviderCredential(apiKey, ReadBaseUrl(config.SettingsJson));
+    }
+
+    public async Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default)
+    {
+        var config = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == configurationId && c.IsEnabled, cancellationToken);
+        return config is null ? null : await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
+    }
+
+    /// <summary>Proveedor listo para usar con la key de la configuración (vault, o .env en desarrollo).</summary>
+    private async Task<IAiProvider?> BuildRuntimeProviderAsync(Guid tenantId, AiProviderConfiguration config, CancellationToken cancellationToken)
+    {
         // 2. Recuperar la API key cifrada desde Credential Vault
         var apiKey = string.Empty;
         if (!string.IsNullOrWhiteSpace(config.VaultSecretReference))
@@ -218,7 +275,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         }
 
         // Si el vault está vacío y no hay .env, no forzar un proveedor roto: caer al estático del DI.
-        if (string.IsNullOrWhiteSpace(apiKey))
+        // Ollama no usa key: su configuración (Base URL, modelo) vale tal cual.
+        if (string.IsNullOrWhiteSpace(apiKey) && !IsLocalProvider(config.ProviderName))
         {
             _logger.LogWarning(
                 "Configuración IA {Provider} sin API key (vault/.env) para Tenant {TenantId}. Fallback a estático.",
@@ -273,6 +331,37 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         return _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
     }
 
+    /// <summary>
+    /// Defensa SSRF: la Base URL la escribe un usuario y la API la llama con la key. Ollama puede estar en tu equipo o
+    /// tu LAN; los proveedores en la nube, solo en internet.
+    /// </summary>
+    private static async Task EnsureAllowedBaseUrlAsync(string providerName, string? baseUrl, string? settingsJson, CancellationToken cancellationToken)
+    {
+        var url = !string.IsNullOrWhiteSpace(baseUrl) ? baseUrl.Trim() : ReadBaseUrl(settingsJson);
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        var error = await OutboundUrlGuard.ValidateAsync(url, allowPrivateNetwork: IsLocalProvider(providerName), cancellationToken);
+        if (error is not null) throw new ArgumentException($"Base URL no permitida: {error}", nameof(baseUrl));
+    }
+
+    private static bool IsLocalProvider(string providerName) =>
+        providerName.Equals("Ollama", StringComparison.OrdinalIgnoreCase)
+        || providerName.Equals("Local", StringComparison.OrdinalIgnoreCase);
+
+    private static string? ReadBaseUrl(string? settingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(settingsJson)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            return doc.RootElement.TryGetProperty("BaseUrl", out var value) ? value.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            throw new ArgumentException("SettingsJson no es un JSON válido.", nameof(settingsJson));
+        }
+    }
+
     private string? ResolveEnvApiKey(string providerName)
     {
         var name = providerName.Trim();
@@ -286,6 +375,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         string.Equals(model, "gemini-2.0-flash", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(model, "gemini-2.0-flash-001", StringComparison.OrdinalIgnoreCase);
 
+    private const string MaskedVaultReference = "vault:stored";
+
     private static AiProviderConfigurationResponseDto MapToDto(AiProviderConfiguration config)
     {
         return new AiProviderConfigurationResponseDto(
@@ -295,7 +386,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             config.DisplayName,
             config.ModelName,
             config.IsEnabled,
-            config.VaultSecretReference,
+            // Solo indica que hay key en el vault: el cifrado no sale de la API.
+            string.IsNullOrWhiteSpace(config.VaultSecretReference) ? string.Empty : MaskedVaultReference,
             config.SettingsJson,
             config.CreatedAtUtc,
             config.UpdatedAtUtc);

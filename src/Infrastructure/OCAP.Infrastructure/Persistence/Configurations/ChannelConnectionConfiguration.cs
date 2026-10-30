@@ -42,8 +42,8 @@ public class ChannelConnectionConfiguration : IEntityTypeConfiguration<ChannelCo
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                 v => JsonSerializer.Deserialize<Dictionary<string, string>>(v, (JsonSerializerOptions?)null) ?? new Dictionary<string, string>());
 
-        // Índice único compuesto por TenantId y Provider para garantizar el aislamiento y la unicidad del canal por organización.
-        builder.HasIndex(c => new { c.TenantId, c.Provider })
-            .IsUnique();
+        // Una organización puede tener varios canales del mismo tipo; la unicidad que importa (un bot o un número
+        // conectado una sola vez) la valida cada adaptador.
+        builder.HasIndex(c => new { c.TenantId, c.Provider });
     }
 }

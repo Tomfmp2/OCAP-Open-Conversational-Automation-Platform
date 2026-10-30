@@ -1,19 +1,26 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Intelligence.Abstractions;
+using OCAP.Security.Abstractions;
 
 namespace OCAP.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Policy = OcapPermissions.SettingsManage)]
 public class AiProviderConfigurationsController : ControllerBase
 {
     private readonly IAiProviderConfigurationService _configurationService;
     private readonly IAiProviderRegistry _providerRegistry;
+    private readonly ITenantContext _tenantContext;
 
     public AiProviderConfigurationsController(
         IAiProviderConfigurationService configurationService,
-        IAiProviderRegistry providerRegistry)
+        IAiProviderRegistry providerRegistry,
+        ITenantContext tenantContext)
     {
+        _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
     }
@@ -29,6 +36,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid tenantId,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var list = await _configurationService.GetConfigurationsByTenantAsync(tenantId, cancellationToken);
         return Ok(list);
     }
@@ -39,6 +47,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var config = await _configurationService.GetConfigurationByIdAsync(tenantId, id, cancellationToken);
         if (config == null) return NotFound(new { message = "Configuración no encontrada para el Tenant indicado." });
 
@@ -51,6 +60,8 @@ public class AiProviderConfigurationsController : ControllerBase
         CancellationToken cancellationToken)
     {
         if (dto == null) return BadRequest(new { message = "Los datos de la configuración son requeridos." });
+        // La configuración siempre es de la organización de la sesión, diga lo que diga el cuerpo.
+        if (!IsOwnTenant(dto.TenantId)) return NotFound();
 
         var created = await _configurationService.CreateConfigurationAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetConfigurationById), new { tenantId = created.TenantId, id = created.Id }, created);
@@ -63,6 +74,7 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromBody] UpdateAiProviderConfigurationDto dto,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var updated = await _configurationService.UpdateConfigurationAsync(tenantId, id, dto, cancellationToken);
         if (updated == null) return NotFound(new { message = "Configuración no encontrada o no pertenece al Tenant." });
 
@@ -76,6 +88,7 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromQuery] bool enable,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var success = await _configurationService.SetStatusAsync(tenantId, id, enable, cancellationToken);
         if (!success) return NotFound(new { message = "Configuración no encontrada." });
 
@@ -88,6 +101,7 @@ public class AiProviderConfigurationsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var success = await _configurationService.DeleteConfigurationAsync(tenantId, id, cancellationToken);
         if (!success) return NotFound(new { message = "Configuración no encontrada." });
 
@@ -100,8 +114,59 @@ public class AiProviderConfigurationsController : ControllerBase
         [FromQuery] string? preferredProvider,
         CancellationToken cancellationToken)
     {
+        if (!IsOwnTenant(tenantId)) return NotFound();
         var provider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
+        if (provider is null)
+        {
+            // Sin proveedor habilitado para el tenant no hay nada que probar (antes era un 500 por NullReferenceException).
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Sin proveedor de IA configurado",
+                detail: "Registra y habilita un proveedor en «IA y modelos» antes de probar la conexión.");
+        }
+
         var health = await provider.HealthAsync(cancellationToken);
         return Ok(health);
     }
+
+    /// <summary>El tenant de la URL debe ser el de la sesión (los filtros de EF ya lo garantizan; esto lo hace explícito).</summary>
+    /// <summary>
+    /// Modelos que ofrece el proveedor, para elegir de una lista. Con <c>ConfigurationId</c> usa la clave guardada (al
+    /// editar); si no, la que el usuario está escribiendo, que no se guarda.
+    /// </summary>
+    [HttpPost("models")]
+    public async Task<ActionResult<IReadOnlyList<string>>> ListProviderModels([FromBody] ListProviderModelsRequest request, CancellationToken cancellationToken)
+    {
+        IAiProvider? provider;
+        if (request.ConfigurationId is { } configurationId)
+        {
+            provider = await _configurationService.GetRuntimeProviderByIdAsync(_tenantContext.TenantId, configurationId, cancellationToken);
+            if (provider is null) return NotFound();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(request.ProviderName)) return BadRequest(new { message = "Elige un proveedor." });
+            var local = request.ProviderName.Equals("Ollama", StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(request.BaseUrl)
+                && await OutboundUrlGuard.ValidateAsync(request.BaseUrl.Trim(), allowPrivateNetwork: local, cancellationToken) is { } error)
+            {
+                return BadRequest(new { message = error });
+            }
+            try
+            {
+                provider = _providerRegistry.CreateDynamicProvider(request.ProviderName, string.Empty, request.ApiKey?.Trim() ?? string.Empty, request.BaseUrl?.Trim());
+            }
+            catch (NotSupportedException)
+            {
+                return BadRequest(new { message = "Proveedor no soportado." });
+            }
+        }
+
+        var models = await provider.GetAvailableModelsAsync(cancellationToken);
+        return Ok(models.Distinct().Order(StringComparer.OrdinalIgnoreCase).ToList());
+    }
+
+    private bool IsOwnTenant(Guid tenantId) => tenantId != Guid.Empty && tenantId == _tenantContext.TenantId;
 }
+
+public sealed record ListProviderModelsRequest(string? ProviderName, string? ApiKey, string? BaseUrl, Guid? ConfigurationId);

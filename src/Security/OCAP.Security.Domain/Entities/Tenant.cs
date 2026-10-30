@@ -18,6 +18,9 @@ public class Tenant
     // Configuración serializada en JSON con reglas específicas del tenant.
     public string SettingsJson { get; private set; } = "{}";
 
+    // Proveedor de IA que la organización eligió como activo; null usa el de la instalación.
+    public string? PreferredAiProvider { get; private set; }
+
     // Marca de tiempo UTC de creación de la organización.
     public DateTime CreatedAtUtc { get; private set; }
 
@@ -36,10 +39,19 @@ public class Tenant
         CreatedAtUtc = DateTime.UtcNow;
     }
 
-    // Actualiza la configuración tipada del tenant.
-    public void UpdateSettings(string jsonSettings)
+    // El slug no cambia: identifica a la organización en URLs y enlaces ya enviados.
+    public void Rename(string name)
     {
-        SettingsJson = jsonSettings ?? "{}";
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("El nombre del tenant es requerido.", nameof(name));
+        Name = name.Trim();
+    }
+
+    /// <summary>Ajustes de la organización (JSON). Los secretos no van aquí: solo su referencia en el vault.</summary>
+    public void UpdateSettings(string settingsJson) => SettingsJson = string.IsNullOrWhiteSpace(settingsJson) ? "{}" : settingsJson;
+
+    public void SetPreferredAiProvider(string? providerName)
+    {
+        PreferredAiProvider = string.IsNullOrWhiteSpace(providerName) ? null : providerName.Trim();
     }
 
     // Desactiva la organización impidiendo el acceso a todos sus miembros.

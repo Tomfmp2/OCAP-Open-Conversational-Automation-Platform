@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Antes de cada push corre el CI local (backend, frontend y dependencias). Mientras GitHub Actions no esté
+# disponible, es lo que impide subir algo roto. Saltarlo puntualmente: OCAP_SKIP_CI=1 git push
+set -euo pipefail
+
+if [[ "${OCAP_SKIP_CI:-}" == "1" ]]; then
+  echo "pre-push: CI local omitido (OCAP_SKIP_CI=1)."
+  exit 0
+fi
+
+root="$(git rev-parse --show-toplevel)"
+if [[ -n "$(git -C "$root" status --porcelain)" ]]; then
+  echo "pre-push: aviso: hay cambios sin commitear; el CI local revisa el árbol de trabajo, no solo lo que se sube."
+fi
+
+exec "$root/scripts/ci-local.sh"

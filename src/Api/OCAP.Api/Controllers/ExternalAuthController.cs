@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OCAP.Security.Abstractions;
@@ -30,6 +31,7 @@ public class ExternalAuthController : ControllerBase
         return Ok(providers);
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpGet("challenge/{provider}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ExternalAuthChallengeDto), StatusCodes.Status200OK)]
@@ -48,6 +50,7 @@ public class ExternalAuthController : ControllerBase
         }
     }
 
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpGet("callback/{provider}")]
     [HttpPost("callback/{provider}")]
     [AllowAnonymous]

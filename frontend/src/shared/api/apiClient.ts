@@ -1,15 +1,15 @@
 import { ApiError, type ApiRequestOptions } from "./types";
-import {
-  clearAuthSession,
-  getAccessToken,
-  getRefreshToken,
-  getTenantId,
-  updateAccessToken,
-} from "./tokenStorage";
+import { redirectToLogin } from "./sessionRedirect";
+import { clearAuthSession, getAccessToken, getTenantId, updateAccessToken } from "./tokenStorage";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 2;
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+/**
+ * Solo se reintentan métodos sin efectos: repetir un POST (p. ej. un mensaje al agente que envía un correo) podría
+ * ejecutar la acción dos veces, y además retrasa varios segundos el error que debe ver el usuario.
+ */
+const RETRYABLE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function generateId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -55,9 +55,7 @@ class ApiClient {
 
   private handleUnauthorized(): void {
     clearAuthSession();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
-    }
+    redirectToLogin();
   }
 
   private buildHeaders(
@@ -113,6 +111,8 @@ class ApiClient {
           method,
           headers: this.buildHeaders(customHeaders, body, skipAuth),
           signal: controller.signal,
+          // La cookie HttpOnly del refresh token (ruta /api/auth) solo viaja si el navegador envía credenciales.
+          credentials: "include",
         };
 
         if (body !== undefined) {
@@ -141,6 +141,7 @@ class ApiClient {
 
           if (
             !skipRetry &&
+            RETRYABLE_METHODS.has(method.toUpperCase()) &&
             RETRYABLE_STATUSES.has(response.status) &&
             attempt < MAX_RETRIES
           ) {
@@ -149,22 +150,7 @@ class ApiClient {
             continue;
           }
 
-          const message =
-            typeof errorBody === "object" &&
-            errorBody !== null
-              ? ("detail" in errorBody &&
-                typeof (errorBody as { detail: unknown }).detail === "string" &&
-                (errorBody as { detail: string }).detail) ||
-                ("title" in errorBody &&
-                  typeof (errorBody as { title: unknown }).title === "string" &&
-                  (errorBody as { title: string }).title) ||
-                ("message" in errorBody &&
-                  typeof (errorBody as { message: unknown }).message === "string" &&
-                  (errorBody as { message: string }).message) ||
-                `Error HTTP ${response.status}`
-              : `Error HTTP ${response.status}`;
-
-          throw new ApiError(message, response.status, errorBody);
+          throw new ApiError(errorMessage(errorBody, response.status), response.status, errorBody);
         }
 
         if (response.status === 204) {
@@ -247,36 +233,58 @@ class ApiClient {
 
 export const apiClient = new ApiClient();
 
-export async function defaultRefreshHandler(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+export interface RefreshedSession {
+  accessToken: string;
+  userId: string;
+  tenantId: string;
+  email: string;
+  roleName: string;
+}
 
-  try {
-    const response = await fetch(buildUrl("/api/auth/refresh"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Correlation-Id": generateId(),
-        "X-Request-Id": generateId(),
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+/**
+ * Canjea la cookie del refresh token por un access token nuevo. Cada canje rota la cookie y la API cierra la sesión
+ * si ve uno ya usado, así que entre pestañas se hace de a uno (Web Locks); en paralelo, la segunda pestaña enviaría
+ * la cookie anterior.
+ */
+export async function refreshSession(): Promise<RefreshedSession | null> {
+  const run = async (): Promise<RefreshedSession | null> => {
+    try {
+      const response = await fetch(buildUrl("/api/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Correlation-Id": generateId(), "X-Request-Id": generateId() },
+      });
+      if (!response.ok) return null;
+      const data = (await response.json()) as RefreshedSession;
+      updateAccessToken(data.accessToken);
+      return data;
+    } catch {
+      return null;
+    }
+  };
 
-    if (!response.ok) return null;
-
-    const data = (await response.json()) as {
-      accessToken: string;
-      refreshToken?: string;
-    };
-
-    updateAccessToken(data.accessToken);
-    return data.accessToken;
-  } catch {
-    return null;
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("ocap-session-refresh", run);
   }
+  return run();
+}
+
+export async function defaultRefreshHandler(): Promise<string | null> {
+  return (await refreshSession())?.accessToken ?? null;
 }
 
 apiClient.setRefreshHandler(defaultRefreshHandler);
 
 export { ApiError };
 export type { ApiRequestOptions };
+
+/** Mensaje legible de una respuesta de error: ProblemDetails (detail/title) o { message } / { error }. */
+function errorMessage(body: unknown, status: number): string {
+  if (typeof body === "object" && body !== null) {
+    for (const key of ["detail", "title", "message", "error"] as const) {
+      const value = (body as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+  return `Error HTTP ${status}`;
+}

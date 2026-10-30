@@ -14,43 +14,48 @@ namespace OCAP.Api.Tests.Infrastructure;
 
 public class OcapApiFactory : WebApplicationFactory<Program>
 {
-    public string InstallationConfigPath { get; private set; } =
-        Path.Combine(Path.GetTempPath(), $"ocap-install-{Guid.NewGuid():N}");
+    /// <summary>Con false la base arranca sin usuarios, como una instalación nueva (configuración inicial pendiente).</summary>
+    protected virtual bool SeedTestData => true;
 
-    public void ResetInstallationArtifacts()
-    {
-        try
-        {
-            if (Directory.Exists(InstallationConfigPath))
-                Directory.Delete(InstallationConfigPath, recursive: true);
-        }
-        catch
-        {
-            // ignore race on Windows file locks
-        }
+    /// <summary>Configuración extra para variantes de la fábrica (p. ej. bootstrap por entorno).</summary>
+    protected virtual IDictionary<string, string?> ExtraSettings => new Dictionary<string, string?>();
 
-        Directory.CreateDirectory(InstallationConfigPath);
-    }
+    /// <summary>PostgreSQL real (rol limitado + RLS) en vez de la base en memoria; ver <see cref="TestPostgres"/>.</summary>
+    protected virtual bool UsePostgres => TestPostgres.UseForWholeSuite;
+
+    private TestPostgres.Database? _postgres;
+
+    /// <summary>La base de esta fábrica cuando corre sobre PostgreSQL (null con la base en memoria).</summary>
+    public TestPostgres.Database? Postgres => _postgres;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        // Program.cs lee esto al registrar servicios, antes que ConfigureAppConfiguration: como host setting
+        // cada fábrica tiene su propia base en memoria (si no, todas compartían "OCAP_InMemory_Db").
+        builder.UseSetting("InMemoryDbName", $"OCAP_Test_{Guid.NewGuid():N}");
+        if (UsePostgres)
+        {
+            _postgres = TestPostgres.CreateDatabaseAsync().GetAwaiter().GetResult();
+            builder.UseSetting("UseInMemory", "false");
+            builder.UseSetting("ConnectionStrings:DefaultConnection", _postgres.AppConnectionString);
+            // Como en Docker: la base ya la migró el dueño y la API no tiene permisos de esquema.
+            builder.UseSetting("Database:ApplyMigrationsOnStartup", "false");
+        }
 
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["UseInMemory"] = "true",
-                ["InMemoryDbName"] = $"OCAP_Test_{Guid.NewGuid()}",
+                ["UseInMemory"] = UsePostgres ? "false" : "true",
                 ["Jwt:SecretKey"] = "OCAP_TESTING_JWT_SECRET_KEY_32CHARS_MINIMUM!",
                 ["Jwt:Issuer"] = "OCAP",
                 ["Jwt:Audience"] = "OCAP.Clients",
                 ["Jwt:AccessTokenExpiryMinutes"] = "60",
                 ["Security:Vault:MasterKey"] = "OCAP_TESTING_VAULT_MASTER_KEY_32CHARS_MIN!",
-                ["Bootstrap:Enabled"] = "false",
-                ["Installation:Completed"] = "false",
-                ["Installation:ConfigPath"] = InstallationConfigPath
+                ["Bootstrap:Enabled"] = "false"
             });
+            config.AddInMemoryCollection(ExtraSettings);
         });
     }
 
@@ -61,8 +66,8 @@ public class OcapApiFactory : WebApplicationFactory<Program>
         using (var scope = host.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
-            db.Database.EnsureCreated();
-            SeedDatabase(db);
+            if (!UsePostgres) db.Database.EnsureCreated();
+            if (SeedTestData) SeedDatabase(db);
         }
 
         return host;

@@ -9,5 +9,6 @@ public interface IMfaService
     Task<EnableMfaResponseDto> EnableMfaAsync(Guid tenantId, Guid userId, string code, CancellationToken cancellationToken = default);
     Task<bool> DisableMfaAsync(Guid tenantId, Guid userId, string code, CancellationToken cancellationToken = default);
     Task<bool> VerifyMfaCodeAsync(Guid tenantId, Guid userId, string code, CancellationToken cancellationToken = default);
+    Task<MfaStatusDto> GetStatusAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> RegenerateRecoveryCodesAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default);
 }

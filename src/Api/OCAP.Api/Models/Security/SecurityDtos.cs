@@ -3,11 +3,24 @@ namespace OCAP.Api.Models.Security;
 // Petición de autenticación de usuario.
 public record LoginRequestDto(string Email, string Password);
 
-// Respuesta exitosa de autenticación con JWT.
-public record LoginResponseDto(string AccessToken, string RefreshToken, Guid UserId, Guid TenantId, string Email, string RoleName);
+// Respuesta exitosa de autenticación con JWT. El refresh token no va en el cuerpo: viaja en la cookie HttpOnly
+// (RefreshTokenCookie). Con MfaRequired, AccessToken va vacío: el cliente pide el código y llama a /api/auth/mfa/verify.
+public record LoginResponseDto(
+    string AccessToken,
+    Guid UserId,
+    Guid TenantId,
+    string Email,
+    string RoleName,
+    bool MfaRequired = false,
+    string? MfaToken = null);
 
-// Petición de refresco de token.
-public record RefreshTokenRequestDto(string RefreshToken);
+// Definir la contraseña con el enlace de un solo uso.
+public record PasswordSetupRequestDto(string Token, string NewPassword);
+
+public record ForgotPasswordRequestDto(string Email);
+
+// Segundo paso del login con MFA.
+public record CompleteMfaLoginRequestDto(string MfaToken, string Code);
 
 // DTO de usuario del tenant.
 public record UserDto(Guid Id, Guid TenantId, string Email, string FullName, bool IsActive, DateTime CreatedAtUtc);

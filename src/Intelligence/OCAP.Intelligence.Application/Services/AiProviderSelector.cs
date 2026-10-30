@@ -10,27 +10,20 @@ namespace OCAP.Intelligence.Application.Services;
 public class AiProviderSelector : IAiProviderSelector
 {
     private readonly IEnumerable<IAiProvider> _providers;
-    private readonly IAiResponseCache _cache;
     private readonly ILogger<AiProviderSelector> _logger;
-    private string _activeProviderName = "Gemini";
+    private readonly string _activeProviderName = "Gemini";
 
+    // Proveedor por defecto de la instalación; cada organización elige el suyo (Tenant.PreferredAiProvider).
     public string ActiveProviderName => _activeProviderName;
 
     public AiProviderSelector(
         IEnumerable<IAiProvider> providers,
-        IAiResponseCache cache,
-        ILogger<AiProviderSelector> logger)
+        ILogger<AiProviderSelector> logger,
+        AiDemoMode? demoMode = null)
     {
         _providers = providers ?? throw new ArgumentNullException(nameof(providers));
-        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
-    public void SetActiveProvider(string providerName)
-    {
-        if (string.IsNullOrWhiteSpace(providerName)) return;
-        _activeProviderName = providerName.Trim();
-        _logger.LogInformation("Proveedor de IA activo cambiado manualmente a: {ProviderName}", _activeProviderName);
+        if (demoMode?.Enabled == true) _activeProviderName = AiDemoMode.MockProviderName;
     }
 
     public Task<IAiProvider> SelectProviderAsync(CancellationToken cancellationToken = default)
@@ -52,14 +45,6 @@ public class AiProviderSelector : IAiProviderSelector
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
 
-        var cacheKey = $"{_activeProviderName}:{request.UserMessage}";
-        var cachedResponse = await _cache.GetAsync(cacheKey, cancellationToken);
-        if (cachedResponse != null)
-        {
-            _logger.LogInformation("Respuesta de IA obtenida de la memoria Caché (TTL Activo).");
-            return cachedResponse;
-        }
-
         var primaryProvider = await SelectProviderAsync(cancellationToken);
         var fallbackProviders = _providers
             .Where(p => !p.Name.Equals(primaryProvider.Name, StringComparison.OrdinalIgnoreCase))
@@ -75,9 +60,7 @@ public class AiProviderSelector : IAiProviderSelector
             try
             {
                 _logger.LogInformation("Ejecutando solicitud de IA en el proveedor: {ProviderName}", candidate.Name);
-                var response = await candidate.GenerateResponseAsync(request, cancellationToken);
-                await _cache.SetAsync(cacheKey, response, TimeSpan.FromMinutes(5), cancellationToken);
-                return response;
+                return await candidate.GenerateResponseAsync(request, cancellationToken);
             }
             catch (Exception ex) when (IsMissingCredential(ex))
             {

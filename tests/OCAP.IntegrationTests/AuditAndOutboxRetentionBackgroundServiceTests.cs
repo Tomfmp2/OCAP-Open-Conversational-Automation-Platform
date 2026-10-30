@@ -182,6 +182,26 @@ public class AuditAndOutboxRetentionBackgroundServiceTests
         Assert.Equal(0, await dbContext.AuditLogs.CountAsync());
     }
 
+    [Fact]
+    public async Task PerformRetentionPurgeAsync_DeletesOnlyExpiredInboxMessages()
+    {
+        var (serviceProvider, dbContext) = CreateDbContext(Guid.NewGuid().ToString());
+        var old = new OCAP.Core.Events.Distributed.InboxMessage(Guid.NewGuid(), "telegram-update:old", "channel-webhook");
+        typeof(OCAP.Core.Events.Distributed.InboxMessage).GetProperty("ProcessedAtUtc")!.SetValue(old, DateTime.UtcNow.AddDays(-10));
+        var recent = new OCAP.Core.Events.Distributed.InboxMessage(Guid.NewGuid(), "telegram-update:new", "channel-webhook");
+        dbContext.InboxMessages.AddRange(old, recent);
+        await dbContext.SaveChangesAsync();
+
+        var options = Options.Create(new RetentionOptions { EnableAuditPurge = false, EnableOutboxPurge = true, InboxRetentionDays = 7 });
+        var service = new AuditAndOutboxRetentionBackgroundService(
+            serviceProvider, options, NullLogger<AuditAndOutboxRetentionBackgroundService>.Instance);
+
+        await service.PerformRetentionPurgeAsync(options.Value, CancellationToken.None);
+
+        var remaining = await dbContext.InboxMessages.AsNoTracking().Select(m => m.MessageId).ToListAsync();
+        Assert.Equal(new[] { "telegram-update:new" }, remaining);
+    }
+
     // Helper mediante reflexión para modificar propiedades privadas con Setters privados
     private static void SetTimestampUtc(AuditLog auditLog, DateTime timestampUtc)
     {

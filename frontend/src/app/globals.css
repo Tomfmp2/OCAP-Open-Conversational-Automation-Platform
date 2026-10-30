@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Colores de estado: el panel es monocromo y solo un estado (correcto, aviso, error) lleva color. Cumplen 4.5:1
+   sobre blanco y sobre su variante -subtle; el estado también va siempre en texto o icono, no solo en el color. */
+@theme {
+  --color-success: #15803d;
+  --color-success-subtle: #f0fdf4;
+  --color-warning: #b45309;
+  --color-warning-subtle: #fffbeb;
+  --color-danger: #b91c1c;
+  --color-danger-subtle: #fef2f2;
+}
+
 @layer base {
   :root {
     --background: #f5f5f5;
@@ -17,9 +28,9 @@
     --muted-foreground: #737373;
     --border: #e5e5e5;
     --ring: #0a0a0a;
-    --success: #171717;
-    --warning: #404040;
-    --danger: #0a0a0a;
+    --success: #15803d;
+    --warning: #b45309;
+    --danger: #b91c1c;
     --chart-1: #0a0a0a;
     --chart-2: #404040;
     --chart-3: #737373;
@@ -27,6 +38,13 @@
     --sidebar: #fafafa;
     --sidebar-foreground: #171717;
     --radius: 0.5rem;
+
+    /* Aurora del asistente: el único color de la interfaz, reservado para el orbe. */
+    --aurora-red: #ff3b5c;
+    --aurora-orange: #ff7a1a;
+    --aurora-amber: #ffc94d;
+    --aurora-pink: #ff8fb1;
+    --aurora-haze: rgba(255, 122, 26, 0.1);
   }
 
   * {
@@ -77,9 +95,161 @@
   }
 
   .ocap-hero-ambient {
+    /* Solo el halo, sobre el mismo fondo del panel: sin un bloque de otro color. */
+    background: radial-gradient(ellipse 50% 38% at 50% 26%, var(--aurora-haze), transparent 70%);
+  }
+
+  /* --- Orbe del asistente -------------------------------------------------------------------------
+     Capas de gradientes difusos que giran a velocidad constante (sin saltos al cambiar de estado); cada
+     estado solo cambia opacidades y el latido del halo. Solo se animan transform y opacity. */
+  .ocap-orb {
+    position: relative;
+    isolation: isolate;
+    border-radius: 9999px;
+    flex-shrink: 0;
+  }
+
+  .ocap-orb__halo,
+  .ocap-orb__body,
+  .ocap-orb__layer {
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+  }
+
+  .ocap-orb__halo {
+    inset: -28%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--aurora-pink) 45%, transparent) 0%, color-mix(in srgb, var(--aurora-amber) 18%, transparent) 40%, transparent 68%);
+    filter: blur(calc(var(--orb-size) * 0.12));
+    opacity: 0.55;
+    animation: ocap-orb-breathe 6s ease-in-out infinite;
+    transition: opacity 600ms ease;
+  }
+
+  .ocap-orb__body {
+    inset: 0;
+    overflow: hidden;
+    /* Borde difuso, como una luz y no como un disco. */
+    -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 71%);
+    mask-image: radial-gradient(circle, #000 52%, transparent 71%);
+    /* Base cálida: naranja dominante que vira a rojo hacia abajo a la izquierda. */
     background:
-      radial-gradient(ellipse 70% 45% at 50% 28%, rgba(10, 10, 10, 0.05), transparent 70%),
-      linear-gradient(180deg, #fafafa 0%, #f5f5f5 55%, #f0f0f0 100%);
+      radial-gradient(circle at 62% 38%, var(--aurora-orange) 0%, transparent 55%),
+      radial-gradient(circle at 35% 70%, var(--aurora-red) 0%, transparent 60%),
+      var(--aurora-orange);
+  }
+
+  .ocap-orb__layer {
+    inset: -20%;
+    filter: blur(calc(var(--orb-size) * 0.08));
+  }
+
+  .ocap-orb__layer--amber {
+    background: radial-gradient(circle at 66% 32%, var(--aurora-amber) 0%, color-mix(in srgb, var(--aurora-amber) 55%, transparent) 18%, transparent 44%);
+    animation: ocap-orb-spin 11s linear infinite;
+  }
+
+  .ocap-orb__layer--red {
+    background: radial-gradient(circle at 30% 64%, var(--aurora-red) 0%, transparent 40%);
+    animation: ocap-orb-spin 15s linear infinite reverse;
+  }
+
+  .ocap-orb__layer--pink {
+    background: radial-gradient(circle at 58% 80%, var(--aurora-pink) 0%, transparent 34%);
+    opacity: 0.55;
+    animation: ocap-orb-spin 19s linear infinite;
+  }
+
+  /* Remolino rápido: solo visible mientras el agente piensa. */
+  .ocap-orb__layer--swirl {
+    background: conic-gradient(from 0deg, transparent 0deg, var(--aurora-amber) 70deg, transparent 150deg, var(--aurora-pink) 240deg, transparent 320deg);
+    opacity: 0;
+    animation: ocap-orb-spin 2.4s linear infinite;
+    transition: opacity 500ms ease;
+  }
+
+  .ocap-orb[data-state="thinking"] .ocap-orb__layer--swirl {
+    opacity: 0.55;
+  }
+
+  .ocap-orb[data-state="thinking"] .ocap-orb__halo {
+    opacity: 0.85;
+    animation-duration: 1.4s;
+  }
+
+  .ocap-orb[data-state="speaking"] .ocap-orb__halo {
+    opacity: 0.75;
+    animation-name: ocap-orb-talk;
+    animation-duration: 0.9s;
+  }
+
+  .ocap-orb[data-state="speaking"] .ocap-orb__body {
+    animation: ocap-orb-talk-body 0.9s ease-in-out infinite;
+  }
+
+  @keyframes ocap-orb-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes ocap-orb-breathe {
+    0%,
+    100% {
+      transform: scale(0.94);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+
+  @keyframes ocap-orb-talk {
+    0%,
+    100% {
+      transform: scale(0.96);
+    }
+    40% {
+      transform: scale(1.12);
+    }
+  }
+
+  @keyframes ocap-orb-talk-body {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.04);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ocap-orb *,
+    .ocap-mark,
+    .ocap-hero-enter,
+    .ocap-composer,
+    .ocap-shimmer {
+      animation: none !important;
+    }
+  }
+
+  /* Texto "Pensando…" con un brillo que lo recorre. */
+  .ocap-shimmer {
+    background: linear-gradient(90deg, #737373 0%, #737373 40%, var(--aurora-orange) 50%, #737373 60%, #737373 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: ocap-shimmer 1.8s linear infinite;
+  }
+
+  @keyframes ocap-shimmer {
+    from {
+      background-position: 100% 0;
+    }
+    to {
+      background-position: -100% 0;
+    }
   }
 
   .ocap-mark {

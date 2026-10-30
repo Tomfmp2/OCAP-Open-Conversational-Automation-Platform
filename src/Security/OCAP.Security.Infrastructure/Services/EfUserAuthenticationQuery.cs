@@ -22,8 +22,33 @@ public sealed class EfUserAuthenticationQuery : IUserAuthenticationQuery
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(u => u.Email.ToLower() == normalized && u.IsActive, cancellationToken);
 
-        if (user is null) return null;
+        return user is null ? null : await BuildRecordAsync(user, cancellationToken);
+    }
 
+    public async Task<UserAuthenticationRecord?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, cancellationToken);
+
+        return user is null ? null : await BuildRecordAsync(user, cancellationToken);
+    }
+
+    public async Task UpgradePasswordHashAsync(Guid userId, string hash, string salt, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return;
+        user.UpdatePassword(hash, salt);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<bool> IsMfaEnabledAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        _dbContext.UserMfaSettings
+            .IgnoreQueryFilters()
+            .AnyAsync(m => m.UserId == userId && m.IsEnabled, cancellationToken);
+
+    private async Task<UserAuthenticationRecord?> BuildRecordAsync(OCAP.Security.Domain.Entities.UserIdentity user, CancellationToken cancellationToken)
+    {
         var tenant = await _dbContext.Tenants
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(t => t.Id == user.TenantId, cancellationToken);
@@ -42,5 +67,21 @@ public sealed class EfUserAuthenticationQuery : IUserAuthenticationQuery
         if (role is null) return null;
 
         return new UserAuthenticationRecord(user, tenant, role);
+    }
+
+    /// <summary>Contraseñas incorrectas seguidas que bloquean la cuenta.</summary>
+    public const int MaxFailedAttempts = 5;
+    public static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
+    public async Task RecordLoginAttemptAsync(Guid userId, bool succeeded, CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.UserIdentities
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null) return;
+
+        if (succeeded) user.RegisterSuccessfulLogin();
+        else user.RegisterFailedLogin(MaxFailedAttempts, LockoutDuration);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

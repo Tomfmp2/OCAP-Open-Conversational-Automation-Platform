@@ -10,11 +10,28 @@ namespace OCAP.Api.Tests.Endpoints;
 // Verifica que la API inicia correctamente y responde en estado saludable.
 public class HealthCheckTests : IClassFixture<OcapApiFactory>
 {
+    private readonly OcapApiFactory _factory;
     private readonly HttpClient _client;
 
     public HealthCheckTests(OcapApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
+    }
+
+    [Theory]
+    [InlineData("/api/health/diagnostic")]
+    [InlineData("/api/health/system")]
+    public async Task DetailedHealth_RequiresASession(string path)
+    {
+        (await _client.GetAsync(path)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Metrics_AreOnlyServedToTheInternalNetwork()
+    {
+        // El TestServer no tiene IP remota: equivale a un cliente que no es la red de Docker.
+        (await _client.GetAsync("/metrics")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -30,7 +47,8 @@ public class HealthCheckTests : IClassFixture<OcapApiFactory>
     [Fact]
     public async Task HealthController_WhenApiIsRunning_Returns200Ok()
     {
-        var response = await _client.GetAsync("/api/health/diagnostic");
+        var admin = TestAuthHelper.CreateAuthenticatedClient(_factory);
+        var response = await admin.GetAsync("/api/health/diagnostic");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 

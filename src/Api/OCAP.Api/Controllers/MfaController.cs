@@ -1,3 +1,6 @@
+using OCAP.Api.Security;
+using OCAP.Api.Models.Security;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +22,15 @@ public class MfaController : ControllerBase
     {
         _mfaService = mfaService ?? throw new ArgumentNullException(nameof(mfaService));
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
+    }
+
+    [HttpGet("status")]
+    [ProducesResponseType(typeof(MfaStatusDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+        return Ok(await _mfaService.GetStatusAsync(_tenantContext.TenantId, userId, cancellationToken));
     }
 
     [HttpPost("setup")]
@@ -47,7 +59,7 @@ public class MfaController : ControllerBase
             var result = await _mfaService.EnableMfaAsync(_tenantContext.TenantId, userId, request.Code, cancellationToken);
             return Ok(result);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }
@@ -67,16 +79,34 @@ public class MfaController : ControllerBase
         return Ok(new { message = "MFA desactivado exitosamente." });
     }
 
+    /// <summary>
+    /// Segundo paso del login: el desafío que devolvió /api/auth/login más un código TOTP o de recuperación.
+    /// Antes aceptaba cualquier tenant y usuario por query y no daba sesión: servía para adivinar códigos ajenos.
+    /// </summary>
+    [EnableRateLimiting(OCAP.Api.Configuration.RateLimitingSettings.AuthPolicy)]
     [HttpPost("verify")]
     [AllowAnonymous]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> VerifyMfa([FromQuery] Guid tenantId, [FromQuery] Guid userId, [FromBody] VerifyMfaRequestDto request, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> VerifyMfa(
+        [FromBody] CompleteMfaLoginRequestDto request,
+        [FromServices] OCAP.Security.Application.UseCases.AuthenticateUserUseCase authentication,
+        CancellationToken cancellationToken)
     {
-        var verified = await _mfaService.VerifyMfaCodeAsync(tenantId, userId, request.Code, cancellationToken);
-        if (!verified) return BadRequest(new { error = "El código MFA o de recuperación ingresado no es válido." });
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        var result = await authentication.CompleteMfaAsync(request.MfaToken, request.Code, ip, cancellationToken);
+        if (result is null)
+        {
+            return Unauthorized(new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Código inválido",
+                Detail = "El código no es válido o el inicio de sesión expiró. Vuelve a ingresar tu contraseña si pasaron más de 5 minutos."
+            });
+        }
 
-        return Ok(new { message = "Verificación MFA exitosa." });
+        RefreshTokenCookie.Append(Response, result.RefreshToken!);
+        return Ok(new LoginResponseDto(result.AccessToken, result.UserId, result.TenantId, result.Email, result.RoleName));
     }
 
     [HttpPost("recovery-codes/regenerate")]
@@ -92,7 +122,7 @@ public class MfaController : ControllerBase
             var codes = await _mfaService.RegenerateRecoveryCodesAsync(_tenantContext.TenantId, userId, cancellationToken);
             return Ok(codes);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             return BadRequest(new { error = ex.Message });
         }

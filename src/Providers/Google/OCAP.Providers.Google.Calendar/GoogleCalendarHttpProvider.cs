@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Options;
 using OCAP.Providers.Google.Abstractions;
 using OCAP.Providers.Google.Abstractions.Models;
 
@@ -13,12 +12,12 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
     private const string BaseUrl = "https://www.googleapis.com/calendar/v3";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
-    private readonly IOptionsMonitor<GoogleWorkspaceOptions> _options;
+    private readonly IGoogleAccessTokenProvider _tokens;
 
-    public GoogleCalendarHttpProvider(HttpClient httpClient, IOptionsMonitor<GoogleWorkspaceOptions> options)
+    public GoogleCalendarHttpProvider(HttpClient httpClient, IGoogleAccessTokenProvider tokens)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
 
     public async Task<CalendarEvent> CreateEventAsync(
@@ -27,10 +26,10 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
     {
         ArgumentNullException.ThrowIfNull(eventData);
 
-        using var request = CreateRequest(
+        using var request = await CreateRequestAsync(
             HttpMethod.Post,
             $"{BaseUrl}/calendars/primary/events",
-            JsonContent.Create(ToGoogleEvent(eventData), options: JsonOptions));
+            JsonContent.Create(ToGoogleEvent(eventData), options: JsonOptions), cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
@@ -52,7 +51,7 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
 
         var query = $"timeMin={Uri.EscapeDataString(ToRfc3339(startDate))}" +
                     $"&timeMax={Uri.EscapeDataString(ToRfc3339(endDate))}&singleEvents=true&orderBy=startTime";
-        using var request = CreateRequest(HttpMethod.Get, $"{BaseUrl}/calendars/primary/events?{query}");
+        using var request = await CreateRequestAsync(HttpMethod.Get, $"{BaseUrl}/calendars/primary/events?{query}", null, cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
@@ -64,9 +63,9 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventId);
 
-        using var request = CreateRequest(
+        using var request = await CreateRequestAsync(
             HttpMethod.Delete,
-            $"{BaseUrl}/calendars/primary/events/{Uri.EscapeDataString(eventId)}");
+            $"{BaseUrl}/calendars/primary/events/{Uri.EscapeDataString(eventId)}", null, cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -77,13 +76,13 @@ public sealed class GoogleCalendarHttpProvider : ICalendarProvider
         return true;
     }
 
-    private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent? content = null)
+    private async Task<HttpRequestMessage> CreateRequestAsync(HttpMethod method, string url, HttpContent? content, CancellationToken cancellationToken)
     {
-        var accessToken = _options.CurrentValue.AccessToken;
+        var accessToken = await _tokens.GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
             throw new InvalidOperationException(
-                "Google Workspace no está configurado. Configure Google:AccessToken antes de usar Calendar.");
+                "Google Workspace no está conectado. Conecta la cuenta en Integraciones o configura Google:AccessToken antes de usar Calendar.");
         }
 
         var request = new HttpRequestMessage(method, url) { Content = content };

@@ -25,9 +25,3 @@ export interface StoredUser {
   roleName: string;
   permissions: string[];
 }
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  tenantId: string;
-}

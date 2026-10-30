@@ -37,25 +37,31 @@ public class PdfDocumentParser : BaseDocumentParser
 {
     public override DocumentType SupportedType => DocumentType.Pdf;
 
+    /// <summary>Texto de cada página en orden de lectura; las páginas se separan para no mezclar contextos.</summary>
     protected override Task<ParsedDocumentResult> ParseContentAsync(MemoryStream stream, string fileName, string contentHash, CancellationToken cancellationToken)
     {
-        var rawText = Encoding.UTF8.GetString(stream.ToArray());
-        // Clean non-printable PDF stream bytes for plain text fallback
-        var text = Regex.Replace(rawText, @"[^\x20-\x7E\x0A\x0D\x09]", " ");
-        var tables = new List<string>();
+        var pages = new List<string>();
+        using (var pdf = UglyToad.PdfPig.PdfDocument.Open(stream.ToArray()))
+        {
+            foreach (var page in pdf.GetPages())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var text = UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor.ContentOrderTextExtractor.GetText(page).Trim();
+                if (text.Length > 0) pages.Add(text);
+            }
+        }
 
-        var result = new ParsedDocumentResult(
-            Text: string.IsNullOrWhiteSpace(text) ? $"[PDF Document: {fileName}]" : text,
-            Tables: tables,
-            MetadataJson: JsonSerializer.Serialize(new { PageCount = 1, Format = "PDF" }),
-            Author: "PDF Document Author",
+        // Un PDF escaneado no trae texto: se avisa en vez de indexar vacío.
+        var content = pages.Count == 0 ? $"[{fileName}: el PDF no contiene texto seleccionable (¿es un escaneo?)]" : string.Join("\n\n", pages);
+        return Task.FromResult(new ParsedDocumentResult(
+            Text: content,
+            Tables: new List<string>(),
+            MetadataJson: JsonSerializer.Serialize(new { PageCount = pages.Count, Format = "PDF" }),
+            Author: string.Empty,
             Date: DateTime.UtcNow,
             Category: DocumentCategory.General,
             Version: "1.0.0",
-            ContentHash: contentHash
-        );
-
-        return Task.FromResult(result);
+            ContentHash: contentHash));
     }
 }
 
@@ -65,21 +71,35 @@ public class DocxDocumentParser : BaseDocumentParser
 
     protected override Task<ParsedDocumentResult> ParseContentAsync(MemoryStream stream, string fileName, string contentHash, CancellationToken cancellationToken)
     {
-        var text = Encoding.UTF8.GetString(stream.ToArray());
-        var cleanText = Regex.Replace(text, @"<[^>]+>", " "); // Strip XML tags fallback
-
-        var result = new ParsedDocumentResult(
-            Text: string.IsNullOrWhiteSpace(cleanText) ? $"[DOCX Document: {fileName}]" : cleanText,
+        var text = OfficeDocuments.ReadDocx(stream);
+        return Task.FromResult(new ParsedDocumentResult(
+            Text: text.Length == 0 ? $"[{fileName}: el documento no tiene texto]" : text,
             Tables: new List<string>(),
             MetadataJson: JsonSerializer.Serialize(new { Format = "DOCX" }),
-            Author: "DOCX Author",
+            Author: string.Empty,
             Date: DateTime.UtcNow,
-            Category: DocumentCategory.Technical,
+            Category: DocumentCategory.General,
             Version: "1.0.0",
-            ContentHash: contentHash
-        );
+            ContentHash: contentHash));
+    }
+}
 
-        return Task.FromResult(result);
+public class XlsxDocumentParser : BaseDocumentParser
+{
+    public override DocumentType SupportedType => DocumentType.Xlsx;
+
+    protected override Task<ParsedDocumentResult> ParseContentAsync(MemoryStream stream, string fileName, string contentHash, CancellationToken cancellationToken)
+    {
+        var text = OfficeDocuments.ReadXlsx(stream);
+        return Task.FromResult(new ParsedDocumentResult(
+            Text: text.Length == 0 ? $"[{fileName}: la hoja de cálculo está vacía]" : text,
+            Tables: new List<string> { text },
+            MetadataJson: JsonSerializer.Serialize(new { Format = "XLSX" }),
+            Author: string.Empty,
+            Date: DateTime.UtcNow,
+            Category: DocumentCategory.General,
+            Version: "1.0.0",
+            ContentHash: contentHash));
     }
 }
 
@@ -143,21 +163,17 @@ public class CsvDocumentParser : BaseDocumentParser
 
     protected override Task<ParsedDocumentResult> ParseContentAsync(MemoryStream stream, string fileName, string contentHash, CancellationToken cancellationToken)
     {
-        var csvText = Encoding.UTF8.GetString(stream.ToArray());
-        var lines = csvText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-
-        var result = new ParsedDocumentResult(
-            Text: csvText,
-            Tables: new List<string> { csvText },
-            MetadataJson: JsonSerializer.Serialize(new { RowCount = lines.Length }),
-            Author: "CSV Exporter",
+        var rows = TabularText.ParseCsv(Encoding.UTF8.GetString(stream.ToArray()).TrimStart('\uFEFF'));
+        var text = TabularText.Render(null, rows);
+        return Task.FromResult(new ParsedDocumentResult(
+            Text: text,
+            Tables: new List<string> { text },
+            MetadataJson: JsonSerializer.Serialize(new { RowCount = rows.Count }),
+            Author: string.Empty,
             Date: DateTime.UtcNow,
-            Category: DocumentCategory.Financial,
+            Category: DocumentCategory.General,
             Version: "1.0.0",
-            ContentHash: contentHash
-        );
-
-        return Task.FromResult(result);
+            ContentHash: contentHash));
     }
 }
 

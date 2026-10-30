@@ -1,9 +1,16 @@
+using OCAP.Api.Services;
+using Microsoft.AspNetCore.RateLimiting;
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OCAP.Core.Events.Distributed;
 using OCAP.Api.DTOs.Responses;
+using OCAP.Channels.Abstractions.Contracts;
 using OCAP.Channels.Telegram.DTOs;
 using OCAP.Channels.Telegram.Services;
 using OCAP.Channels.Telegram.Webhooks;
 using OCAP.Security.Abstractions;
+using OCAP.Security.Infrastructure.Services;
 
 namespace OCAP.Api.Controllers;
 
@@ -22,6 +29,7 @@ public class CreateTelegramBotRequest
 
 [ApiController]
 [Route("api/channels/telegram")]
+[Authorize(Policy = OcapPermissions.ChannelManage)]
 public class TelegramChannelController : ControllerBase
 {
     private readonly ITelegramBotRuntimeManager _telegramRuntime;
@@ -118,7 +126,7 @@ public class TelegramChannelController : ControllerBase
                 Data = connection
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             _logger.LogError(ex, "Error al registrar bot de Telegram.");
             return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message, Data = null });
@@ -149,6 +157,45 @@ public class TelegramChannelController : ControllerBase
         }
 
         return Ok(new ApiResponse<object> { Success = true, Message = "Update recibido procesado correctamente.", Data = null });
+    }
+
+    /// <summary>
+    /// Webhook de un bot registrado desde el panel en modo webhook. Telegram envía el secreto derivado del token del
+    /// bot; con él se verifica el bot y se fija su organización antes de procesar el mensaje. Siempre responde 200 a
+    /// updates válidos: Telegram reintenta cualquier otra respuesta.
+    /// </summary>
+    [HttpPost("webhook/{connectionId:guid}")]
+    [AllowAnonymous]
+    [DisableRateLimiting]
+    public async Task<IActionResult> HandleBotWebhook(
+        Guid connectionId,
+        [FromBody] TelegramUpdate update,
+        [FromServices] IChannelConnectionManager connections,
+        [FromServices] TelegramConversationProcessor processor,
+        [FromServices] IInboxStore inbox,
+        CancellationToken cancellationToken)
+    {
+        var connection = await connections.FindConnectionAsync(connectionId, cancellationToken);
+        var token = connection is { Provider: "Telegram", Enabled: true }
+            ? await connections.GetCredentialsAsync(connection, cancellationToken)
+            : null;
+        var secret = Request.Headers["X-Telegram-Bot-Api-Secret-Token"].FirstOrDefault();
+        if (connection is null || token is null || !TelegramWebhookSecret.IsValid(token, connectionId, secret))
+        {
+            _logger.LogWarning("Webhook de Telegram rechazado para la conexión {ConnectionId}.", connectionId);
+            return Unauthorized();
+        }
+
+        HttpTenantContext.UseTrustedTenant(HttpContext, connection.TenantId);
+
+        // Telegram reintenta si la respuesta tarda: cada update se responde una sola vez.
+        var key = $"telegram-update:{connectionId:N}:{update.UpdateId}";
+        if (await inbox.TryClaimAsync(key, ChannelInbox.ConsumerGroup, cancellationToken))
+        {
+            await processor.ProcessAsync(connection.TenantId, connectionId, token, update, cancellationToken);
+        }
+
+        return Ok();
     }
 
     // GET /api/channels/telegram/bots/{id}/health - Health check y latencia de conexión del bot.
@@ -184,8 +231,12 @@ public class TelegramChannelController : ControllerBase
     }
 
     // DELETE /api/channels/telegram/bots/{id} - Elimina el bot de Telegram y desregistra el webhook.
+    // El token se toma del vault: el cliente nunca necesita conocerlo.
     [HttpDelete("bots/{id:guid}")]
-    public async Task<IActionResult> DeleteBot(Guid id, [FromQuery] string? token, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteBot(
+        Guid id,
+        [FromServices] IChannelConnectionManager connections,
+        CancellationToken cancellationToken)
     {
         var tenantId = _tenantContext.TenantId;
         var userId = _userContext.UserId;
@@ -195,7 +246,10 @@ public class TelegramChannelController : ControllerBase
             return Unauthorized(new ApiResponse<object> { Success = false, Message = "Tenant no identificado.", Data = null });
         }
 
-        var success = await _telegramRuntime.DeleteBotAsync(tenantId, id, token ?? string.Empty, cancellationToken);
+        var connection = (await connections.GetTenantConnectionsAsync(tenantId, cancellationToken)).FirstOrDefault(c => c.Id == id && c.Provider == "Telegram");
+        var token = connection is null ? null : await connections.GetCredentialsAsync(connection, cancellationToken);
+        var success = connection is not null
+                      && await _telegramRuntime.DeleteBotAsync(tenantId, id, token ?? string.Empty, cancellationToken);
         if (!success)
         {
             return NotFound(new ApiResponse<object> { Success = false, Message = "Conexión de bot no encontrada.", Data = null });

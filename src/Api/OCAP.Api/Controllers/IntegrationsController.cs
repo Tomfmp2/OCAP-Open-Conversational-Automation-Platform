@@ -1,9 +1,11 @@
+using OCAP.Api.Security;
+using Microsoft.AspNetCore.Authorization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OCAP.Api.Installation;
 using OCAP.Api.Models.Dashboard;
+using OCAP.Api.Services;
 using OCAP.Core.Entities;
 using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Providers.Google.Abstractions;
@@ -14,7 +16,8 @@ namespace OCAP.Api.Controllers;
 public record ConnectIntegrationRequestDto(
     string AuthCode,
     string? RedirectUri,
-    string? Scopes
+    string? Scopes,
+    string? State = null
 );
 
 public record IntegrationStatusDto(
@@ -28,29 +31,33 @@ public record IntegrationStatusDto(
 
 [ApiController]
 [Route("api/integrations")]
+[Authorize(Policy = OcapPermissions.OAuthManage)]
 public class IntegrationsController : ControllerBase
 {
     private readonly OCAPDbContext _dbContext;
     private readonly IUserContext _userContext;
     private readonly ITenantContext _tenantContext;
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
-    private readonly InstallationArtifactStore _artifactStore;
+    private readonly GoogleOAuthClient _google;
+    private readonly GoogleOAuthConnectionStore _googleConnections;
+    private readonly ILogger<IntegrationsController> _logger;
 
     public IntegrationsController(
         OCAPDbContext dbContext,
         IUserContext userContext,
         ITenantContext tenantContext,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration,
-        InstallationArtifactStore artifactStore)
+        GoogleOAuthClient google,
+        GoogleOAuthConnectionStore googleConnections,
+        ILogger<IntegrationsController> logger)
     {
+        _logger = logger;
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
         _tenantContext = tenantContext ?? throw new ArgumentNullException(nameof(tenantContext));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
+        _google = google ?? throw new ArgumentNullException(nameof(google));
+        _googleConnections = googleConnections ?? throw new ArgumentNullException(nameof(googleConnections));
     }
 
     // GET /api/integrations - Retorna el estado de todas las integraciones soportadas
@@ -92,6 +99,37 @@ public class IntegrationsController : ControllerBase
         return Ok(integration);
     }
 
+    /// <summary>
+    /// Dirección de consentimiento de Google con el cliente OAuth de la organización. El panel redirige ahí y Google
+    /// vuelve a <paramref name="redirectUri"/> (registrada en Google Cloud) con el código y el state firmado.
+    /// </summary>
+    [HttpGet("google/authorize-url")]
+    public async Task<IActionResult> GetGoogleAuthorizeUrl(
+        [FromQuery] string redirectUri,
+        [FromServices] GoogleOAuthState state,
+        CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var redirect) || (redirect.Scheme != Uri.UriSchemeHttps && redirect.Host != "localhost"))
+            return BadRequest(new { message = "La dirección de retorno debe ser https (o localhost)." });
+        if (await _google.ResolveAsync(_tenantContext.TenantId, cancellationToken) is not { } settings)
+            return BadRequest(new { message = "Configura el cliente OAuth de Google en Ajustes." });
+
+        var scopes = settings.Scopes.Count > 0 ? settings.Scopes : GoogleOAuthClient.DefaultScopes.ToList();
+        var query = new Dictionary<string, string>
+        {
+            ["response_type"] = "code",
+            ["client_id"] = settings.ClientId,
+            ["redirect_uri"] = redirectUri,
+            ["scope"] = string.Join(' ', scopes),
+            // Refresh token para que el asistente siga usando Gmail/Calendar sin volver a pedir permiso.
+            ["access_type"] = "offline",
+            ["prompt"] = "consent",
+            ["state"] = state.Create(_tenantContext.TenantId, _userContext.UserId)
+        };
+        var url = "https://accounts.google.com/o/oauth2/v2/auth?" + string.Join('&', query.Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value)}"));
+        return Ok(new { url });
+    }
+
     [HttpGet("{provider}")]
     public async Task<ActionResult<IntegrationStatusDto>> GetIntegrationStatus(string provider, CancellationToken cancellationToken)
     {
@@ -111,7 +149,11 @@ public class IntegrationsController : ControllerBase
     }
 
     [HttpPost("{provider}/connect")]
-    public async Task<ActionResult<IntegrationStatusDto>> ConnectIntegration(string provider, [FromBody] ConnectIntegrationRequestDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult<IntegrationStatusDto>> ConnectIntegration(
+        string provider,
+        [FromBody] ConnectIntegrationRequestDto request,
+        [FromServices] GoogleOAuthState state,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.AuthCode))
         {
@@ -129,76 +171,44 @@ public class IntegrationsController : ControllerBase
                 $"El intercambio OAuth real para '{provider}' aún no está implementado.");
         }
 
-        var googleSettings = _configuration.GetSection(GoogleWorkspaceOptions.SectionName).Get<GoogleSettings>()
-            ?? new GoogleSettings();
-        if (string.IsNullOrWhiteSpace(googleSettings.ClientId) ||
-            string.IsNullOrWhiteSpace(googleSettings.ClientSecret))
+        // Sin un state emitido por esta API para esta misma sesión, el código podría venir de otra cuenta (CSRF).
+        if (!state.IsValid(request.State, _tenantContext.TenantId, _userContext.UserId))
         {
-            return StatusCode(StatusCodes.Status501NotImplemented,
-                "Se requieren Google:ClientId y Google:ClientSecret para intercambiar el código OAuth.");
+            return BadRequest("La conexión con Google caducó o no se inició desde este panel. Vuelve a intentarlo.");
+        }
+
+        if (await _google.ResolveAsync(_tenantContext.TenantId, cancellationToken) is not { } googleSettings)
+        {
+            return BadRequest("Configura el cliente OAuth de Google en Ajustes.");
         }
 
         var redirectUri = string.IsNullOrWhiteSpace(request.RedirectUri)
-            ? googleSettings.RedirectUri
+            ? _google.ServerSettings.RedirectUri
             : request.RedirectUri;
         if (string.IsNullOrWhiteSpace(redirectUri))
         {
             return BadRequest("RedirectUri es requerido (en la petición o en Google:RedirectUri).");
         }
 
-        GoogleTokenResponse tokenResponse;
+        GoogleTokenGrant grant;
         try
         {
-            tokenResponse = await ExchangeGoogleAuthCodeAsync(
-                request.AuthCode,
-                googleSettings.ClientId,
-                googleSettings.ClientSecret,
-                redirectUri,
-                cancellationToken);
+            grant = await _google.ExchangeCodeAsync(_tenantContext.TenantId, request.AuthCode, redirectUri, cancellationToken);
         }
         catch (HttpRequestException ex)
         {
-            return BadRequest($"No se pudo intercambiar el código OAuth de Google: {ex.Message}");
+            _logger.LogWarning(ex, "Google rechazó el intercambio del código OAuth.");
+            return BadRequest("No se pudo intercambiar el código OAuth de Google. Vuelve a conectar la cuenta.");
         }
 
-        if (string.IsNullOrWhiteSpace(tokenResponse.AccessToken))
-        {
-            return BadRequest("Google no devolvió un access_token válido.");
-        }
-
-        var scopes = !string.IsNullOrWhiteSpace(tokenResponse.Scope)
-            ? tokenResponse.Scope.Replace(' ', ',')
+        var scopes = !string.IsNullOrWhiteSpace(grant.Scope)
+            ? grant.Scope.Replace(' ', ',')
             : (request.Scopes ?? string.Join(',', googleSettings.Scopes));
-        var expiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn > 0 ? tokenResponse.ExpiresIn : 3600);
-        var accountEmail = await TryGetGoogleAccountEmailAsync(tokenResponse.AccessToken, cancellationToken)
+        var accountEmail = await TryGetGoogleAccountEmailAsync(grant.AccessToken, cancellationToken)
             ?? _userContext.Email
             ?? "connected@google.com";
 
-        var existing = await _dbContext.OAuthConnections
-            .FirstOrDefaultAsync(c => c.Provider.ToLower() == provider.ToLower(), cancellationToken);
-
-        if (existing != null)
-        {
-            existing.UpdateTokens(tokenResponse.AccessToken, tokenResponse.RefreshToken ?? string.Empty, expiration);
-        }
-        else
-        {
-            var newConn = new OAuthConnection(
-                Guid.NewGuid(),
-                _userContext.UserId,
-                provider,
-                tokenResponse.AccessToken,
-                tokenResponse.RefreshToken ?? string.Empty,
-                expiration,
-                scopes,
-                _tenantContext.TenantId
-            );
-            _dbContext.OAuthConnections.Add(newConn);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        await _artifactStore.MergeGoogleAccessTokenAsync(tokenResponse.AccessToken, cancellationToken);
+        await _googleConnections.SaveAsync(_tenantContext.TenantId, _userContext.UserId, grant, scopes, cancellationToken);
 
         return Ok(new IntegrationStatusDto(
             Provider: provider,
@@ -236,45 +246,13 @@ public class IntegrationsController : ControllerBase
             return BadRequest($"No existe una conexión activa para el proveedor {provider}.");
         }
 
-        existing.UpdateTokens(existing.AccessToken, existing.RefreshToken, existing.TokenExpiration);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(new { Message = $"Sincronización completada con {provider}.", SyncedAt = existing.UpdatedAt });
-    }
-
-    private async Task<GoogleTokenResponse> ExchangeGoogleAuthCodeAsync(
-        string authCode,
-        string clientId,
-        string clientSecret,
-        string redirectUri,
-        CancellationToken cancellationToken)
-    {
-        var client = _httpClientFactory.CreateClient();
-        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
+        // Sincronizar = comprobar que Google sigue aceptando la conexión renovando el access token.
+        if (await _googleConnections.GetAccessTokenAsync(_tenantContext.TenantId, cancellationToken, forceRefresh: true) is null)
         {
-            ["code"] = authCode,
-            ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
-            ["redirect_uri"] = redirectUri,
-            ["grant_type"] = "authorization_code"
-        });
-
-        using var response = await client.PostAsync("https://oauth2.googleapis.com/token", content, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new HttpRequestException(
-                $"Google token endpoint respondió {(int)response.StatusCode}: {body}",
-                null,
-                response.StatusCode);
+            return BadRequest($"Google ya no acepta la conexión de {provider}. Vuelve a conectar la cuenta.");
         }
 
-        var parsed = JsonSerializer.Deserialize<GoogleTokenResponse>(body, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
-
-        return parsed ?? throw new HttpRequestException("Respuesta de token de Google vacía o inválida.");
+        return Ok(new { Message = $"Sincronización completada con {provider}.", SyncedAt = DateTime.UtcNow });
     }
 
     private async Task<string?> TryGetGoogleAccountEmailAsync(string accessToken, CancellationToken cancellationToken)
@@ -299,23 +277,5 @@ public class IntegrationsController : ControllerBase
         {
             return null;
         }
-    }
-
-    private sealed class GoogleTokenResponse
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("access_token")]
-        public string? AccessToken { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("refresh_token")]
-        public string? RefreshToken { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("scope")]
-        public string? Scope { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("token_type")]
-        public string? TokenType { get; set; }
     }
 }
