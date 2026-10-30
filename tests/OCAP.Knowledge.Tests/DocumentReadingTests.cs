@@ -45,6 +45,19 @@ public class DocumentReadingTests
     }
 
     [Fact]
+    public void RepeatedHeaders_CannotInflateTheText()
+    {
+        var header = new string('h', 100_000);
+        var rows = new List<IReadOnlyList<string>> { new[] { header } };
+        rows.AddRange(Enumerable.Range(0, 1_000).Select(i => (IReadOnlyList<string>)new[] { $"valor {i}" }));
+
+        var text = TabularText.Render("Hoja", rows, maxChars: 50_000);
+
+        Assert.True(text.Length <= 50_000);
+        Assert.DoesNotContain(new string('h', 81), text);
+    }
+
+    [Fact]
     public async Task Word_KeepsParagraphsAndTables()
     {
         var docx = Zip(("word/document.xml", """

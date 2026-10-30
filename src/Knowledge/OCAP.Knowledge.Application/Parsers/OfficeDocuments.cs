@@ -23,7 +23,8 @@ public static class OfficeDocuments
     /// <summary>Última columna de Excel (XFD): una referencia mayor es inventada.</summary>
     private const int MaxColumns = 16_384;
     /// <summary>Texto que se indexa como mucho de un documento; el resto se descarta.</summary>
-    private const int MaxOutputChars = 2_000_000;
+    private const int MaxOutputChars = TabularText.DefaultMaxChars;
+    private const int MaxRowsPerSheet = 100_000;
 
     /// <summary>Párrafos en orden; las tablas, fila por fila con sus encabezados.</summary>
     public static string ReadDocx(Stream stream)
@@ -47,7 +48,7 @@ public static class OfficeDocuments
                 var rows = block.Elements(W + "tr")
                     .Select(tr => (IReadOnlyList<string>)tr.Elements(W + "tc").Select(tc => string.Join(" ", tc.Elements(W + "p").Select(ParagraphText))).ToList())
                     .ToList();
-                output.Append('\n').Append(TabularText.Render(null, rows)).Append("\n\n");
+                output.Append('\n').Append(TabularText.Render(null, rows, Math.Max(0, MaxOutputChars - output.Length))).Append("\n\n");
             }
         }
         return output.ToString().Trim();
@@ -79,8 +80,8 @@ public static class OfficeDocuments
             var data = Load(zip, path, budget)?.Root?.Element(S + "sheetData");
             if (data is null) continue;
 
-            var rows = data.Elements(S + "row").Select(row => (IReadOnlyList<string>)Cells(row, shared)).ToList();
-            var text = TabularText.Render($"Hoja {name}", rows);
+            var rows = data.Elements(S + "row").Take(MaxRowsPerSheet).Select(row => (IReadOnlyList<string>)Cells(row, shared)).ToList();
+            var text = TabularText.Render($"Hoja {name}", rows, MaxOutputChars - output.Length);
             if (text.Length > 0) output.Append(text).Append("\n\n");
         }
         return output.ToString().Trim();
@@ -90,7 +91,7 @@ public static class OfficeDocuments
     private static List<string> Cells(XElement row, IReadOnlyList<string> shared)
     {
         var cells = new List<string>();
-        foreach (var c in row.Elements(S + "c"))
+        foreach (var c in row.Elements(S + "c").Take(MaxColumns))
         {
             var column = ColumnIndex((string?)c.Attribute("r"));
             // Solo se rellena hasta una columna real; una referencia inventada no puede reservar memoria sin límite.
