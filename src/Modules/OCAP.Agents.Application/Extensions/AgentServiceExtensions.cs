@@ -27,6 +27,7 @@ public static class AgentServiceExtensions
             return validator;
         });
         // Scoped: consulta las herramientas habilitadas del agente en la organización de la petición.
+        services.AddScoped<ChannelToolGrants>();
         services.AddScoped<IPermissionValidator, AgentToolPermissionValidator>();
         services.AddScoped<IActionDispatcher, ActionDispatcher>();
 

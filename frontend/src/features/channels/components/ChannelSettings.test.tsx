@@ -12,13 +12,18 @@ vi.mock("../api/useChannelsData", () => ({
   useRenameChannel: () => rename,
   useDeleteChannel: () => remove,
   useChannelPower: () => power,
+  useChannelCapabilities: () => mutation(),
   useConfigureWidget: () => mutation(),
   useRotateWidgetKey: () => mutation(),
   useAssignChannelAgent: () => mutation(),
   useAssignChannelAi: () => mutation(),
   useAiProviderOptions: () => ({ data: [], isLoading: false }),
 }));
-vi.mock("@/features/agents/api/useAgentsData", () => ({ useAgents: () => ({ data: [], isLoading: false }) }));
+vi.mock("@/features/agents/api/useAgentsData", () => ({
+  useAgents: () => ({ data: [], isLoading: false }),
+  useAgentTools: () => ({ data: [], isLoading: false }),
+}));
+vi.mock("@/features/knowledge/api/useKnowledgeData", () => ({ useKnowledgeBases: () => ({ data: [], isLoading: false }) }));
 vi.mock("../api/useWhatsAppLink", () => ({ useWhatsAppLink: () => ({ status: { state: "linked" }, error: null, busy: false, link: vi.fn(), unlink: vi.fn() }) }));
 
 const channel: ChannelConnection = {
@@ -30,6 +35,8 @@ const channel: ChannelConnection = {
   agentId: null,
   aiProviderConfigId: null,
   power: "on",
+  knowledgeBaseIds: null,
+  tools: null,
 };
 
 describe("ChannelSettings", () => {

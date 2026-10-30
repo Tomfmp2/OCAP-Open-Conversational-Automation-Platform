@@ -228,6 +228,39 @@ public class ChannelManagementController : ControllerBase
     /// Asigna el proveedor de IA (una configuración de «IA y modelos») que usa este canal; null vuelve al proveedor
     /// activo de la organización.
     /// </summary>
+    /// <summary>
+    /// Qué puede usar el agente en este canal: colecciones de conocimiento (vacía = todas) y herramientas. Mandan sobre
+    /// las del agente, así el mismo agente puede atender distinto en cada canal.
+    /// </summary>
+    [HttpPut("connections/{id:guid}/capabilities")]
+    [Authorize(Policy = OcapPermissions.ChannelManage)]
+    public async Task<IActionResult> SetCapabilities(
+        Guid id,
+        [FromBody] ChannelCapabilitiesRequest request,
+        [FromServices] OCAP.Knowledge.Application.Services.KnowledgeService knowledge,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+        if (tenantId == Guid.Empty) return Unauthorized();
+
+        var bases = (request.KnowledgeBaseIds ?? []).Distinct().ToList();
+        var ownBases = (await knowledge.GetKnowledgeBasesAsync(tenantId, cancellationToken)).Select(b => b.Id).ToHashSet();
+        if (bases.Any(b => !ownBases.Contains(b)))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Alguna colección no existe en esta organización.");
+
+        // Solo herramientas pensadas para hablar con clientes: el resto no se puede conceder a un canal.
+        var tools = (request.Tools ?? []).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var unknown = tools.Where(t => !OCAP.Agents.Application.Services.ChannelAgentRunner.ContactSafeTools.Contains(t)).ToList();
+        if (unknown.Count > 0)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"Acción no disponible en canales: {string.Join(", ", unknown)}.");
+
+        var ok = await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelConversationService.KnowledgeBasesMetadataKey,
+                     string.Join(',', bases), cancellationToken)
+                 && await _connectionManager.SetMetadataValueAsync(tenantId, id, OCAP.Api.Services.ChannelConversationService.ToolsMetadataKey,
+                     string.Join(',', tools), cancellationToken);
+        return ok ? NoContent() : NotFound();
+    }
+
     [HttpPut("connections/{id:guid}/ai")]
     [Authorize(Policy = OcapPermissions.ChannelManage)]
     public async Task<IActionResult> AssignAiProvider(
@@ -525,3 +558,5 @@ public class ChannelManagementController : ControllerBase
 public sealed record AssignChannelAgentRequest(Guid? AgentId);
 public sealed record AssignChannelAiRequest(Guid? AiProviderConfigId);
 public sealed record RenameChannelRequest(string DisplayName);
+
+public sealed record ChannelCapabilitiesRequest(List<Guid>? KnowledgeBaseIds, List<string>? Tools);

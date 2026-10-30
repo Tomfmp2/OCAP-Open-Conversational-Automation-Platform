@@ -19,6 +19,10 @@ export interface ChannelConnection {
   widget?: WebChatWidget;
   /** on: responde; stopping: termina los chats en curso (5 min sin mensajes) y se apaga; off: no responde. */
   power: "on" | "stopping" | "off";
+  /** Colecciones que consulta el agente en este canal ([] = todas); null = aún no se eligió (usa las del agente). */
+  knowledgeBaseIds: string[] | null;
+  /** Acciones que puede hacer el agente en este canal; null = aún no se eligió (usa las del agente). */
+  tools: string[] | null;
 }
 
 export interface WebChatWidget {
@@ -51,6 +55,8 @@ function toChannel(item: ConnectionResponse): ChannelConnection {
     agentId: meta.AgentId ?? null,
     aiProviderConfigId: meta.AiProviderConfigId ?? null,
     power: !item.enabled ? "off" : meta.ShuttingDownSince ? "stopping" : "on",
+    knowledgeBaseIds: meta.KnowledgeBaseIds === undefined ? null : meta.KnowledgeBaseIds.split(",").filter(Boolean),
+    tools: meta.Tools === undefined ? null : meta.Tools.split(",").filter(Boolean),
     widget:
       item.provider.toLowerCase() === "webchat" && meta.PublicKey
         ? { publicKey: meta.PublicKey, title: meta.WidgetTitle ?? "", allowedOrigins: (meta.AllowedOrigins ?? "").split(",").filter(Boolean) }
@@ -203,6 +209,16 @@ export function useChannelPower() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (m: { id: string; on: boolean }) => apiClient.post(`/api/channels/${m.id}/${m.on ? "enable" : "shutdown"}`, {}),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
+  });
+}
+
+/** Conocimiento y acciones que el canal le da a su agente. */
+export function useChannelCapabilities() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (m: { id: string; knowledgeBaseIds: string[]; tools: string[] }) =>
+      apiClient.put(`/api/channels/connections/${m.id}/capabilities`, { knowledgeBaseIds: m.knowledgeBaseIds, tools: m.tools }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: CHANNELS_KEY }),
   });
 }

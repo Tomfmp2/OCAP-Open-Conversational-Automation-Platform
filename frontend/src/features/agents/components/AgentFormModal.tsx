@@ -3,9 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { useChannels } from "@/features/channels/api/useChannelsData";
-import { useKnowledgeBases } from "@/features/knowledge/api/useKnowledgeData";
 import { Button, FormError, Input, Modal, Textarea } from "@/shared/components/ui";
-import { useAgentTools, useDeleteAgent, useSaveAgent, type Agent } from "../api/useAgentsData";
+import { useDeleteAgent, useSaveAgent, type Agent } from "../api/useAgentsData";
 
 interface AgentFormModalProps {
   open: boolean;
@@ -42,15 +41,13 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
   const [name, setName] = React.useState(agent?.name ?? "");
   const [description, setDescription] = React.useState(agent?.description ?? "");
   const [systemPrompt, setSystemPrompt] = React.useState(agent?.systemPrompt ?? "");
-  const [tools, setTools] = React.useState<string[]>(agent?.enabledTools ?? []);
-  const [bases, setBases] = React.useState<string[]>(agent?.knowledgeBaseIds ?? []);
+  // Se conservan tal cual: valen para los canales que aún no eligieron su conocimiento y acciones.
+  const tools = agent?.enabledTools ?? [];
+  const bases = agent?.knowledgeBaseIds ?? [];
   const [remember, setRemember] = React.useState(agent?.rememberContacts ?? true);
   const save = useSaveAgent();
-  const available = useAgentTools();
-  const collections = useKnowledgeBases();
-  const toggleBase = (id: string) => setBases((current) => (current.includes(id) ? current.filter((b) => b !== id) : [...current, id]));
 
-  const toggleTool = (tool: string) => setTools((current) => (current.includes(tool) ? current.filter((t) => t !== tool) : [...current, tool]));
+
 
   return (
     <form
@@ -93,31 +90,7 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
         </span>
       </label>
 
-      {collections.data && collections.data.length > 1 && (
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-neutral-800">Conocimiento que consulta</legend>
-          <p className="text-xs text-neutral-600">Sin marcar ninguna, consulta todas las colecciones.</p>
-          {collections.data.map((collection) => (
-            <label key={collection.id} className="flex items-center gap-3 rounded-md border border-neutral-200 p-3 text-sm has-[:checked]:border-neutral-950">
-              <input type="checkbox" className="h-4 w-4 accent-neutral-950" checked={bases.includes(collection.id)} onChange={() => toggleBase(collection.id)} />
-              <span className="text-neutral-800">{collection.name}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
-
-      {available.data && available.data.length > 0 && (
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-neutral-800">Acciones que puede hacer</legend>
-          <p className="text-xs text-neutral-600">Se ejecutan de verdad: activa solo las que necesita.</p>
-          {available.data.map((tool) => (
-            <label key={tool.name} className="flex items-start gap-3 rounded-md border border-neutral-200 p-3 text-sm has-[:checked]:border-neutral-950">
-              <input type="checkbox" className="mt-0.5 h-4 w-4 accent-neutral-950" checked={tools.includes(tool.name)} onChange={() => toggleTool(tool.name)} />
-              <span className="text-neutral-800">{tool.description}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
+      <p className="text-xs text-neutral-600">El conocimiento y las acciones se eligen en cada canal (Canales, Configurar).</p>
 
       <FormError error={save.error} />
       <div className="flex items-center justify-between gap-2 border-t border-neutral-200 pt-4">

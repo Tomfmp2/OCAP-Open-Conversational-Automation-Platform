@@ -21,6 +21,12 @@ public sealed class ChannelConversationService : IConversationResponder
     /// <summary>Metadato de la conexión del canal con el agente que la atiende.</summary>
     public const string AgentIdMetadataKey = "AgentId";
 
+    /// <summary>Colecciones de conocimiento del canal (ids separados por coma; vacío = todas).</summary>
+    public const string KnowledgeBasesMetadataKey = "KnowledgeBaseIds";
+
+    /// <summary>Herramientas del canal (nombres separados por coma). Sin la clave, el canal usa las del agente.</summary>
+    public const string ToolsMetadataKey = "Tools";
+
     /// <summary>Metadato de la conexión con el proveedor de IA (configuración de la organización) que usa el canal.</summary>
     public const string AiProviderMetadataKey = "AiProviderConfigId";
 
@@ -160,7 +166,8 @@ public sealed class ChannelConversationService : IConversationResponder
                     history,
                     message.Message,
                     AiProviderConfigId: assignment.AiProviderConfigId,
-                    Memory: memory),
+                    Memory: memory,
+                    Capabilities: assignment.Capabilities),
                 cancellationToken);
             reply = result.Text;
 
@@ -231,17 +238,27 @@ public sealed class ChannelConversationService : IConversationResponder
     }
 
     /// <summary>Agente y proveedor de IA asignados a la conexión del canal; null = los de la organización.</summary>
-    private async Task<(Guid? AgentId, Guid? AiProviderConfigId)> AssignmentAsync(
+    private async Task<(Guid? AgentId, Guid? AiProviderConfigId, ChannelCapabilities? Capabilities)> AssignmentAsync(
         Guid tenantId,
         Guid? channelConnectionId,
         CancellationToken cancellationToken)
     {
-        if (channelConnectionId is not { } id) return (null, null);
+        if (channelConnectionId is not { } id) return (null, null, null);
         var connection = await _connections.FindConnectionAsync(id, cancellationToken);
-        if (connection is null || connection.TenantId != tenantId) return (null, null);
+        if (connection is null || connection.TenantId != tenantId) return (null, null, null);
 
-        Guid? Read(string key) =>
-            connection.ConfigurationMetadata.TryGetValue(key, out var raw) && Guid.TryParse(raw, out var value) ? value : null;
-        return (Read(AgentIdMetadataKey), Read(AiProviderMetadataKey));
+        var metadata = connection.ConfigurationMetadata;
+        Guid? Read(string key) => metadata.TryGetValue(key, out var raw) && Guid.TryParse(raw, out var value) ? value : null;
+        static List<string> Split(string raw) => raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+        // Un canal que aún no eligió nada (sin las claves) usa lo del agente.
+        var capabilities = metadata.TryGetValue(ToolsMetadataKey, out var tools) || metadata.ContainsKey(KnowledgeBasesMetadataKey)
+            ? new ChannelCapabilities(
+                metadata.TryGetValue(KnowledgeBasesMetadataKey, out var bases)
+                    ? Split(bases).Select(b => Guid.TryParse(b, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToList()
+                    : null,
+                tools is null ? null : Split(tools))
+            : null;
+        return (Read(AgentIdMetadataKey), Read(AiProviderMetadataKey), capabilities);
     }
 }

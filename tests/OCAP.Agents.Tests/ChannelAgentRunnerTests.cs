@@ -36,8 +36,10 @@ public class ChannelAgentRunnerTests
             .ReturnsAsync(new List<KnowledgeSearchResult>());
         return new ChannelAgentRunner(
             _agents.Object, selector.Object, _tools.Object, _dispatcher.Object,
-            new Mock<IConfiguration>().Object, NullLogger<ChannelAgentRunner>.Instance, _knowledge.Object, _aiConfigs.Object);
+            new Mock<IConfiguration>().Object, NullLogger<ChannelAgentRunner>.Instance, _knowledge.Object, _aiConfigs.Object, _grants);
     }
+
+    private readonly ChannelToolGrants _grants = new();
 
     private Agent RegisterAgent(string prompt, params string[] tools)
     {
@@ -169,6 +171,30 @@ public class ChannelAgentRunnerTests
     }
 
     [Fact]
+    public async Task TheChannelDecides_ToolsAndKnowledge_OverTheAgent()
+    {
+        // El agente tiene calendario; el canal solo le da la hoja de cálculo y una colección.
+        var agent = RegisterAgent("Atiende.", "CreateCalendarEventTool");
+        _tools.Setup(t => t.GetTool("CreateCalendarEventTool")).Returns(Tool("CreateCalendarEventTool"));
+        _tools.Setup(t => t.GetTool("AppendSpreadsheetRowTool")).Returns(Tool("AppendSpreadsheetRowTool"));
+        _dispatcher.Setup(d => d.DispatchActionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<AgentAction>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ToolResult.Ok(null, "Fila agregada"));
+        var runner = CreateRunner();
+        var collection = Guid.NewGuid();
+        var channel = new ChannelCapabilities([collection], ["AppendSpreadsheetRowTool"]);
+
+        _model.Next = """{"reply":"Agendado.","tool":"CreateCalendarEventTool","args":{}}""";
+        await runner.ReplyAsync(Request(agent.Id, "agenda") with { Capabilities = channel }, CancellationToken.None);
+        _dispatcher.Verify(d => d.DispatchActionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<AgentAction>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        _model.Next = """{"reply":"Anotado.","tool":"AppendSpreadsheetRowTool","args":{}}""";
+        (await runner.ReplyAsync(Request(agent.Id, "anota mi pedido") with { Capabilities = channel }, CancellationToken.None)).Text.Should().Contain("Fila agregada");
+        _grants.Granted.Should().BeEquivalentTo(["AppendSpreadsheetRowTool"]);
+        _knowledge.Verify(k => k.SearchInBasesAsync(TenantId, It.Is<IReadOnlyCollection<Guid>>(b => b.SequenceEqual(new[] { collection })),
+            It.IsAny<string>(), It.IsAny<int>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
     public async Task EmailTools_AreNeverExecutedForContacts_EvenIfEnabled()
     {
         var agent = RegisterAgent("Soporte.", "SendEmailTool", "ListEmailsTool");
@@ -230,6 +256,18 @@ public class ChannelAgentRunnerTests
         (await validator.CanExecuteToolAsync(agent.Id, Tool("CreateCalendarEventTool", "Calendar.Create"))).Should().BeTrue();
         (await validator.CanExecuteToolAsync(agent.Id, Tool("SendEmailTool", "Gmail.Send"))).Should().BeFalse();
         (await validator.CanExecuteToolAsync(Guid.NewGuid(), Tool("SendEmailTool", "Gmail.Send"))).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PermissionValidator_FollowsTheChannelsGrants_WhenTheChannelDefinedThem()
+    {
+        var agent = RegisterAgent("x", "CreateCalendarEventTool");
+        var grants = new ChannelToolGrants();
+        grants.Grant(["AppendSpreadsheetRowTool"]);
+        var validator = new AgentToolPermissionValidator(new DefaultPermissionValidator(), _agents.Object, grants);
+
+        (await validator.CanExecuteToolAsync(agent.Id, Tool("AppendSpreadsheetRowTool", "Sheets.Write"))).Should().BeTrue();
+        (await validator.CanExecuteToolAsync(agent.Id, Tool("CreateCalendarEventTool", "Calendar.Create"))).Should().BeFalse();
     }
 
     private static ITool Tool(string name, params string[] permissions)

@@ -4,6 +4,7 @@ import React from "react";
 import { Button, FormError, Input, Modal } from "@/shared/components/ui";
 import { useChannelPower, useConfigureWidget, useDeleteChannel, useRenameChannel, type ChannelConnection } from "../api/useChannelsData";
 import { ChannelAgentSelect } from "./ChannelAgentSelect";
+import { ChannelCapabilitiesForm } from "./ChannelCapabilitiesForm";
 import { ChannelAiSelect } from "./ChannelAiSelect";
 import { WebChatWidgetForm } from "./WebChatWidgetForm";
 import { WhatsAppLinkPanel } from "./WhatsAppLinkPanel";
@@ -46,6 +47,10 @@ export function ChannelSettings({ channel, open, onClose }: { channel: ChannelCo
               <ChannelAiSelect connectionId={channel.id} aiProviderConfigId={channel.aiProviderConfigId} />
             </Group>
           )}
+
+          <Group title="Qué usa el agente en este canal">
+            <ChannelCapabilitiesForm key={`${channel.id}-${channel.tools?.join() ?? ""}-${channel.knowledgeBaseIds?.join() ?? ""}`} channel={channel} />
+          </Group>
 
           {channel.widget && (
             <Group title="Chat en tu sitio web">

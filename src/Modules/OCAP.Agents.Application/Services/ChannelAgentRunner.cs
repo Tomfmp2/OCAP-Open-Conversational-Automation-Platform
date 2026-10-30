@@ -28,7 +28,14 @@ public sealed record ChannelAgentRequest(
     string Message,
     bool ExecuteTools = true,
     Guid? AiProviderConfigId = null,
-    ChannelMemory? Memory = null);
+    ChannelMemory? Memory = null,
+    ChannelCapabilities? Capabilities = null);
+
+/// <summary>
+/// Lo que el canal le da a su agente: colecciones de conocimiento (vacía = todas) y herramientas. null = el canal aún no
+/// las definió y se usan las del agente.
+/// </summary>
+public sealed record ChannelCapabilities(IReadOnlyList<Guid>? KnowledgeBaseIds, IReadOnlyList<string>? Tools);
 
 /// <summary>
 /// Lo que el agente recuerda del contacto: resumen de lo antiguo de esta conversación, hechos de conversaciones
@@ -75,6 +82,7 @@ public sealed class ChannelAgentRunner
     private readonly IConfiguration _configuration;
     private readonly ILogger<ChannelAgentRunner> _logger;
     private readonly IKnowledgeRetriever? _knowledge;
+    private readonly ChannelToolGrants? _channelGrants;
     private readonly IAiProviderConfigurationService? _aiConfigurations;
 
     public ChannelAgentRunner(
@@ -85,8 +93,10 @@ public sealed class ChannelAgentRunner
         IConfiguration configuration,
         ILogger<ChannelAgentRunner> logger,
         IKnowledgeRetriever? knowledge = null,
-        IAiProviderConfigurationService? aiConfigurations = null)
+        IAiProviderConfigurationService? aiConfigurations = null,
+        ChannelToolGrants? channelGrants = null)
     {
+        _channelGrants = channelGrants;
         _aiConfigurations = aiConfigurations;
         _agents = agents;
         _providers = providers;
@@ -100,12 +110,16 @@ public sealed class ChannelAgentRunner
     public async Task<ChannelAgentReply> ReplyAsync(ChannelAgentRequest request, CancellationToken cancellationToken)
     {
         var agent = await ResolveAgentAsync(request.AgentId, cancellationToken);
-        var allowedTools = agent?.Configuration.AllowedToolNames
+        // El canal manda: sus herramientas y colecciones; si aún no las definió, las del agente.
+        var toolNames = request.Capabilities?.Tools ?? (IEnumerable<string>?)agent?.Configuration.AllowedToolNames ?? [];
+        var allowedTools = toolNames
             .Where(ContactSafeTools.Contains)
             .Select(name => _tools.GetTool(name))
             .OfType<ITool>()
-            .ToList() ?? new List<ITool>();
-        var knowledge = await SearchKnowledgeAsync(request.TenantId, agent?.Configuration.KnowledgeBaseIds ?? [], request.Message, cancellationToken);
+            .ToList();
+        if (request.Capabilities?.Tools is not null) _channelGrants?.Grant(allowedTools.Select(t => t.Definition.Name));
+        var knowledgeBases = request.Capabilities?.KnowledgeBaseIds ?? agent?.Configuration.KnowledgeBaseIds ?? [];
+        var knowledge = await SearchKnowledgeAsync(request.TenantId, knowledgeBases, request.Message, cancellationToken);
 
         var messages = new List<PromptMessage>
         {
@@ -130,15 +144,16 @@ public sealed class ChannelAgentRunner
                 transfer = true;
                 if (string.IsNullOrWhiteSpace(text)) text = "Te comunico con una persona del equipo; en breve te responden.";
             }
-            else if (agent is not null && allowedTools.Any(t => string.Equals(t.Definition.Name, toolName, StringComparison.OrdinalIgnoreCase))
+            else if (allowedTools.Any(t => string.Equals(t.Definition.Name, toolName, StringComparison.OrdinalIgnoreCase))
                      && !request.ExecuteTools)
             {
                 text = $"{text}\n\n(Prueba: aquí se ejecutaría {toolName}; no se envió nada.)".Trim();
             }
-            else if (agent is not null && allowedTools.Any(t => string.Equals(t.Definition.Name, toolName, StringComparison.OrdinalIgnoreCase)))
+            else if (allowedTools.Any(t => string.Equals(t.Definition.Name, toolName, StringComparison.OrdinalIgnoreCase)))
             {
+                // Sin agente propio, las herramientas solo pueden venir del canal (ChannelToolGrants las autoriza).
                 var result = await _dispatcher.DispatchActionAsync(
-                    agent.Id,
+                    agent?.Id ?? Guid.Empty,
                     request.ContactUserId,
                     request.ConversationId,
                     new AgentAction(AgentAction.GenerateResponse, toolName, plan.Args),
