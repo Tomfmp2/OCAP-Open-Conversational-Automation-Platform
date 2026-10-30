@@ -36,6 +36,9 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
             {conversation.channel}
             {conversation.externalContactId && `, ${conversation.externalContactId}`}
           </p>
+          {conversation.handledByHuman && (
+            <p className="text-xs text-warning">Atiendes tú: el agente vuelve a responder si nadie del equipo escribe en 15 minutos.</p>
+          )}
         </div>
         {conversation.handledByHuman ? (
           <Button variant="secondary" size="sm" onClick={() => release.mutate()} loading={release.isPending}>

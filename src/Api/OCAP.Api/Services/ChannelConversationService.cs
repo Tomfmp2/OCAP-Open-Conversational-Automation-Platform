@@ -24,6 +24,12 @@ public sealed class ChannelConversationService : IConversationResponder
     /// <summary>Metadato de la conexión con el proveedor de IA (configuración de la organización) que usa el canal.</summary>
     public const string AiProviderMetadataKey = "AiProviderConfigId";
 
+    /// <summary>
+    /// Si una persona tomó la conversación y nadie del equipo escribe en este tiempo, el agente la retoma: un bot no
+    /// queda mudo para siempre porque alguien intervino y se olvidó de devolverla.
+    /// </summary>
+    public static readonly TimeSpan HumanHandoffTimeout = TimeSpan.FromMinutes(15);
+
     /// <summary>Turnos previos que se le pasan al agente como contexto.</summary>
     private const int HistoryTurns = 12;
 
@@ -94,8 +100,21 @@ public sealed class ChannelConversationService : IConversationResponder
 
         if (conversation.IsHandledByHuman)
         {
-            _logger.LogInformation("Conversación {ConversationId} atendida por una persona: el agente no responde.", conversation.Id);
-            return null;
+            // Último mensaje del equipo (operador o el aviso de traspaso del agente) entre los recientes.
+            var lastStaff = (await _messages.GetRecentAsync(conversation.Id, HistoryTurns + 1, cancellationToken))
+                .Where(m => m.SenderType is SenderType.Operator or SenderType.Agent)
+                .Select(m => (DateTime?)m.CreatedAt)
+                .Max();
+            if (lastStaff is { } at && DateTime.UtcNow - at < HumanHandoffTimeout)
+            {
+                _logger.LogInformation("Conversación {ConversationId} atendida por una persona: el agente no responde.", conversation.Id);
+                return null;
+            }
+
+            conversation.ReturnToAgent();
+            await _conversations.SaveAsync(conversation, cancellationToken);
+            _logger.LogInformation("Conversación {ConversationId}: nadie del equipo respondió en {Minutes} minutos, el agente la retoma.",
+                conversation.Id, HumanHandoffTimeout.TotalMinutes);
         }
 
         string reply;
