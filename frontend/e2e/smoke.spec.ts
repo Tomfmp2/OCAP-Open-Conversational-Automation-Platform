@@ -90,8 +90,8 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   // Escritorio y móvil comparten organización, que admite un WebChat y una configuración por proveedor: va en uno solo.
   test.skip(testInfo.project.name.includes("mobile"), "Usa recursos únicos por organización");
   const provider = "Claude";
-  // Texto de la fila (proveedor y modelo por defecto): el estado vacío también nombra a Claude.
-  const modelRow = "Claude, claude-sonnet-5-5";
+  // Nombre único: la organización admite varios modelos del mismo proveedor y puede quedar alguno de otra ejecución.
+  const modelName = `Claude e2e ${Date.now()}`;
   const channelName = `Web e2e ${Date.now()}`;
   page.on("dialog", (dialog) => void dialog.accept());
   await login(page);
@@ -101,8 +101,9 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
   await page.getByRole("button", { name: "Agregar modelo" }).first().click();
   await page.getByLabel("Proveedor").selectOption(provider);
   await page.getByLabel("API key").fill("sk-e2e-no-real");
+  await page.getByLabel("Nombre", { exact: true }).fill(modelName);
   await page.getByRole("button", { name: "Agregar", exact: true }).click();
-  await expect(page.getByText(modelRow).first()).toBeVisible();
+  await expect(page.getByText(modelName, { exact: true })).toBeVisible();
 
   // Canal web: se crea, se renombra y se elimina desde su tarjeta.
   await page.goto("/channels");
@@ -125,11 +126,11 @@ test("IA y modelos: registrar una key, renombrar y eliminar un canal", async ({ 
 
   // Eliminar el proveedor deja la organización como estaba.
   await page.goto("/intelligence");
-  await expect(page.getByText(modelRow)).toBeVisible();
-  await page.getByRole("button", { name: `Editar ${provider}` }).click();
+  await expect(page.getByText(modelName, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `Editar ${modelName}` }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Eliminar" }).click();
-  await expect(page.getByText(modelRow)).toHaveCount(0);
+  await expect(page.getByText(modelName, { exact: true })).toHaveCount(0);
 });
 
 test("WebChat: configurar el widget en el panel, incrustarlo en el sitio de un cliente y conversar", async ({ page }, testInfo) => {

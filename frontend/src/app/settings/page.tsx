@@ -17,7 +17,7 @@ import {
   type Preferences,
 } from "@/features/settings/api/useOrganization";
 import { ApiError } from "@/shared/api/types";
-import { Badge, Button, CopyButton, ErrorState, FormError, Input, Page, PageHeader, Section, Select } from "@/shared/components/ui";
+import { Badge, Button, CopyButton, ErrorState, FormError, Input, Page, PageHeader, Section, Select, Textarea } from "@/shared/components/ui";
 
 export default function OrganizationPage() {
   const organization = useOrganization();
@@ -165,6 +165,14 @@ function EmailForm({ current, usesServer }: { current: EmailSettings | null; use
 
 const noSubscribe = () => () => {};
 
+const MEMORY_OPTIONS = [
+  { value: "", label: "90 días (recomendado)" },
+  { value: "30", label: "30 días" },
+  { value: "180", label: "6 meses" },
+  { value: "365", label: "1 año" },
+  { value: "0", label: "No recordar" },
+];
+
 const RETENTION_OPTIONS = [
   { value: "", label: "Siempre" },
   { value: "30", label: "30 días" },
@@ -194,6 +202,8 @@ function PreferencesForm({ current }: { current: Preferences }) {
   const [timeZone, setTimeZone] = React.useState(current.timeZone ?? "");
   const [panelUrl, setPanelUrl] = React.useState(current.panelUrl ?? "");
   const [retention, setRetention] = React.useState(current.conversationRetentionDays?.toString() ?? "");
+  const [memory, setMemory] = React.useState(current.memoryDays?.toString() ?? "");
+  const [notice, setNotice] = React.useState(current.privacyNotice ?? "");
   const zonesId = React.useId();
   const zones = React.useMemo(() => (typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : []), []);
 
@@ -207,6 +217,8 @@ function PreferencesForm({ current }: { current: Preferences }) {
           timeZone: timeZone.trim() || null,
           panelUrl: panelUrl.trim() || null,
           conversationRetentionDays: retention ? Number(retention) : null,
+          memoryDays: memory ? Number(memory) : null,
+          privacyNotice: notice.trim() || null,
         });
       }}
     >
@@ -248,6 +260,27 @@ function PreferencesForm({ current }: { current: Preferences }) {
           </option>
         ))}
       </Select>
+      <Select
+        label="Los agentes recuerdan a cada persona"
+        hint="Nombre, preferencias y conversaciones anteriores. Cuenta desde la última vez que la persona lo mencionó."
+        value={memory}
+        onChange={(e) => setMemory(e.target.value)}
+      >
+        {MEMORY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </Select>
+      <Textarea
+        label="Aviso de tratamiento de datos"
+        hint="Opcional. Se envía con la primera respuesta a cada contacto nuevo. Los clientes pueden escribir «olvídame» para borrar lo que se recuerda de ellos."
+        rows={3}
+        maxLength={600}
+        placeholder="Usamos tus datos solo para atenderte. Escribe «olvídame» para que los borremos."
+        value={notice}
+        onChange={(e) => setNotice(e.target.value)}
+      />
       <FormError error={save.error} />
       {save.isSuccess && (
         <p role="status" className="flex items-center gap-2 text-sm text-success">

@@ -10,7 +10,9 @@ import {
   Input,
   ListSkeleton,
   Modal,
+  Segmented,
 } from "@/shared/components/ui";
+import { MemoryPanel } from "@/features/memory/components/MemoryPanel";
 import {
   useAssistantConversationActions,
   useAssistantConversations,
@@ -38,7 +40,8 @@ export function ConversationHistory({
   onOpen,
   onDeletedCurrent,
 }: ConversationHistoryProps) {
-  const conversations = useAssistantConversations(open);
+  const [tab, setTab] = React.useState<"conversations" | "memory">("conversations");
+  const conversations = useAssistantConversations(open && tab === "conversations");
 
   return (
     <Modal
@@ -48,7 +51,24 @@ export function ConversationHistory({
       description="Solo tú las ves."
       className="sm:max-w-lg"
     >
-      {conversations.isLoading ? (
+      <div className="mb-4">
+        <Segmented
+          label="Ver"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "conversations", label: "Conversaciones" },
+            { value: "memory", label: "Lo que recuerdo de ti" },
+          ]}
+        />
+      </div>
+      {tab === "memory" ? (
+        <MemoryPanel
+          basePath="/api/agents/principal/memory"
+          open={open}
+          emptyText="El asistente guarda lo que conviene recordar de ti cuando una conversación lleva 10 minutos sin mensajes."
+        />
+      ) : conversations.isLoading ? (
         <ListSkeleton label="Cargando conversaciones" />
       ) : conversations.isError ? (
         <ErrorState

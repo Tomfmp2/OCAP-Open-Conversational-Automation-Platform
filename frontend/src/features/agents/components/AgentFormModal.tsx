@@ -44,6 +44,7 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
   const [systemPrompt, setSystemPrompt] = React.useState(agent?.systemPrompt ?? "");
   const [tools, setTools] = React.useState<string[]>(agent?.enabledTools ?? []);
   const [bases, setBases] = React.useState<string[]>(agent?.knowledgeBaseIds ?? []);
+  const [remember, setRemember] = React.useState(agent?.rememberContacts ?? true);
   const save = useSaveAgent();
   const available = useAgentTools();
   const collections = useKnowledgeBases();
@@ -59,7 +60,7 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
         save.mutate(
           {
             id: agent?.id,
-            draft: { name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim(), allowedTools: tools, knowledgeBaseIds: bases },
+            draft: { name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim(), allowedTools: tools, knowledgeBaseIds: bases, rememberContacts: remember },
           },
           { onSuccess: onDone }
         );
@@ -83,6 +84,14 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
       />
+
+      <label className="flex items-start gap-3 rounded-md border border-neutral-200 p-3 text-sm has-[:checked]:border-neutral-950">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-neutral-950" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+        <span>
+          <span className="block font-medium text-neutral-800">Recordar a los clientes</span>
+          <span className="block text-xs text-neutral-600">Nombre, preferencias y lo que hablaron antes, durante el plazo de Ajustes.</span>
+        </span>
+      </label>
 
       {collections.data && collections.data.length > 1 && (
         <fieldset className="space-y-2">

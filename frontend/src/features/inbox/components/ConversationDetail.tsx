@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Send } from "lucide-react";
-import { Button, FormError } from "@/shared/components/ui";
+import { MemoryPanel } from "@/features/memory/components/MemoryPanel";
+import { Button, FormError, Modal } from "@/shared/components/ui";
 import { cn } from "@/shared/utils/cn";
 import { useInboxActions, useInboxMessages, type InboxConversation } from "../api/useInbox";
 import { formatTime } from "./ConversationList";
@@ -14,6 +15,7 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
   const messages = useInboxMessages(conversation.id);
   const { takeOver, release, reply } = useInboxActions(conversation.id);
   const [text, setText] = React.useState("");
+  const [memoryOpen, setMemoryOpen] = React.useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const count = messages.data?.length ?? 0;
 
@@ -49,7 +51,18 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
             Tomar conversación
           </Button>
         )}
+        <Button variant="ghost" size="sm" onClick={() => setMemoryOpen(true)}>
+          Memoria
+        </Button>
       </header>
+      <Modal open={memoryOpen} onClose={() => setMemoryOpen(false)} title={`Lo que se recuerda de ${conversation.contactName}`} className="sm:max-w-lg">
+        <MemoryPanel
+          basePath={`/api/inbox/${conversation.id}/memory`}
+          open={memoryOpen}
+          editable
+          emptyText="Los agentes guardan lo que conviene recordar cuando una conversación lleva 10 minutos sin mensajes."
+        />
+      </Modal>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-4 py-4" aria-live="polite">
         {messages.isLoading && <p className="text-sm text-neutral-600">Cargando mensajes…</p>}

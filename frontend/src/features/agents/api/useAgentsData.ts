@@ -10,6 +10,8 @@ export interface Agent {
   enabledTools: string[];
   /** Colecciones de conocimiento que consulta; vacía, todas. */
   knowledgeBaseIds: string[];
+  /** Recuerda a los contactos entre conversaciones. */
+  rememberContacts: boolean;
   createdAt: string;
 }
 
@@ -24,6 +26,7 @@ export interface AgentDraft {
   systemPrompt: string;
   allowedTools: string[];
   knowledgeBaseIds: string[];
+  rememberContacts: boolean;
 }
 
 export interface AgentTestTurn {

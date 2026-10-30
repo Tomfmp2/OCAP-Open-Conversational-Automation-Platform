@@ -62,6 +62,10 @@ export interface Preferences {
   timeZone: string | null;
   panelUrl: string | null;
   conversationRetentionDays: number | null;
+  /** Días que los agentes recuerdan a una persona; null = 90 por defecto, 0 = sin memoria. */
+  memoryDays: number | null;
+  /** Aviso de tratamiento de datos para los contactos nuevos. */
+  privacyNotice: string | null;
 }
 
 const preferencesKey = ["organization", "preferences"];
