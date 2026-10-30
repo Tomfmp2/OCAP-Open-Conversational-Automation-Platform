@@ -77,7 +77,10 @@ public class TelegramApiClient
                 return apiResult?.Ok ?? false;
             }
 
-            _logger.LogWarning("Respuesta no exitosa ({StatusCode}) al enviar mensaje a Telegram para el ChatId {ChatId}.", response.StatusCode, request.ChatId);
+            // El motivo de Telegram (chat no encontrado, bot bloqueado, texto inválido) es lo único que explica un bot mudo.
+            var error = await response.Content.ReadFromJsonAsync<TelegramApiResponse<object>>(cancellationToken: cancellationToken);
+            _logger.LogWarning("Telegram rechazó sendMessage ({StatusCode}) para el ChatId {ChatId}: {Description}",
+                (int)response.StatusCode, request.ChatId, error?.Description ?? "sin detalle");
             return false;
         }
         catch (Exception ex)
@@ -146,6 +149,15 @@ public class TelegramApiClient
                 // Sin esto un token revocado o un webhook activo dejan el bot mudo sin rastro. La URL lleva el token: no se registra.
                 var error = await response.Content.ReadFromJsonAsync<TelegramApiResponse<object>>(cancellationToken: cancellationToken);
                 _logger.LogWarning("Telegram rechazó getUpdates ({Status}): {Description}", (int)response.StatusCode, error?.Description ?? "sin detalle");
+
+                // El bot está en OCAP en modo polling pero tiene un webhook puesto (de otra herramienta o de un modo anterior):
+                // Telegram no entrega nada por getUpdates hasta quitarlo.
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict
+                    && error?.Description?.Contains("webhook is active", StringComparison.OrdinalIgnoreCase) == true
+                    && await DeleteWebhookAsync(token, cancellationToken))
+                {
+                    _logger.LogInformation("Se quitó el webhook de un bot de Telegram en modo polling para poder recibir sus mensajes.");
+                }
                 return new List<TelegramUpdate>();
             }
 
