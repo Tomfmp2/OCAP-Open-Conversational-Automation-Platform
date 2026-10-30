@@ -9,5 +9,7 @@ public enum DocumentType
     Csv,
     Json,
     Html,
-    Xml
+    Xml,
+    // Se guarda como número: los tipos nuevos van al final.
+    Xlsx
 }

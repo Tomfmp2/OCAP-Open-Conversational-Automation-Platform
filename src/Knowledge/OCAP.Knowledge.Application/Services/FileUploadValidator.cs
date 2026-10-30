@@ -9,7 +9,7 @@ public class FileUploadValidator : IFileUploadValidator
 {
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".pdf", ".docx", ".txt", ".md", ".markdown", ".csv", ".json", ".html", ".htm", ".xml"
+        ".pdf", ".docx", ".xlsx", ".txt", ".md", ".markdown", ".csv", ".json", ".html", ".htm", ".xml"
     };
 
     private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)

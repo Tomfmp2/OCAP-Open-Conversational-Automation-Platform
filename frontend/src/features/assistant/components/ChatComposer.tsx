@@ -19,7 +19,7 @@ interface ChatComposerProps {
 
 /** Mismos límites que la API: el servidor vuelve a comprobarlos por el contenido de cada archivo. */
 export const MAX_ATTACHMENTS = 4;
-const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.pdf,.docx,.txt,.md,.csv,.json";
+const ACCEPT = "image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,video/quicktime,.pdf,.docx,.xlsx,.txt,.md,.csv,.json";
 const isVideo = (file: File) => file.type.startsWith("video/");
 
 /** Caja de mensaje del chat: Enter envía, Shift+Enter agrega una línea. */

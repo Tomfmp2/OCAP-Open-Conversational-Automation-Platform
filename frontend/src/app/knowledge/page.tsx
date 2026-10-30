@@ -12,7 +12,7 @@ import {
 import { Badge, Button, EmptyState, ErrorState, FormError, Input, ListSkeleton, Modal, Page, PageHeader, Select, Textarea } from "@/shared/components/ui";
 import { cn } from "@/shared/utils/cn";
 
-const ACCEPTED = ".pdf,.docx,.md,.markdown,.csv,.json,.html,.htm,.xml,.txt";
+const ACCEPTED = ".pdf,.docx,.xlsx,.md,.markdown,.csv,.json,.html,.htm,.xml,.txt";
 
 export default function KnowledgePage() {
   const bases = useKnowledgeBases();
@@ -145,7 +145,7 @@ function Documents({ baseId }: { baseId: string }) {
           dragging ? "border-neutral-950 bg-neutral-50 text-neutral-950" : "border-neutral-300 text-neutral-600"
         )}
       >
-        {upload.isPending ? "Subiendo…" : "Arrastra aquí tus archivos: PDF, Word, Markdown, CSV, JSON, HTML o texto, de hasta 10 MB."}
+        {upload.isPending ? "Subiendo…" : "Arrastra aquí tus archivos: PDF, Word, Excel, CSV, Markdown, JSON, HTML o texto, de hasta 10 MB."}
       </div>
 
       {documents.isLoading ? (
@@ -153,7 +153,7 @@ function Documents({ baseId }: { baseId: string }) {
       ) : documents.isError ? (
         <ErrorState onRetry={() => void documents.refetch()} />
       ) : !documents.data?.length ? (
-        <EmptyState title="Sin documentos" description="PDF, Word, Markdown, CSV, JSON, HTML o texto, de hasta 10 MB." />
+        <EmptyState title="Sin documentos" description="PDF, Word, Excel, CSV, Markdown, JSON, HTML o texto, de hasta 10 MB." />
       ) : (
         <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
           {documents.data.map((doc) => (

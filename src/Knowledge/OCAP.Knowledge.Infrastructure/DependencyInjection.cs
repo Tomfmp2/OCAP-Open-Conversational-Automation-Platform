@@ -41,6 +41,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IDocumentParser, PdfDocumentParser>();
         services.AddSingleton<IDocumentParser, DocxDocumentParser>();
+        services.AddSingleton<IDocumentParser, XlsxDocumentParser>();
         services.AddSingleton<IDocumentParser, TxtDocumentParser>();
         services.AddSingleton<IDocumentParser, MarkdownDocumentParser>();
         services.AddSingleton<IDocumentParser, CsvDocumentParser>();

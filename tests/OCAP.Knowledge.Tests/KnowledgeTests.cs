@@ -29,6 +29,7 @@ public class KnowledgeTests
         {
             new PdfDocumentParser(),
             new DocxDocumentParser(),
+            new XlsxDocumentParser(),
             new TxtDocumentParser(),
             new MarkdownDocumentParser(),
             new CsvDocumentParser(),
@@ -39,7 +40,8 @@ public class KnowledgeTests
 
         var factory = new DocumentParserFactory(parsers);
 
-        foreach (var type in Enum.GetValues<DocumentType>())
+        // PDF, Word y Excel son binarios y tienen sus propios tests con archivos reales (DocumentReadingTests).
+        foreach (var type in Enum.GetValues<DocumentType>().Except([DocumentType.Pdf, DocumentType.Docx, DocumentType.Xlsx]))
         {
             var parser = factory.GetParser(type);
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("Sample content text for testing document ingestion."));

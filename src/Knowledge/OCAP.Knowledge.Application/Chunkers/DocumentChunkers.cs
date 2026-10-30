@@ -75,6 +75,32 @@ public class ParagraphChunker : IChunker
 {
     public ChunkingStrategy Strategy => ChunkingStrategy.Paragraph;
 
+    private const int MaxWordsPerChunk = 300;
+
+    private static int WordCount(string text) => text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    /// <summary>Parte un bloque largo por líneas y, si una línea sigue siendo larga, por palabras.</summary>
+    private static IEnumerable<string> SplitLong(string block, int target)
+    {
+        if (WordCount(block) <= target) { yield return block; yield break; }
+        var buffer = new List<string>();
+        var words = 0;
+        foreach (var line in block.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
+        {
+            var lineWords = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (lineWords.Length > target)
+            {
+                if (buffer.Count > 0) { yield return string.Join("\n", buffer); buffer.Clear(); words = 0; }
+                for (var i = 0; i < lineWords.Length; i += target) yield return string.Join(' ', lineWords.Skip(i).Take(target));
+                continue;
+            }
+            if (words + lineWords.Length > target && buffer.Count > 0) { yield return string.Join("\n", buffer); buffer.Clear(); words = 0; }
+            buffer.Add(line);
+            words += lineWords.Length;
+        }
+        if (buffer.Count > 0) yield return string.Join("\n", buffer);
+    }
+
     public List<KnowledgeChunk> ChunkDocument(
         string content,
         int chunkSize = 500,
@@ -95,24 +121,39 @@ public class ParagraphChunker : IChunker
         var chunks = new List<KnowledgeChunk>();
         if (string.IsNullOrWhiteSpace(content)) return chunks;
 
-        var paragraphs = content.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-        int index = 0;
-        int currentPos = 0;
+        // Fragmentos de tamaño útil: los párrafos cortos (líneas de Word, filas de Excel) se juntan y los largos (páginas
+        // de PDF) se parten por líneas o palabras. Fragmentos más chicos dan respuestas más precisas.
+        var target = Math.Max(50, Math.Min(chunkSize, MaxWordsPerChunk));
+        var pieces = content.Split(new[] { "\r\n\r\n", "\n\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => p.Length > 0)
+            .SelectMany(p => SplitLong(p, target));
 
-        foreach (var paragraph in paragraphs)
+        var current = new List<string>();
+        var currentWords = 0;
+        var index = 0;
+        var position = 0;
+        void Flush()
         {
-            var trimmed = paragraph.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed)) continue;
-
-            int tokenCount = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+            if (current.Count == 0) return;
+            var text = string.Join("\n\n", current);
             chunks.Add(new KnowledgeChunk(
-                Guid.NewGuid(), documentId, knowledgeBaseId, tenantId, index++, trimmed,
-                tokenCount, currentPos, currentPos + trimmed.Length,
-                JsonSerializer.Serialize(new { Strategy = Strategy.ToString() })
-            ));
-
-            currentPos += trimmed.Length + 2;
+                Guid.NewGuid(), documentId, knowledgeBaseId, tenantId, index++, text,
+                currentWords, position, position + text.Length,
+                JsonSerializer.Serialize(new { Strategy = Strategy.ToString() })));
+            position += text.Length + 2;
+            current.Clear();
+            currentWords = 0;
         }
+
+        foreach (var piece in pieces)
+        {
+            var words = WordCount(piece);
+            if (currentWords > 0 && currentWords + words > target) Flush();
+            current.Add(piece);
+            currentWords += words;
+        }
+        Flush();
 
         return chunks;
     }

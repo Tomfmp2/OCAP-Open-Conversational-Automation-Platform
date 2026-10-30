@@ -15,6 +15,7 @@ public static class KnowledgeUploadValidator
     {
         ["pdf"] = DocumentType.Pdf,
         ["docx"] = DocumentType.Docx,
+        ["xlsx"] = DocumentType.Xlsx,
         ["md"] = DocumentType.Markdown,
         ["markdown"] = DocumentType.Markdown,
         ["csv"] = DocumentType.Csv,
@@ -35,6 +36,8 @@ public static class KnowledgeUploadValidator
 
         var safeName = SafeFileName(file.FileName);
         var extension = Path.GetExtension(safeName).TrimStart('.');
+        if (extension.Equals("xls", StringComparison.OrdinalIgnoreCase) || extension.Equals("doc", StringComparison.OrdinalIgnoreCase))
+            return (default, safeName, $"El formato .{extension} es antiguo: guárdalo como .{extension}x (o .csv) y vuelve a subirlo.");
         if (!Types.TryGetValue(extension, out var type))
             return (default, safeName, $"Tipo de archivo no admitido. Formatos permitidos: {AllowedExtensions}.");
 
@@ -49,7 +52,7 @@ public static class KnowledgeUploadValidator
         var matches = type switch
         {
             DocumentType.Pdf => sample.StartsWith("%PDF-"u8),
-            DocumentType.Docx => sample.StartsWith("PK\x03\x04"u8),
+            DocumentType.Docx or DocumentType.Xlsx => sample.StartsWith("PK\x03\x04"u8),
             // Texto: sin bytes nulos (los binarios casi siempre los tienen) y UTF-8 válido.
             _ => !sample.Contains((byte)0) && IsUtf8(sample, read == SniffBytes)
         };

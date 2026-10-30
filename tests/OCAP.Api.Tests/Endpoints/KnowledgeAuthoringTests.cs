@@ -39,6 +39,57 @@ public class KnowledgeAuthoringTests : IClassFixture<GeminiEmbeddingsFactory>
     }
 
     [Fact]
+    public async Task AnUploadedExcel_IsReadRowByRow()
+    {
+        var admin = TestAuthHelper.CreateAuthenticatedClient(_factory);
+        (await admin.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            providerName = "Gemini", displayName = "Gemini excel", modelName = "gemini-3.5-flash", apiKey = "AIza-prueba"
+        })).EnsureSuccessStatusCode();
+        var baseId = await CreateBaseAsync(admin, "Catálogo");
+
+        using var form = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(Xlsx()), "file", "precios.xlsx" },
+            { new StringContent(baseId.ToString()), "knowledgeBaseId" },
+            { new StringContent("General"), "category" }
+        };
+        var upload = await admin.PostAsync("/api/knowledge/upload", form);
+        upload.StatusCode.Should().Be(HttpStatusCode.OK, await upload.Content.ReadAsStringAsync());
+        var documentId = JsonDocument.Parse(await upload.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetGuid();
+
+        string.Join("\n", await WaitForContentAsync(admin, documentId)).Should().Contain("Producto: Empanada; Precio: 2500");
+
+        using var oldFormat = new MultipartFormDataContent
+        {
+            { new ByteArrayContent([0xD0, 0xCF, 0x11, 0xE0]), "file", "viejo.xls" },
+            { new StringContent(baseId.ToString()), "knowledgeBaseId" },
+            { new StringContent("General"), "category" }
+        };
+        var rejected = await admin.PostAsync("/api/knowledge/upload", oldFormat);
+        rejected.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await rejected.Content.ReadAsStringAsync()).Should().Contain(".xlsx");
+    }
+
+    private static byte[] Xlsx()
+    {
+        using var stream = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            void Add(string path, string xml)
+            {
+                using var writer = new StreamWriter(zip.CreateEntry(path).Open());
+                writer.Write(xml);
+            }
+            Add("xl/workbook.xml", """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Precios" sheetId="1" r:id="rId1"/></sheets></workbook>""");
+            Add("xl/_rels/workbook.xml.rels", """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>""");
+            Add("xl/worksheets/sheet1.xml", """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Producto</t></is></c><c r="B1" t="inlineStr"><is><t>Precio</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Empanada</t></is></c><c r="B2"><v>2500</v></c></row></sheetData></worksheet>""");
+        }
+        return stream.ToArray();
+    }
+
+    [Fact]
     public async Task ImportingAUrl_OnlyReachesTheInternet()
     {
         var admin = TestAuthHelper.CreateAuthenticatedClient(_factory);
