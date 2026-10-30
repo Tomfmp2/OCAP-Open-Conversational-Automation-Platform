@@ -65,13 +65,18 @@ public class AssistantMessage
 
     private AssistantMessage() { }
 
-    public AssistantMessage(AssistantConversation conversation, string role, string content)
+    /// <param name="conversation">Conversación.</param>
+    /// <param name="role">Uno de <see cref="AssistantRoles"/>.</param>
+    /// <param name="content">Texto.</param>
+    /// <param name="createdAt">Cuándo se escribió; el mensaje del usuario usa la hora de llegada, no la de guardado, para
+    /// quedar antes que la respuesta aunque ambos se guarden juntos.</param>
+    public AssistantMessage(AssistantConversation conversation, string role, string content, DateTime? createdAt = null)
     {
         Id = Guid.NewGuid();
         TenantId = conversation.TenantId;
         ConversationId = conversation.Id;
         Role = role;
         Content = content;
-        CreatedAt = DateTime.UtcNow;
+        CreatedAt = createdAt ?? DateTime.UtcNow;
     }
 }

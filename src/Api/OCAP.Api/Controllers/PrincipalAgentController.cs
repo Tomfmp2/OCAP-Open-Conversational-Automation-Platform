@@ -146,6 +146,7 @@ public class PrincipalAgentController : ControllerBase
         string? historyText = null,
         bool untrusted = false)
     {
+        var receivedAt = DateTime.UtcNow;
         AssistantConversation? conversation = null;
         IReadOnlyList<AssistantMessage> previous = [];
         if (requestedConversationId is { } conversationId)
@@ -184,7 +185,7 @@ public class PrincipalAgentController : ControllerBase
             }
             if (untrusted) conversation.MarkUntrustedContent();
             await _conversations.AddMessagesAsync(conversation,
-                [new AssistantMessage(conversation, AssistantRoles.User, historyText ?? message), new AssistantMessage(conversation, AssistantRoles.Assistant, reply)],
+                [new AssistantMessage(conversation, AssistantRoles.User, historyText ?? message, receivedAt), new AssistantMessage(conversation, AssistantRoles.Assistant, reply)],
                 cancellationToken);
 
             return Ok(new ApiResponse<object>
