@@ -32,6 +32,19 @@ public class DocumentReadingTests
     }
 
     [Fact]
+    public async Task AnInventedCellReference_DoesNotAllocateWithoutLimit()
+    {
+        var xlsx = Zip(
+            ("xl/workbook.xml", """<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="A" sheetId="1" r:id="rId1"/></sheets></workbook>"""),
+            ("xl/_rels/workbook.xml.rels", """<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="worksheet" Target="worksheets/sheet1.xml"/></Relationships>"""),
+            ("xl/worksheets/sheet1.xml", """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Nombre</t></is></c></row><row r="2"><c r="ZZZZZZ2" t="inlineStr"><is><t>x</t></is></c></row></sheetData></worksheet>"""));
+
+        var text = (await new XlsxDocumentParser().ParseAsync(xlsx, "raro.xlsx")).Text;
+
+        Assert.True(text.Length < 1_000);
+    }
+
+    [Fact]
     public async Task Word_KeepsParagraphsAndTables()
     {
         var docx = Zip(("word/document.xml", """

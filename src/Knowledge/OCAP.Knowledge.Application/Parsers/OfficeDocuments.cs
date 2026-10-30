@@ -14,19 +14,29 @@ public static class OfficeDocuments
     private static readonly XNamespace S = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     private static readonly XNamespace R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private static readonly XNamespace PackageRels = "http://schemas.openxmlformats.org/package/2006/relationships";
-    /// <summary>Tope de lo que se descomprime: un ZIP pequeño puede expandirse a gigas (zip bomb).</summary>
-    private const long MaxPartBytes = 50 * 1024 * 1024;
+    /// <summary>
+    /// Tope de lo que se descomprime en total, contando los bytes que de verdad salen (el tamaño que declara el ZIP se
+    /// puede falsear): un archivo pequeño puede expandirse a gigas (zip bomb).
+    /// </summary>
+    private const long MaxDecompressedBytes = 100 * 1024 * 1024;
+    private const int MaxSheets = 50;
+    /// <summary>Última columna de Excel (XFD): una referencia mayor es inventada.</summary>
+    private const int MaxColumns = 16_384;
+    /// <summary>Texto que se indexa como mucho de un documento; el resto se descarta.</summary>
+    private const int MaxOutputChars = 2_000_000;
 
     /// <summary>Párrafos en orden; las tablas, fila por fila con sus encabezados.</summary>
     public static string ReadDocx(Stream stream)
     {
         using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-        var body = Load(zip, "word/document.xml")?.Root?.Element(W + "body");
+        var budget = new DecompressionBudget();
+        var body = Load(zip, "word/document.xml", budget)?.Root?.Element(W + "body");
         if (body is null) return string.Empty;
 
         var output = new StringBuilder();
         foreach (var block in body.Elements())
         {
+            if (output.Length > MaxOutputChars) break;
             if (block.Name == W + "p")
             {
                 var text = ParagraphText(block);
@@ -47,21 +57,26 @@ public static class OfficeDocuments
     public static string ReadXlsx(Stream stream)
     {
         using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
-        var shared = Load(zip, "xl/sharedStrings.xml")?.Root?.Elements(S + "si")
+        var budget = new DecompressionBudget();
+        var shared = Load(zip, "xl/sharedStrings.xml", budget)?.Root?.Elements(S + "si")
             .Select(si => string.Concat(si.Descendants(S + "t").Select(t => t.Value)))
             .ToList() ?? [];
 
-        var workbook = Load(zip, "xl/workbook.xml");
-        var rels = Load(zip, "xl/_rels/workbook.xml.rels")?.Root?.Elements(PackageRels + "Relationship")
-            .ToDictionary(r => (string)r.Attribute("Id")!, r => (string)r.Attribute("Target")!) ?? [];
+        var workbook = Load(zip, "xl/workbook.xml", budget);
+        var rels = Load(zip, "xl/_rels/workbook.xml.rels", budget)?.Root?.Elements(PackageRels + "Relationship")
+            .GroupBy(r => (string?)r.Attribute("Id") ?? string.Empty)
+            .ToDictionary(g => g.Key, g => (string?)g.First().Attribute("Target") ?? string.Empty) ?? [];
 
         var output = new StringBuilder();
-        foreach (var sheet in workbook?.Root?.Element(S + "sheets")?.Elements(S + "sheet") ?? [])
+        var seen = new HashSet<string>();
+        foreach (var sheet in (workbook?.Root?.Element(S + "sheets")?.Elements(S + "sheet") ?? []).Take(MaxSheets))
         {
+            if (output.Length > MaxOutputChars) break;
             var name = (string?)sheet.Attribute("name") ?? "Hoja";
             if (!rels.TryGetValue((string?)sheet.Attribute(R + "id") ?? string.Empty, out var target)) continue;
             var path = target.StartsWith('/') ? target.TrimStart('/') : $"xl/{target}";
-            var data = Load(zip, path)?.Root?.Element(S + "sheetData");
+            if (!seen.Add(path)) continue; // varias hojas apuntando a la misma parte: se lee una vez
+            var data = Load(zip, path, budget)?.Root?.Element(S + "sheetData");
             if (data is null) continue;
 
             var rows = data.Elements(S + "row").Select(row => (IReadOnlyList<string>)Cells(row, shared)).ToList();
@@ -78,7 +93,8 @@ public static class OfficeDocuments
         foreach (var c in row.Elements(S + "c"))
         {
             var column = ColumnIndex((string?)c.Attribute("r"));
-            while (column is { } col && cells.Count < col) cells.Add(string.Empty);
+            // Solo se rellena hasta una columna real; una referencia inventada no puede reservar memoria sin límite.
+            while (column is { } col && col < MaxColumns && cells.Count < col) cells.Add(string.Empty);
             var type = (string?)c.Attribute("t");
             var value = c.Element(S + "v")?.Value ?? string.Empty;
             cells.Add(type switch
@@ -96,9 +112,11 @@ public static class OfficeDocuments
     private static int? ColumnIndex(string? reference)
     {
         if (string.IsNullOrEmpty(reference)) return null;
+        var letters = reference.TakeWhile(char.IsAsciiLetter).ToArray();
+        if (letters.Length is 0 or > 3) return null; // XFD es la última columna
         var index = 0;
-        foreach (var ch in reference.TakeWhile(char.IsLetter)) index = index * 26 + (char.ToUpperInvariant(ch) - 'A' + 1);
-        return index == 0 ? null : index - 1;
+        foreach (var ch in letters) index = index * 26 + (char.ToUpperInvariant(ch) - 'A' + 1);
+        return index - 1 < MaxColumns ? index - 1 : null;
     }
 
     private static string ParagraphText(XElement paragraph)
@@ -113,13 +131,46 @@ public static class OfficeDocuments
         return text.ToString().Trim();
     }
 
-    private static XDocument? Load(ZipArchive zip, string path)
+    private static XDocument? Load(ZipArchive zip, string path, DecompressionBudget budget)
     {
         var entry = zip.GetEntry(path);
         if (entry is null) return null;
-        if (entry.Length > MaxPartBytes) throw new InvalidDataException("El documento es demasiado grande para leerlo.");
-        using var part = entry.Open();
+        using var part = new BudgetedStream(entry.Open(), budget);
         // Sin DTD: el XML de Office no las usa y así no hay entidades externas (XXE).
         return XDocument.Load(System.Xml.XmlReader.Create(part, new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Prohibit }));
+    }
+
+    /// <summary>Bytes descomprimidos que quedan para todo el documento.</summary>
+    private sealed class DecompressionBudget
+    {
+        public long Remaining { get; set; } = MaxDecompressedBytes;
+    }
+
+    /// <summary>Cuenta lo que realmente se lee de una parte y corta al agotar el presupuesto del documento.</summary>
+    private sealed class BudgetedStream(Stream inner, DecompressionBudget budget) : Stream
+    {
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var read = inner.Read(buffer, offset, count);
+            budget.Remaining -= read;
+            if (budget.Remaining < 0) throw new InvalidDataException("El documento es demasiado grande para leerlo.");
+            return read;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) inner.Dispose();
+            base.Dispose(disposing);
+        }
     }
 }
