@@ -285,6 +285,8 @@ services:
       CONFIG_SESSION_PHONE_CLIENT: OCAP
       CONFIG_SESSION_PHONE_NAME: Chrome
       QRCODE_LIMIT: "30"
+      # Negro sobre blanco (Evolution lo dibuja azul por defecto): máximo contraste para la cámara del teléfono.
+      QRCODE_COLOR: "#000000"
       DEL_INSTANCE: "false"
       LOG_LEVEL: ERROR,WARN
       LOG_BAILEYS: error
