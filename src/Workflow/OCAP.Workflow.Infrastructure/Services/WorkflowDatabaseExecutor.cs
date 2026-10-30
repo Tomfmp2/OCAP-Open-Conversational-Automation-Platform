@@ -27,9 +27,10 @@ public class WorkflowDatabaseExecutor : IWorkflowDatabaseExecutor
     {
         ValidateSql(sql);
 
+        // EF abre la conexión para que pase por el interceptor que fija la organización (RLS). Abrirla a mano la dejaba sin
+        // organización para el resto de la petición: no se veía el modelo de IA ni se podía guardar la respuesta.
+        await _context.Database.OpenConnectionAsync(cancellationToken);
         var connection = _context.Database.GetDbConnection();
-        if (connection.State != ConnectionState.Open)
-            await connection.OpenAsync(cancellationToken);
 
         await using var command = connection.CreateCommand();
         command.CommandText = sql;

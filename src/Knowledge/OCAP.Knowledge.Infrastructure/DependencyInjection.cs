@@ -182,9 +182,10 @@ public sealed class PgVectorStartupValidator : IHostedService
 
         try
         {
+            // EF abre la conexión para que pase por el interceptor que fija la organización (RLS). Abrirla a mano la dejaba sin
+            // organización para el resto de la petición: no se veía el modelo de IA ni se podía guardar la respuesta.
+            await dbContext.Database.OpenConnectionAsync(cancellationToken);
             var connection = dbContext.Database.GetDbConnection();
-            if (connection.State != System.Data.ConnectionState.Open)
-                await connection.OpenAsync(cancellationToken);
 
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT 1 FROM pg_extension WHERE extname = 'vector'";
