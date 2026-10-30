@@ -73,17 +73,26 @@ public static class EvolutionWebhookParser
         if (key.TryGetProperty("fromMe", out var fromMe) && fromMe.ValueKind == JsonValueKind.True) return null;
 
         var remoteJid = Str(key, "remoteJid") ?? string.Empty;
-        // Solo chats individuales: se descartan grupos, estados (status@broadcast), canales y listas de difusión.
-        if (!remoteJid.EndsWith("@s.whatsapp.net", StringComparison.Ordinal)) return null;
-
         var messageId = Str(key, "id");
-        var from = Digits(remoteJid);
+        var from = IndividualSender(remoteJid, Str(key, "remoteJidAlt") ?? Str(key, "senderPn"));
         var text = data.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object
             ? Str(message, "conversation") ?? (message.TryGetProperty("extendedTextMessage", out var ext) ? Str(ext, "text") : null)
             : null;
 
         if (string.IsNullOrWhiteSpace(messageId) || string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(text)) return null;
         return new EvolutionTextMessageEvent(instance, messageId, from, Str(data, "pushName") ?? string.Empty, text.Trim());
+    }
+
+    /// <summary>
+    /// A quién responder en un chat individual; null para grupos, estados (status@broadcast), canales y difusiones.
+    /// WhatsApp identifica cada vez más contactos con un LID ("123@lid") y manda el número real aparte (remoteJidAlt):
+    /// se prefiere el número; sin él, se responde al propio LID, que Evolution también acepta.
+    /// </summary>
+    private static string? IndividualSender(string remoteJid, string? alternativeJid)
+    {
+        if (remoteJid.EndsWith("@s.whatsapp.net", StringComparison.Ordinal)) return Digits(remoteJid);
+        if (!remoteJid.EndsWith("@lid", StringComparison.Ordinal)) return null;
+        return alternativeJid?.EndsWith("@s.whatsapp.net", StringComparison.Ordinal) == true ? Digits(alternativeJid) : remoteJid;
     }
 
     private static string? Str(JsonElement element, string property) =>

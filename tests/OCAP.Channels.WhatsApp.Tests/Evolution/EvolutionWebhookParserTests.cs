@@ -8,12 +8,12 @@ public class EvolutionWebhookParserTests
 {
     private const string Instance = "ocap-00000000000000000000000000000001";
 
-    private static string Message(string remoteJid, bool fromMe = false, string text = "Hola", string id = "3EB0A1") => $$"""
+    private static string Message(string remoteJid, bool fromMe = false, string text = "Hola", string id = "3EB0A1", string? remoteJidAlt = null) => $$"""
         {
           "event": "messages.upsert",
           "instance": "{{Instance}}",
           "data": {
-            "key": { "remoteJid": "{{remoteJid}}", "fromMe": {{(fromMe ? "true" : "false")}}, "id": "{{id}}" },
+            "key": { "remoteJid": "{{remoteJid}}", "fromMe": {{(fromMe ? "true" : "false")}}, "id": "{{id}}"{{(remoteJidAlt is null ? "" : $", \"remoteJidAlt\": \"{remoteJidAlt}\", \"addressingMode\": \"lid\"")}} },
             "pushName": "Ana",
             "message": { "conversation": "{{text}}" },
             "messageType": "conversation",
@@ -30,6 +30,23 @@ public class EvolutionWebhookParserTests
         var parsed = EvolutionWebhookParser.Parse(Message("573001234567@s.whatsapp.net"));
 
         parsed.Should().BeEquivalentTo(new EvolutionTextMessageEvent(Instance, "3EB0A1", "573001234567", "Ana", "Hola"));
+    }
+
+    [Fact]
+    public void ContactIdentifiedByLid_IsAnsweredAtItsRealNumber()
+    {
+        // WhatsApp manda el LID en remoteJid y el número en remoteJidAlt (Evolution 2.3, addressingMode "lid").
+        var parsed = EvolutionWebhookParser.Parse(Message("123456789012345@lid", remoteJidAlt: "573001234567@s.whatsapp.net"));
+
+        parsed.Should().BeEquivalentTo(new EvolutionTextMessageEvent(Instance, "3EB0A1", "573001234567", "Ana", "Hola"));
+    }
+
+    [Fact]
+    public void ContactWithOnlyALid_IsAnsweredAtTheLid()
+    {
+        var parsed = EvolutionWebhookParser.Parse(Message("123456789012345@lid"));
+
+        parsed.Should().BeEquivalentTo(new EvolutionTextMessageEvent(Instance, "3EB0A1", "123456789012345@lid", "Ana", "Hola"));
     }
 
     [Fact]
