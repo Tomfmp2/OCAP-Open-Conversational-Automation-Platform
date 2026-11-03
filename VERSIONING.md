@@ -23,8 +23,9 @@ OCAP follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
 | **1.0.0** | 2026-11-03 | First public release: WhatsApp (QR and Business), Telegram and WebChat channels; agents with persistent memory; per-channel knowledge and actions; inbox with human handoff; PDF, Word and Excel knowledge; multi-provider AI models; organization settings from the panel. See [CHANGELOG](CHANGELOG.md). |
 
 Public numbering restarts at **1.0.0**. The entries below are internal milestones of the code base (July 2026)
-that were never published as a product. Their git tags (`v0.1.0`–`v2.1.0-rc1`) were removed when 1.0.0 was
-released, so `v1.0.0` now names the public release; the tagged commits remain in the history of `main`.
+that were never published as a product. Their git tags (`v0.1.0`–`v2.1.0-rc1`) are kept as historical references and
+do not describe public releases. Note that the existing `v1.0.0` tag points to the internal July milestone, not to
+the public 1.0.0 release.
 
 ## Internal milestones (not published)
 
