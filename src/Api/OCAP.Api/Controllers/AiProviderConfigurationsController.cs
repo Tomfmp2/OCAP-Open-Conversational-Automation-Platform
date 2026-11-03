@@ -122,7 +122,7 @@ public class AiProviderConfigurationsController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Sin proveedor de IA configurado",
-                detail: "Registra y habilita un proveedor en «IA y modelos» antes de probar la conexión.");
+                detail: "Agrega y habilita un modelo en «Modelos de IA» antes de probar la conexión.");
         }
 
         var health = await provider.HealthAsync(cancellationToken);

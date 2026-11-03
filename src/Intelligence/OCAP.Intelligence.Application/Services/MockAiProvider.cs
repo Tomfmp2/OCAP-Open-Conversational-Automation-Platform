@@ -23,7 +23,7 @@ public sealed class MockAiProvider : IAiProvider
         var text =
             $"[Modo demo] Recibí tu mensaje: «{user}». " +
             "OCAP aún no tiene un proveedor de IA configurado. " +
-            "Agrega uno en el panel (IA y modelos) o una API key en .env para respuestas reales.";
+            "Agrega uno en Modelos de IA para respuestas reales.";
 
         return Task.FromResult(new AiResponse
         {

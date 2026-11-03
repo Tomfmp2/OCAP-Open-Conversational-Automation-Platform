@@ -160,7 +160,7 @@ public class ProvidersController : ControllerBase
         {
             return BadRequest(new
             {
-                message = $"Proveedor '{providerName}' no está registrado. Regístralo en IA y modelos o en .env."
+                message = $"Proveedor '{providerName}' no está registrado. Agrégalo en Modelos de IA."
             });
         }
 

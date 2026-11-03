@@ -233,7 +233,7 @@ public class PrincipalAgentController : ControllerBase
                 ? "Se agotó la cuota del proveedor de IA. Espera unos minutos o revisa tu plan con el proveedor."
                 : ex.Message.Contains("API Key", StringComparison.OrdinalIgnoreCase)
                     ? "Falta la API key del modelo o no es válida. Revísala en Modelos de IA."
-                    : "El asistente no pudo responder. Prueba el proveedor en IA y modelos y revisa los logs de la API.";
+                    : "El asistente no pudo responder. Prueba el modelo en Modelos de IA y revisa los logs de la API.";
 
             return StatusCode(503, new ApiResponse<object>
             {

@@ -137,7 +137,7 @@ public class AiController : ControllerBase
         {
             // El detalle del proveedor puede incluir la petición o datos de la cuenta: va al log, no al cliente.
             _logger.LogError(ex, "El proveedor de IA {Provider} falló al generar la respuesta.", dto.Provider);
-            return StatusCode(502, new { message = $"El proveedor '{dto.Provider}' no pudo generar la respuesta. Revisa su configuración en IA y modelos." });
+            return StatusCode(502, new { message = $"El proveedor '{dto.Provider}' no pudo generar la respuesta. Revisa su configuración en Modelos de IA." });
         }
 
         sw.Stop();
