@@ -16,7 +16,17 @@ OCAP follows [Semantic Versioning (SemVer 2.0.0)](https://semver.org/):
 
 ---
 
-## Release History
+## Public releases
+
+| Version | Date | Highlights |
+| --- | --- | --- |
+| **1.0.0** | 2026-11-03 | First public release: WhatsApp (QR and Business), Telegram and WebChat channels; agents with persistent memory; per-channel knowledge and actions; inbox with human handoff; PDF, Word and Excel knowledge; multi-provider AI models; organization settings from the panel. See [CHANGELOG](CHANGELOG.md). |
+
+Public numbering restarts at **1.0.0**. The entries below are internal milestones of the code base (July 2026)
+that were never published as a product. Their git tags (`v1.3.1`–`v2.1.0`) predate 1.0.0 and do not describe
+public releases.
+
+## Internal milestones (not published)
 
 | **v1.5.2** | 2026-07-28 | **Enterprise Reliability & Operational Excellence** (User Context IUserContext/HttpUserContext, Resilient Background Processing with Exponential Backoff, Audit Trail Tenant/User Resolution, IdentityModel 8.21.0 Security Updates) | **Production Ready** |
 | **v1.5.1** | 2026-07-27 | **Enterprise Hardening, Security Audit & Production Validation** (Multi-Tenant Context ITenantContext, Security File Upload Validator, EF Core Persistence, OpenTelemetry Knowledge Telemetry, Security & Tenant Test Suite) | Production Ready |

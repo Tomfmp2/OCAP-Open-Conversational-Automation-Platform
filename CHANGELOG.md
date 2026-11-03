@@ -7,34 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-03
+
+Primer lanzamiento público. Las versiones anteriores de este archivo son hitos internos del código base que no se
+publicaron como producto (ver [VERSIONING.md](VERSIONING.md)).
+
 ### Added
-- **Agentes por canal**: cada canal responde con el agente que se le asigna (o con un agente de atención por defecto), usando sus instrucciones, el historial de la conversación y la base de conocimiento; puede pasar la conversación a una persona. Los contactos ya no hablan con el agente madre del panel ni ven datos internos. Chat de prueba en *Agentes*.
-- **Bandeja de conversaciones** (`/inbox`): conversaciones de WhatsApp y Telegram, tomar el control (el agente deja de responder), responder como persona por el mismo canal y devolver al agente. Migración `AddConversationChannel`.
-- **WhatsApp por QR (Evolution API v2.3.7)**: *Canales → Conectar canal → WhatsApp* muestra el QR, el estado llega en vivo por SignalR y el asistente principal responde los chats individuales. Una instancia por organización, sesiones persistentes en Postgres y endpoints `POST/GET/DELETE /api/channels/whatsapp/link`.
-- **Modo demo de IA**: sin keys de IA en el servidor el asistente responde con el proveedor Mock en vez de fallar (`AiProviders__DemoMode=false` lo desactiva).
-- `scripts/ocap-dev.sh` para desarrollar sin Docker en Linux y macOS.
-- **WhatsApp Cloud API responde con el asistente**: el webhook de Meta resuelve la organización por el `PhoneNumberId` conectado (único en OCAP) y responde una vez por mensaje.
-- **Telegram responde con el asistente**: el polling consulta cada bot registrado desde el panel con su propio token (antes solo el token global, así que los bots del panel nunca se atendían) y el modo webhook usa una URL por conexión con un secreto derivado del token del bot (antes el secreto se generaba y se perdía).
-- CI estricto: `TreatWarningsAsErrors`, auditorías de dependencias y Trivy bloqueantes, y un job E2E con Playwright sobre el stack de Docker.
+- **Canales**: WhatsApp por QR (Evolution API v2.3.7, contactos con LID), WhatsApp Business configurado desde el
+  panel (App Secret cifrado y token de verificación generado por OCAP), Telegram con varios bots y WebChat con widget
+  para tu sitio (dominios autorizados, clave rotable). Varios canales del mismo tipo por organización.
+- **Apagado de canales sin cortes**: termina los chats en curso (5 minutos sin mensajes) y se apaga hasta encenderlo.
+- **Agentes por canal** con instrucciones propias, chat de prueba y pase a una persona. El **canal decide** las
+  colecciones de conocimiento y las acciones de su agente (ADR-011).
+- **Memoria persistente** (ADR-010): resumen de conversaciones largas, hechos y episodios por persona con plazo
+  configurable (90 días por defecto), corrección y borrado desde la bandeja, «olvídame» por chat y aviso de
+  tratamiento de datos.
+- **Bandeja**: tomar, responder por el canal y devolver al agente. El agente retoma solo tras 15 minutos sin
+  mensajes del equipo.
+- **Conocimiento**: lectura real de PDF (PdfPig), Word y Excel (`.xlsx`, filas con sus encabezados), CSV con `;` o
+  `,`; arrastrar y soltar, respuestas escritas, importar páginas web y ver el texto de cada documento.
+- **Modelos de IA**: Gemini, OpenAI, Claude, Ollama y APIs compatibles con OpenAI (NVIDIA, Groq, OpenRouter…);
+  varias configuraciones por proveedor, lista de modelos del proveedor y modelo por canal.
+- **Asistente del panel**: conversaciones guardadas por usuario, memoria, adjuntos (imágenes, video con Gemini,
+  documentos) y acciones de Google Workspace.
+- **Organización desde el panel**: correo saliente (SMTP), Google Workspace (OAuth con `state` firmado), idioma y
+  zona horaria del asistente, dirección del panel, retención de conversaciones.
+- **Equipo**: invitaciones con roles y recuperación de contraseña.
+- Instalador `ocap install`, comando `ocap` (copias, restauración, inicio automático) y HTTPS con Caddy.
+- Pruebas de la API sobre PostgreSQL real, E2E con Playwright y auditoría de accesibilidad con axe.
 
 ### Changed
-- La API ya no expone mensajes de excepciones inesperadas: responde `ProblemDetails` genérico y registra el detalle.
-- `WorkflowsController` y `DashboardController` dejan de usar `OCAPDbContext` directamente (repositorios y `DashboardQueries`); `ApiServiceExtensions` se divide por área.
-- **Instalación**: el instalador web (modos Dev/Local/Web) se reemplaza por `scripts/ocap-setup.sh`, que genera el `.env` con secretos aleatorios, y por una configuración inicial en `/setup` de tres pasos (cuenta, IA opcional, listo) protegida por un código de un solo uso que la API imprime en sus logs. La API ya no escribe `.env`, `generated.env` ni `installation.json`.
-- Los proveedores de Google Workspace toman el token de la conexión OAuth de la organización (o de `Google:AccessToken`).
+- Panel rediseñado con barra lateral y menú móvil.
+- Los mensajes del producto nombran «Modelos de IA» y no piden editar `.env`.
+- Los fragmentos de conocimiento agrupan líneas cortas y parten páginas largas (máx. 300 palabras).
 
-### Removed
-- `OCAP.DeploymentManager` y sus pruebas.
-- `OCAP.Dashboard` (Blazor, puerto 8081 y ruta `/blazor/`): el panel es la app Next.js.
-- 15 proyectos vacíos (`OCAP.Modules.*` y los canales Discord, Microsoft Teams y Slack sin implementación).
-- Endpoints `whatsapp/connect-qr`, `whatsapp/qr/{instancia}` y `whatsapp/evolution/state/{instancia}`.
+### Fixed
+- Las respuestas de los canales no se guardaban ni enviaban cuando la organización tenía documentos indexados: la
+  búsqueda vectorial abría la conexión sin fijar la organización (RLS). Un test impide que vuelva a pasar.
+- Los eventos con dos constructores (`MessageReceivedEvent` y otros) fallaban al leerse desde RabbitMQ.
+- Telegram: errores de envío sin motivo, webhooks que bloqueaban el polling, offset perdido al reiniciar.
 
 ### Security
-- WhatsApp: el webhook falla cerrado y exige una firma HMAC por instancia; los endpoints del panel solo actúan sobre la organización de la sesión (antes aceptaban cualquier instancia); la API key global de Evolution ya no se guarda en las conexiones; Evolution solo escucha en `127.0.0.1`.
-- Next.js 16.4.2 y una imagen del frontend sin npm/yarn/corepack: 0 vulnerabilidades altas o críticas (npm audit de producción y Trivy).
-- Sin credenciales por defecto: no hay admin `admin@ocap.io` ni secretos de respaldo en `docker-compose.yml`; Compose no arranca sin los secretos. El admin por entorno es opcional y exige contraseña fuerte.
+- Aislamiento por organización con *row-level security* en PostgreSQL y un rol de base de datos sin privilegios.
+- Secretos cifrados con AES-256-GCM; refresh token en cookie `HttpOnly`, guardado como hash y rotado.
+- Red saliente controlada para direcciones escritas por usuarios (modelos de IA, páginas, SMTP), con nueva
+  comprobación de la IP al conectar y sin redirecciones.
+- Las conversaciones con adjuntos no ejecutan acciones; el contenido de archivos y la memoria llegan al modelo como
+  datos.
+- Lectores de Office protegidos contra XXE, zip bombs y amplificación de texto.
+- El correo saliente y la dirección del panel exigen el permiso de seguridad.
 
-## [2.1.0] - 2026-07-29
+### Removed
+- Diseñador de workflows en la interfaz (el motor sigue disponible por API), Blazor y `OCAP.DeploymentManager`.
+
+---
+
+## Hitos internos previos (no publicados)
+
+## [interno-2.1.0] - 2026-07-29
 
 ### Added
 - **Distributed Event Bus & HA Cluster (CAP-20)**: Complete distributed event bus implementation supporting horizontal scaling, multi-node cluster execution, and provider-agnostic message transports.
@@ -43,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **REST Administration API**: Controller `/api/eventbus/*` (`status`, `metrics`, `retries`, `deadletters`, `deadletters/retry`, `connections`, `providers`).
 - **Documentation & ADR**: Created `ADR-009-distributed-event-bus.md`, `DISTRIBUTED_EVENT_BUS.md`, `RABBITMQ_CLUSTER.md`, and `NATS_CLUSTER.md`.
 
-## [2.0.0] - 2026-07-29
+## [interno-2.0.0] - 2026-07-29
 
 ### Added
 - **Enterprise Directory Synchronization (CAP-19)**: Full support for SCIM 2.0 (RFC 7643 & RFC 7644) and LDAP / Active Directory synchronization engine across Microsoft Entra ID, Okta, Keycloak, FreeIPA, OpenLDAP, Google Workspace, JumpCloud, OneLogin, and Ping Identity.
@@ -51,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LDAP Connector & Sync Engine (`ILdapService`, `LdapService`, `DirectorySyncEngine`)**: TLS/LDAPS connection pooling, Bind authentication, Paged Search, Full/Incremental/Delta sync jobs, background execution service (`DirectorySyncBackgroundService`), and sync history audit trail.
 - **EF Core Persistence & Architecture**: Created `LdapProviderConfig`, `DirectorySyncJob`, `DirectorySyncHistory`, and `ScimExternalMapping` entities with multi-tenant isolation, index optimizations, and ADR-008 created in `docs/adr/ADR-008-enterprise-directory-synchronization.md`.
 
-## [1.9.0] - 2026-07-29
+## [interno-1.9.0] - 2026-07-29
 
 ### Added
 - **Enterprise Single Sign-On SAML 2.0 (CAP-18)**: Service Provider (SP) implementation supporting SP-Initiated & IdP-Initiated SSO, Assertion Consumer Service (ACS), Single Logout (SLO), XML Metadata export/import, NameID & Claims mapping, and IdP certificate validation.
@@ -59,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **REST API Endpoints**: Production-ready controller `/api/auth/saml/*` (`metadata`, `metadata/import`, `config`, `login`, `acs`, `slo`, `status`).
 - **Security & Multi-Tenant**: Tenant-isolated `SamlProviderConfig` entity, XML Signature & XML Wrapping protection, audit logging, and ADR-007 created in `docs/adr/ADR-007-enterprise-sso-saml2.md`.
 
-## [1.8.0] - 2026-07-29
+## [interno-1.8.0] - 2026-07-29
 
 ### Added
 - **Multi-Factor Authentication & Passkeys (CAP-17)**: Production-ready MFA module featuring TOTP (RFC 6238 / RFC 4226), encrypted secrets (AES-256-GCM via `ICredentialVault`), QR Code URI generation, single-use hashed recovery codes, and WebAuthn / FIDO2 Passkey device registration & assertion.
@@ -68,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **REST API Endpoints**: Production-ready controllers `/api/auth/mfa/*` and `/api/auth/webauthn/*`.
 - **Security Audit & ADR**: Full security audit logging and ADR-006 created in `docs/adr/ADR-006-mfa-totp-webauthn-passkeys.md`.
 
-## [1.7.0] - 2026-07-29
+## [interno-1.7.0] - 2026-07-29
 
 ### Added
 - **Identity & Administration Management (CAP-16)**: Complete administrative module for users, roles, permissions, groups, organizations (tenants), memberships, user profile, password change/reset, account lock/unlock, activation/deactivation, invitation, email verification infrastructure, and audit trails.
@@ -77,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **REST API Endpoints**: Production-ready controllers for `/api/users`, `/api/groups`, `/api/roles`, `/api/permissions`, `/api/tenants`, `/api/profile`.
 - **Architecture & Security**: ADR-005 document created in `docs/adr/ADR-005-identity-administration-management.md`.
 
-## [1.6.0] - 2026-07-29
+## [interno-1.6.0] - 2026-07-29
 
 ### Added
 - **External Identity Providers (CAP-15)**: Added OAuth2/OIDC authentication providers for Google, Microsoft Entra ID (Azure AD / Office 365), GitHub, and Generic OIDC.
@@ -87,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security & Multi-Tenant**: Multi-tenant data isolation, OAuth state validation, security audit logging for external login, account link and unlink events.
 - **Architecture Decision Record**: Created `docs/adr/ADR-004-external-identity-providers.md`.
 
-## [1.5.2] - 2026-07-28
+## [interno-1.5.2] - 2026-07-28
 
 ### Added
 - **User Context Resolution (`IUserContext`)**: Added `IUserContext` interface and `HttpUserContext` implementation to resolve authenticated user details (UserId, UserName, Email) from Claims.
@@ -100,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security & Dependencies
 - **Security Package Updates**: Updated `Microsoft.IdentityModel.Tokens` and `System.IdentityModel.Tokens.Jwt` from `8.14.0` to `8.21.0` in `OCAP.Security.Infrastructure`.
 
-## [1.5.1] - 2026-07-27
+## [interno-1.5.1] - 2026-07-27
 
 ### Added
 - **Multi-Tenant Context Resolution (`ITenantContext`)**: Added `ITenantContext` and `HttpTenantContext` resolving `TenantId` dynamically from JWT claims (`tenant_id`), HTTP Header (`X-Tenant-ID`), or default fallback.
@@ -116,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 - **Search Term Matching**: Optimized BM25/keyword search term matching using `HashSet<string>` $O(1)$ lookups and early cancellation checks.
 
-## [1.5.0] - 2026-07-27
+## [interno-1.5.0] - 2026-07-27
 
 ### Added
 - **Enterprise Knowledge Base & RAG Engine**: Added 4 new modular Clean Architecture projects (`OCAP.Knowledge.Domain`, `OCAP.Knowledge.Abstractions`, `OCAP.Knowledge.Application`, `OCAP.Knowledge.Infrastructure`).
@@ -132,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API Endpoints**: Gateway controller (`KnowledgeController`) with upload, search, document management, reindexing, and vector status endpoints.
 - **Testing & Documentation**: Suite of unit tests (`OCAP.Knowledge.Tests`) and 7 architecture/RAG documentation guides under `docs/knowledge/`.
 
-## [1.4.0] - 2026-07-27
+## [interno-1.4.0] - 2026-07-27
 
 ### Added
 - Visual Workflow Builder (`OCAP.Workflow.Designer`) inside the Dashboard.
@@ -141,7 +171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - API endpoints integration for validating, saving, and executing visual workflows from the Dashboard.
 - Workflow Designer DTOs (`WorkflowDesignerSaveRequest`, `WorkflowValidationResult`) and Models (`VisualNode`, `VisualEdge`, `VisualWorkflowGraph`).
 
-## [1.3.1] - 2026-07-27
+## [interno-1.3.1] - 2026-07-27
 ### Fixed
 - Fixed EF Core constructor binding in `WorkflowExecution` aggregate root to ensure parameterless private hydration constructor.
 - Resolved constructor parameter warning CS8618 in `User`, `Session`, and `Message` core entities.
@@ -153,7 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reached 0 Errors and 0 Warnings across the entire solution compilation.
 - Completed full Production Readiness Audit certified in `docs/reports/PRODUCTION_READINESS_REPORT.md`.
 
-## [1.3.0] - 2026-07-27
+## [interno-1.3.0] - 2026-07-27
 
 ### Added
 - Workflow Automation Engine Foundation (`OCAP.Workflow.Domain`, `OCAP.Workflow.Abstractions`, `OCAP.Workflow.Application`, `OCAP.Workflow.Infrastructure`).
@@ -169,7 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Workflow Architecture, Engine, Nodes, API, and Execution guides in `docs/workflow/ARCHITECTURE.md`, `ENGINE.md`, `NODES.md`, `API.md`, `EXECUTION.md`.
 
-## [1.2.0] - 2026-07-27
+## [interno-1.2.0] - 2026-07-27
 
 ### Added
 - Complete AI Provider Integration & Intelligent Orchestration (`OCAP.Providers.OpenAI`, `OCAP.Providers.Gemini`, `OCAP.Providers.Ollama`, `OCAP.Intelligence.Application`).
@@ -186,7 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - AI Provider, Selector, and Streaming documentation in `docs/providers/OPENAI.md`, `GEMINI.md`, `OLLAMA.md`, `PROVIDER_SELECTOR.md`, `STREAMING.md`.
 
-## [1.1.0] - 2026-07-27
+## [interno-1.1.0] - 2026-07-27
 
 ### Added
 - Complete Identity, Authentication & Multi-Tenant Security Foundation (`OCAP.Security.Domain`, `OCAP.Security.Abstractions`, `OCAP.Security.Application`, `OCAP.Security.Infrastructure`).
@@ -203,7 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Authentication, JWT, RBAC, Multi-Tenant, API Keys, and Security guides in `docs/security/`.
 
-## [1.0.0] - 2026-07-27
+## [interno-1.0.0] - 2026-07-27
 
 ### Added
 - Provider-agnostic Generative AI Engine Foundation (`OCAP.Intelligence.Abstractions`, `OCAP.Intelligence.Domain`).
@@ -219,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Architecture, Prompts, and AI Providers guides in `docs/intelligence/`.
 
-## [0.9.0] - 2026-07-27
+## [interno-0.9.0] - 2026-07-27
 
 ### Added
 - Blazor WebAssembly Administration Dashboard (`OCAP.Dashboard`).
@@ -234,7 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Dashboard and Deployment Manager guides in `docs/dashboard/` and `docs/deployment/`.
 
-## [0.8.0] - 2026-07-27
+## [interno-0.8.0] - 2026-07-27
 
 ### Added
 - Extensible Tool Execution System (`OCAP.Tools.Abstractions`, `ITool`, `IToolRegistry`).
@@ -247,7 +277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Tool execution architecture and Google Workspace provider guides in `docs/architecture/TOOLS.md` and `docs/providers/GOOGLE_WORKSPACE.md`.
 
-## [0.7.0] - 2026-07-27
+## [interno-0.7.0] - 2026-07-27
 
 ### Added
 - Conversational Agent Engine Foundation (`OCAP.Agents.Domain`, `OCAP.Agents.Abstractions`, `OCAP.Agents.Application`).
@@ -259,7 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Agent Engine Architecture guide in `docs/architecture/AGENT_ENGINE.md`.
 
-## [0.6.0] - 2026-07-27
+## [interno-0.6.0] - 2026-07-27
 
 ### Added
 - WhatsApp Evolution API Channel Adapter (`OCAP.Channels.WhatsApp`).
@@ -272,7 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - WhatsApp Evolution API integration guide in `docs/channels/WHATSAPP_EVOLUTION.md`.
 
-## [0.5.0] - 2026-07-27
+## [interno-0.5.0] - 2026-07-27
 
 ### Added
 - Provider-agnostic Channel Architecture Foundation (`OCAP.Channels.Abstractions`).
@@ -285,7 +315,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Channel Architecture guide in `docs/architecture/CHANNEL_ARCHITECTURE.md`.
 
-## [0.4.1] - 2026-07-27
+## [interno-0.4.1] - 2026-07-27
 
 ### Added
 - Comprehensive API Gateway Quality & Integration Testing Foundation.
@@ -297,7 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - API Quality & Testing guide in `docs/api/QUALITY_AND_TESTING.md`.
 
-## [0.4.0] - 2026-07-27
+## [interno-0.4.0] - 2026-07-27
 
 ### Added
 - API Gateway Foundation (`OCAP.Api`).
@@ -309,7 +339,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - API Gateway Specification in `docs/api/GATEWAY.md`.
 
-## [0.3.0] - 2026-07-27
+## [interno-0.3.0] - 2026-07-27
 
 ### Added
 - Persistence Foundation (`OCAP.Infrastructure`).
@@ -321,7 +351,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Database Schema and Persistence guide in `docs/persistence/PERSISTENCE.md`.
 
-## [0.2.0] - 2026-07-27
+## [interno-0.2.0] - 2026-07-27
 
 ### Added
 - Core Conversational Engine (`OCAP.Core` and `OCAP.Application`).
@@ -332,7 +362,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Refactored core domain models to follow strict DDD value objects and invariants.
 
-## [0.1.0] - 2026-07-27
+## [interno-0.1.0] - 2026-07-27
 
 ### Added
 - Initial OCAP architecture foundation.
