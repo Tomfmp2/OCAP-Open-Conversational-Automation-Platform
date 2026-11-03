@@ -1,50 +1,50 @@
-# ROADMAP OCAP (Open Conversational Automation Platform)
+# Roadmap de OCAP
 
-Plan de evolución técnica y entregables por CAP (Capabilities Delivery Roadmap).
+## 1.0.0 (2026-11-03): primer lanzamiento público
 
----
+Canales (WhatsApp por QR y Business, Telegram, WebChat), agentes con memoria, capacidades por canal, bandeja con
+traspaso a personas, conocimiento con PDF, Word y Excel, modelos de IA de varios proveedores y configuración de la
+organización desde el panel. El detalle está en [STATUS.md](../STATUS.md) y en el [CHANGELOG](../../CHANGELOG.md).
 
-## Estado real (actualizado)
+## Siguiente: reforma del conocimiento (1.1)
 
-El roadmap de CAPs 01–20 describe capacidades **entregadas en código base** (API, identidad enterprise, bus de eventos, workflows, RAG PgVector, etc.). Eso **no implica** que cada ítem del catálogo de producto esté listo para producción omnicanal.
+El objetivo es que el agente encuentre la información correcta con más precisión, responda datos exactos de tablas y
+cite sus fuentes. Ordenado por impacto:
 
-### Implementado y operable
-- API, JWT/OIDC, MFA, WebAuthn, SAML, SCIM/LDAP, RBAC, API keys
-- Workflows (motor + designer API + UI Next.js `/workflows/designer` + Blazor auxiliar)
-- IA: OpenAI, Gemini, Ollama, Claude
-- Knowledge/RAG: **PgVector** (+ InMemory para pruebas)
-- Canales runtime: **Telegram**, **WhatsApp**, **WebChat**
-- Event bus: InMemory, RabbitMQ, NATS
-- Frontend Next.js + Docker Compose
+1. **Fundamentos y búsqueda híbrida real**
+   - Guardar el archivo original (cifrado, con hash) para reprocesar y reindexar solo lo que cambió.
+   - `tsvector` en español con GIN y pgvector con HNSW, fusionados con Reciprocal Rank Fusion (k≈60) en una sola
+     consulta, filtrada por las colecciones del canal.
+2. **Fragmentos con contexto** (Contextual Retrieval)
+   - Una o dos frases generadas al indexar (documento, sección y de qué trata) antes de calcular el embedding y el
+     índice por palabras.
+   - En tablas, el contexto es determinista: hoja y encabezados.
+3. **Datos estructurados**
+   - Excel, CSV y Google Sheets importados como tablas tipadas.
+   - Herramienta `consultar_datos` con un lenguaje JSON acotado (filtrar, ordenar, contar, sumar, promediar),
+     validado y ejecutado en el servidor, sin SQL generado por el modelo.
+4. **Búsqueda agéntica con citas**
+   - `buscar_conocimiento` y `consultar_datos` como herramientas del agente, hasta 3 pasos por mensaje.
+   - Cada respuesta guarda sus fuentes y se ven en la bandeja.
+   - Si algo no está en las fuentes, el agente lo dice.
+5. **Reordenamiento** de unos 30 candidatos a 5 (con el modelo de la organización, o Cohere/Jina si se configuran).
+6. **Fuentes que se mantienen al día**: sincronización con Google Sheets y Drive, y revisión periódica de páginas
+   web importadas.
+7. **Calidad medible**
+   - Lista de «preguntas sin respuesta» para convertirlas en respuestas escritas.
+   - Conjunto de prueba por organización (Recall@5, MRR y fidelidad de las respuestas).
+8. **OCR** de PDF escaneados con un modelo multimodal (opcional).
 
-### Pendiente / parcial
-- Canales: Slack, Discord, Microsoft Teams, Google Workspace como canal de mensajería
-- Vector stores externos: Qdrant, Chroma, Pinecone (stubs; no backends reales)
-- Marketplace, analytics de costos de tokens, unificación total Blazor→Next.js
+## Más adelante
 
----
+- Interfaz para el motor de workflows.
+- Canales: Slack, Microsoft Teams, Discord, Instagram.
+- Correo saliente con conexión fijada a la IP validada.
+- Medición del consumo de tokens por organización y por canal.
 
-## CAPs históricos (referencia)
+## Hitos internos previos
 
-- [x] **CAP-01 a CAP-06**: Core Hexagonal, Persistencia EF Core PostgreSQL, Canales Telegram/WhatsApp (+ WebChat), Agentes IA e Inteligencia Multi-Provider.
-- [x] **CAP-07**: Workflow Node Execution Framework & Runtime State Machine.
-- [x] **CAP-08**: Real-Time Event Bus In-Memory & Distributed System.
-- [x] **CAP-09**: API Keys Platform & Webhook Delivery Engine (HMAC SHA-256).
-- [x] **CAP-10**: Identity Foundation & OpenIddict OAuth2/OIDC Authorization Server.
-- [x] **CAP-11**: SignalR Live Gateway (`/hubs/events`) con Aislamiento Multi-Tenant.
-- [x] **CAP-12**: Dashboard Backend Integration REST API (Overview, Workflows, Agents, Channels, Diagnostics).
-- [x] **CAP-13**: Frontend Live Integration Next.js SPA + SignalR Streaming + React Query.
-- [x] **CAP-14**: OAuth2 Authorization Code Flow + PKCE (RFC 7636) & User Consent Management.
-- [x] **CAP-15**: External Identity Providers (Google, Microsoft Entra ID, GitHub, Generic OIDC) & Account Linking/Auto-Provisioning.
-- [x] **CAP-16**: Identity & Administration Management (Users, Roles, Permissions, Groups, Tenants, Profile, Lock/Unlock, Invites).
-- [x] **CAP-17**: Multi-Factor Authentication (MFA / TOTP RFC 6238) & Passkeys (WebAuthn / FIDO2 Level 2).
-- [x] **CAP-18**: Enterprise Single Sign-On SAML 2.0 (SP Metadata, ACS, SLO, AuthnRequest, Claims Mapping).
-- [x] **CAP-19**: Enterprise Directory Synchronization (SCIM 2.0 RFC 7643/7644 & LDAP / Active Directory Sync Engine).
-- [x] **CAP-20**: Distributed Event Bus (RabbitMQ / NATS JetStream / Outbox / Inbox / DLQ / HA Cluster / Horizontal Scaling).
-
----
-
-## Fase actual
-- **Fase**: Consolidación producto (honestidad de catálogo + WebChat + designer Next.js)
-- **Progreso CAPs núcleo**: 20 / 20 en backend de plataforma
-- **Estado producción**: Apto para despliegue self-hosted del núcleo; no declarar omnicanal completo ni vector stores externos como listos.
+Antes de 1.0.0, el código base pasó por hitos internos (CAP-01 a CAP-20 y versiones 1.0.0–2.1.0 de julio de 2026):
+núcleo hexagonal, persistencia, identidad empresarial (OIDC, MFA, SAML, SCIM/LDAP), bus de eventos distribuido,
+motor de workflows y RAG con pgvector. No se publicaron como producto; el historial está en
+[VERSIONING.md](../../VERSIONING.md).

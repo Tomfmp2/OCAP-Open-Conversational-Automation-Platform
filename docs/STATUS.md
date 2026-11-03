@@ -1,47 +1,47 @@
-# Estado actual de OCAP (hito local v1)
+# Estado de OCAP 1.0.0
 
-Última actualización: 2026-10-23
+Última actualización: 2026-11-03
 
-## Resumen
-
-OCAP se instala con Docker (`./scripts/ocap-up.sh`) o se desarrolla **en local sin Docker** (`scripts/ocap-dev.sh` en Linux/macOS, `scripts/ocap-dev.ps1` en Windows), con:
-
-- API en `http://localhost:5229`
-- Panel en `http://localhost:3000`
-- Primer acceso: configuración inicial en `/setup` con el código que imprime la API (ver `docs/deployment/FIRST_RUN_SETUP.md`)
-
-El foco de esta etapa es el **agente principal + proveedores de IA + WhatsApp Evolution**, no el diseñador de workflows (retirado de la UI v1).
+OCAP 1.0.0 es el primer lanzamiento público. Se instala con `./ocap install` (o la línea de `install.sh`) y corre
+completo en Docker: panel en `http://localhost:3000` y API en `http://localhost:5000`.
 
 ## Qué está listo
 
 | Área | Estado | Notas |
 | --- | --- | --- |
-| Arranque local (UseInMemory) | Listo | `.env` + `ocap-dev.sh` / `ocap-dev.ps1`; reiniciar API tras cambiar keys |
-| Instalación | Listo | `ocap-setup.sh` genera `.env` y secretos; configuración inicial en `/setup` protegida por código |
-| Agente principal (home) | Listo | Chat tipo asistente; sin keys de IA responde en modo demo (Mock) |
-| IA y modelos | Listo | CRUD por tenant, probar/usar/editar, preferred provider |
-| Gemini | Listo | Modelo por defecto `gemini-3.5-flash`; auth por `x-goog-api-key` |
-| WhatsApp Evolution | Listo | QR desde el panel, webhook firmado por organización, respuesta del asistente; validado contra Evolution v2.3.7 real salvo el escaneo con teléfono ([checklist](testing/WHATSAPP_E2E.md)) |
-| Agentes por canal | Listo | Asignables por canal; prompt, historial, conocimiento, herramientas seguras para contactos, pase a una persona; chat de prueba |
-| Bandeja | Listo | `/inbox`: tomar, responder por el canal y devolver al agente |
-| WebChat | Listo | Canal usable en panel |
-| Telegram | Listo | Bot desde el panel; polling con el token de cada bot o webhook por conexión con secreto derivado del token; responde chats privados |
-| Workflows UI | Fuera de v1 | Rutas placeholder; motor backend sigue en el repo |
+| Instalación y comando `ocap` | Listo | Instalador en español o inglés, secretos aleatorios, inicio automático, copias y restauración |
+| Asistente del panel | Listo | Conversaciones guardadas por usuario, memoria, adjuntos (imágenes, video con Gemini, documentos), Google Workspace |
+| Agentes de canal | Listo | Instrucciones, memoria, chat de prueba, pase a una persona |
+| Capacidades por canal | Listo | El canal elige colecciones y acciones de su agente ([ADR-011](adr/ADR-011-channel-capabilities.md)) |
+| Memoria | Listo | Hechos, episodios y resúmenes con plazo configurable y «olvídame» ([ADR-010](adr/ADR-010-agent-memory.md)) |
+| WhatsApp por QR | Listo | Evolution API v2.3.7, contactos con LID, QR negro |
+| WhatsApp Business | Listo | API de Meta configurada desde el panel, firma por número |
+| Telegram | Listo | Varios bots, polling con offset persistente y deduplicación, webhook opcional |
+| WebChat | Listo | Widget con dominios autorizados y clave rotable |
+| Bandeja | Listo | Tomar, responder y devolver; el agente retoma tras 15 minutos sin el equipo |
+| Apagado de canales | Listo | Termina los chats en curso y se apaga hasta encenderlo |
+| Conocimiento | Listo | PDF, Word, Excel, CSV y más; respuestas escritas; importar páginas; ver contenido |
+| Modelos de IA | Listo | Gemini, OpenAI, Claude, Ollama y compatibles con OpenAI; varias configuraciones por proveedor |
+| Organización | Listo | SMTP, Google Workspace, idioma, zona horaria, retención, memoria, aviso de privacidad |
+| Equipo | Listo | Invitaciones con roles y recuperación de contraseña |
+| Aislamiento por organización | Listo | Filtros de EF y *row-level security* en PostgreSQL con rol sin privilegios |
+| Workflows | Solo API | Motor en el repositorio, sin interfaz en la v1 |
 
-## Cómo verificar IA
+## Calidad
 
-1. Conecta el proveedor en el paso **IA** de `/setup` o en **IA y modelos** (la clave se guarda cifrada); también sirve `AiProviders__Gemini__ApiKey` en `.env`.
-2. Si usaste `.env`, reinicia la API (la configuración desde el panel no lo necesita).
-3. En **IA y modelos**, pulsa **Probar** en Gemini.
-4. En el home, envía un mensaje al agente principal.
+- Backend: build sin avisos, pruebas unitarias, de integración y de endpoints, también sobre PostgreSQL real
+  (Testcontainers, RLS y rol limitado).
+- Frontend: lint, tipos y Vitest.
+- E2E: Playwright en escritorio y móvil, y auditoría de accesibilidad con axe, sobre un stack aislado.
+- `./scripts/ci-local.sh` reproduce el CI de GitHub y corre antes de cada push (hook en `.githooks`).
 
-## Pendiente / siguiente
+## Limitaciones conocidas
 
-- Prueba manual de WhatsApp con un teléfono real (`docs/testing/WHATSAPP_E2E.md`).
-- Persistir fuera de UseInMemory cuando se quiera DB Postgres local/Docker.
-- Reintroducir workflows en UI solo cuando el producto lo priorice.
-- Rotar secrets de desarrollo si se compartieron en entornos no locales.
-
-## Artefactos locales (no versionados)
-
-- `.env` (lo genera `./scripts/ocap-setup.sh`)
+- **Búsqueda en el conocimiento**: semántica (pgvector) con una búsqueda por palabras básica. La reforma (búsqueda
+  híbrida real, fragmentos con contexto, reordenamiento y consultas exactas sobre tablas) es lo siguiente en el
+  [roadmap](roadmap/ROADMAP.md).
+- **PDF escaneados**: sin OCR; se indica que no tienen texto.
+- **Archivos originales**: no se guardan; para reprocesar un documento hay que volver a subirlo.
+- **Correo saliente**: la conexión SMTP valida el servidor antes de conectar, pero no fija la IP validada (riesgo
+  residual de DNS rebinding limitado a puertos de correo).
+- **WhatsApp por QR**: depende de Evolution API (Baileys), que no es la API oficial de Meta.

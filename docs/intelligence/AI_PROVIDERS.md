@@ -1,4 +1,4 @@
-# OCAP — Guía de Proveedores de IA (AI Providers Guide)
+# Modelos de IA y proveedores
 
 ## Visión General
 
@@ -6,33 +6,52 @@ OCAP adopta la estrategia **Provider Agnostic**: la plataforma no depende de un 
 
 ---
 
-## Proveedores Disponibles y En preparación
+## Proveedores disponibles
 
-| Proveedor | Módulo | Estado | Descripción |
+| Proveedor | Módulo | Estado | Notas |
 |---|---|---|---|
-| **MockAI** | `OCAP.Intelligence.Mock` | **Activo (Default)** | Motor mock local para pruebas automatizadas y desarrollo offline. |
-| **OpenAI** | `OCAP.Providers.OpenAI` | **Preparado** | Adaptador para modelos GPT-4o / GPT-3.5 Turbo. |
-| **Google Gemini** | `OCAP.Providers.Gemini` | **Preparado** | Adaptador para modelos Gemini 3.5 / 2.5 Flash. |
-| **Anthropic Claude** | `OCAP.Providers.Claude` | **Preparado** | Adaptador para Claude (por defecto `claude-sonnet-5-5`). |
-| **Ollama Local** | `OCAP.Providers.Ollama` | **Preparado** | Adaptador self-hosted para Llama 3, Mistral u otros LLMs locales. |
+| **Gemini** | `OCAP.Providers.Gemini` | Listo | `gemini-3.5-flash` por defecto; texto, imágenes y video adjuntos; embeddings |
+| **OpenAI** | `OCAP.Providers.OpenAI` | Listo | Texto e imágenes; embeddings |
+| **Compatible con OpenAI** | `OCAP.Providers.OpenAI` | Listo | NVIDIA, Groq, OpenRouter, DeepSeek, Mistral u otra API con el formato de OpenAI y su dirección (`baseUrl`) |
+| **Claude** | `OCAP.Providers.Claude` | Listo | Texto e imágenes |
+| **Ollama** | `OCAP.Providers.Ollama` | Listo | Local, en tu equipo o tu red; imágenes con modelos de visión |
+| **Mock (modo demo)** | `OCAP.Intelligence.Application` | Listo | Responde «[Modo demo]» mientras no hay ningún modelo configurado |
 
 ---
 
-## Keys desde el panel y proveedor por canal
+## Modelos desde el panel
 
-En **IA y modelos** cada organización registra sus proveedores (`/api/aiproviderconfigurations`). La API key se
-guarda cifrada en el vault de la organización y nunca vuelve al navegador: la respuesta solo trae `vault:stored`
-cuando hay key. Hay una configuración por tipo de proveedor y organización; registrar otra del mismo tipo responde
-422 (se edita la existente). Las rutas `tenant/{tenantId}` responden 404 si el tenant no es el de la sesión.
+En **Modelos de IA** cada organización agrega sus modelos (`/api/aiproviderconfigurations`). La API key se guarda
+cifrada (AES-256-GCM) en el vault de la organización y nunca vuelve al navegador; la respuesta solo trae
+`vault:stored` cuando hay key. Las rutas `tenant/{tenantId}` responden 404 si el tenant no es el de la sesión.
 
-Cada canal puede usar un proveedor concreto: `PUT /api/channels/connections/{id}/ai` con
-`{ "aiProviderConfigId": "<id>" | null }` (400 si no es de la organización o está deshabilitado). Se guarda en la
-metadata `AiProviderConfigId` de la conexión. Al responder un mensaje del canal se usa, en orden:
+- **Varias configuraciones por proveedor** (otra clave, otro modelo, otra API compatible). Las distingue el
+  **nombre**, único por organización.
+- **Compatible con OpenAI** exige la dirección de la API (`baseUrl`). Esa dirección y la de Ollama las escribe un
+  usuario: la API solo llega a destinos públicos (Ollama también a la red privada), vuelve a comprobar la IP al
+  conectar y no sigue redirecciones.
+- **Ver modelos disponibles**: `POST /api/aiproviderconfigurations/models` lista los modelos del proveedor, con la
+  clave guardada (`configurationId`) o con la que se está escribiendo (no se guarda).
+- **Predeterminado**: `POST /api/providers/select` con el id de la configuración. Probar un modelo no lo convierte
+  en predeterminado.
 
-1. El proveedor asignado al canal, si sigue habilitado y tiene key.
-2. Si no, el proveedor activo de la organización (el mismo que usa el asistente del panel).
+## Modelo por canal
 
-Así, quitar o deshabilitar el proveedor de un canal no lo deja sin respuesta.
+Cada canal puede usar un modelo concreto: `PUT /api/channels/connections/{id}/ai` con
+`{ "aiProviderConfigId": "<id>" | null }` (400 si no es de la organización o está deshabilitado). Al responder se
+usa, en orden:
+
+1. El modelo asignado al canal, si sigue habilitado y tiene key.
+2. Si no, el predeterminado de la organización (el mismo que usa el asistente del panel).
+
+Así, quitar o deshabilitar el modelo de un canal no lo deja sin respuesta.
+
+## Consumo
+
+- Un `429` (cuota agotada) no se reintenta: solo gastaría otra petición. Se reintentan fallos de red y `5xx`.
+- Sin documentos indexados no se llama a la API de embeddings.
+- La memoria y los resúmenes se procesan en segundo plano, una vez por conversación terminada
+  ([MEMORY.md](../guides/MEMORY.md)).
 
 ---
 

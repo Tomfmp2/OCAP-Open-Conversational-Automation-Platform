@@ -4,8 +4,8 @@ Cada organización vincula **su propio número** escaneando un QR desde el telé
 falta WhatsApp Business ni Meta Cloud API. El puente es [Evolution API](https://github.com/EvolutionAPI/evolution-api)
 **v2.3.7** (Baileys), incluido en el `docker-compose.yml`.
 
-> WhatsApp Cloud API (Meta) sigue disponible con `POST /api/channels/whatsapp/connect` y el webhook
-> `/api/channels/whatsapp/webhook`; este documento cubre el flujo por QR.
+> Para la API oficial de Meta, usa **WhatsApp Business** al conectar el canal ([guía](../guides/CHANNELS.md#whatsapp-business-api-oficial-de-meta)).
+> Este documento cubre el flujo por QR.
 
 ## Uso
 
@@ -14,8 +14,10 @@ falta WhatsApp Business ni Meta Cloud API. El puente es [Evolution API](https://
 3. En el teléfono: WhatsApp → Dispositivos vinculados → Vincular un dispositivo → escanear.
 4. El modal pasa a "WhatsApp vinculado · +número". Desde ahí mismo se puede **Desvincular**.
 
-El asistente principal responde los chats individuales. Se ignoran mensajes propios, grupos, estados
-(`status@broadcast`), canales y mensajes sin texto (imágenes, audios).
+Responde el agente asignado al canal (o el de atención por defecto), con el conocimiento y las acciones que el canal
+le conceda. Se ignoran mensajes propios, grupos, estados (`status@broadcast`), canales y mensajes sin texto
+(imágenes, audios). Los contactos que WhatsApp identifica con un LID (`…@lid`) se responden en su número real
+(`remoteJidAlt`) o, si no viene, en el propio LID.
 
 ## Diseño
 
