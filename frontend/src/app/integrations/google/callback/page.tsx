@@ -23,7 +23,7 @@ function GoogleCallback() {
   const code = params.get("code");
   const denied = !!params.get("error") || !code;
   const [exchange, setExchange] = React.useState<{ ok: boolean; message: string } | null>(null);
-  const result = denied ? { ok: false, message: "Google no autorizó la conexión. Puedes intentarlo de nuevo desde Ajustes." } : exchange;
+  const result = denied ? { ok: false, message: "Google no autorizó la conexión. Puedes intentarlo de nuevo desde Organización." } : exchange;
   const started = React.useRef(false);
 
   React.useEffect(() => {
