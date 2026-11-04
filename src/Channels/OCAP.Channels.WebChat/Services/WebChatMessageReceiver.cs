@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -59,7 +60,7 @@ public class WebChatMessageReceiver : ChannelMessageReceiver
             if (_eventBus != null)
             {
                 await _eventBus.PublishAsync(
-                    new MessageReceivedEvent("WebChat", message.ExternalUserId, message.Message ?? string.Empty, tenantId),
+                    new MessageReceivedEvent("WebChat", message.ExternalUserId, SensitiveData.Mask(message.Message ?? string.Empty), tenantId),
                     cancellationToken);
             }
 

@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -43,7 +44,7 @@ public class TelegramMessageReceiver : IMessageReceiver
 
             if (_eventBus != null)
             {
-                await _eventBus.PublishAsync(new MessageReceivedEvent("Telegram", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
+                await _eventBus.PublishAsync(new MessageReceivedEvent("Telegram", message.ExternalUserId, SensitiveData.Mask(message.Message ?? string.Empty), Guid.Empty), cancellationToken);
             }
 
             await _receiveMessageUseCase.ExecuteAsync(userId, message.Message ?? string.Empty, "Telegram", cancellationToken);

@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using System.Security.Cryptography;
 using System.Text;
 using OCAP.Agents.Application.Services;

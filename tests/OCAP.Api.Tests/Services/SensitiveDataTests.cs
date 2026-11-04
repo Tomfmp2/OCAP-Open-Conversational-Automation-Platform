@@ -1,5 +1,5 @@
 using FluentAssertions;
-using OCAP.Api.Services;
+using OCAP.Core.Privacy;
 
 namespace OCAP.Api.Tests.Services;
 
@@ -11,6 +11,14 @@ public class SensitiveDataTests
     [InlineData("Mi clave es Secreta123 gracias", "Mi clave es [oculto] gracias")]
     [InlineData("contraseña: hola", "contraseña: [oculto]")]
     [InlineData("PIN=4821", "PIN=[oculto]")]
+    [InlineData("tarjeta 4111 1111 1111 1111 123", "tarjeta [tarjeta oculta]")] // pegada a su CVV
+    [InlineData("99 4111.1111.1111.1111", "[tarjeta oculta]")] // otra cifra delante y puntos
+    [InlineData("mi pin 4821", "mi pin [oculto]")]
+    [InlineData("mi cvv de 123", "mi cvv de [oculto]")]
+    [InlineData("my password is Hola123", "my password is [oculto]")]
+    [InlineData("password: dos palabras", "password: [oculto]")]
+    [InlineData("la contraseña de mi correo es hola123", "la contraseña de mi correo es [oculto]")]
+    [InlineData("contrasen\u0303a: hola", "contraseña: [oculto]")] // tilde como carácter aparte
     public void OcultaLosDatosSensibles(string text, string expected) =>
         SensitiveData.Mask(text).Should().Be(expected);
 
@@ -19,6 +27,7 @@ public class SensitiveDataTests
     [InlineData("Mi celular es 3001234567")]
     [InlineData("La clave es la paciencia")]
     [InlineData("Quiero 2 docenas de empanadas")]
+    [InlineData("El pin de la camisa es grande")]
     public void NoTocaElTextoNormal(string text) =>
         SensitiveData.Mask(text).Should().Be(text);
 }

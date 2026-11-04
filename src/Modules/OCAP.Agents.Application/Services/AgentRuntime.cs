@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using OCAP.Agents.Abstractions.Contracts;
@@ -83,7 +84,7 @@ public class AgentRuntime : IAgentRuntime
         // Persist User Message
         if (_messageRepository != null && conversation != null && !string.IsNullOrWhiteSpace(agentContext.UserMessage))
         {
-            var userMsg = new Message(Guid.NewGuid(), conversation.Id, new MessageContent(agentContext.UserMessage), SenderType.User);
+            var userMsg = new Message(Guid.NewGuid(), conversation.Id, new MessageContent(SensitiveData.Mask(agentContext.UserMessage)), SenderType.User);
             await _messageRepository.SaveAsync(userMsg, cancellationToken);
         }
 
