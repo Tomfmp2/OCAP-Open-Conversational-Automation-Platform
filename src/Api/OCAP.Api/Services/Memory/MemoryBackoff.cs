@@ -17,6 +17,10 @@ public sealed class MemoryBackoff
     public bool IsPaused(Guid tenantId, DateTime now) =>
         _paused.TryGetValue(tenantId, out var state) && state.Until > now;
 
+    /// <summary>Organizaciones en pausa: quedan fuera de la búsqueda de trabajo para no ocupar los turnos de las demás.</summary>
+    public IReadOnlyList<Guid> PausedTenants(DateTime now) =>
+        _paused.Where(p => p.Value.Until > now).Select(p => p.Key).ToList();
+
     /// <param name="retryAfter">Plazo indicado por el proveedor, si lo dio (por ejemplo, cuando se renueva la cuota).</param>
     public void Failed(Guid tenantId, DateTime now, TimeSpan? retryAfter = null) =>
         _paused.AddOrUpdate(

@@ -62,6 +62,35 @@ public class MemoryBackoffTests
     }
 
     [Fact]
+    public async Task UnErrorDeLaPeticion_NoPausaALaOrganizacion()
+    {
+        var provider = new Mock<IAiProvider>();
+        provider.Setup(p => p.GenerateResponseAsync(It.IsAny<AiRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new AiProviderException("Gemini", "flash", HttpStatusCode.BadRequest, "conversación inválida"));
+        var configurations = new Mock<IAiProviderConfigurationService>();
+        configurations.Setup(c => c.GetRuntimeProviderForTenantAsync(Tenant, null, It.IsAny<CancellationToken>())).ReturnsAsync(provider.Object);
+        var backoff = new MemoryBackoff();
+        var model = new MemoryModel(configurations.Object, NullLogger<MemoryModel>.Instance, backoff);
+
+        await model.SummarizeAsync(Tenant, null, [new MemoryTurn(true, "hola")], CancellationToken.None);
+
+        backoff.IsPaused(Tenant, DateTime.UtcNow).Should().BeFalse();
+    }
+
+    [Fact]
+    public void SoloListaLasOrganizacionesEnPausa()
+    {
+        var backoff = new MemoryBackoff();
+        var other = Guid.NewGuid();
+        backoff.Failed(Tenant, Now);
+        backoff.Failed(other, Now);
+        backoff.Succeeded(other);
+
+        backoff.PausedTenants(Now).Should().Equal(Tenant);
+        backoff.PausedTenants(Now.AddHours(2)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task SinCuota_ElModeloDeMemoriaPausaHastaQueSeRenueve()
     {
         var provider = new Mock<IAiProvider>();

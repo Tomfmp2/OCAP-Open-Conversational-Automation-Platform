@@ -57,8 +57,10 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
             // Sin organización en el scope: el descubrimiento ve todas (bypass); cada conversación se procesa en la suya.
             var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
             var idleSince = now - IdleBeforeExtraction;
+            var paused = scope.ServiceProvider.GetRequiredService<MemoryBackoff>().PausedTenants(DateTime.UtcNow);
 
             toExtract = (await db.Conversations.IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => c.Channel != null && c.LastActivityAt < idleSince && (c.MemoryExtractedAt == null || c.MemoryExtractedAt < c.LastActivityAt))
                     .OrderBy(c => c.LastActivityAt).Take(BatchPerTick)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
@@ -66,6 +68,7 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
 
             var recent = now.AddDays(-1);
             toSummarize = (await db.Conversations.IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => c.Channel != null && c.LastActivityAt > recent)
                     .Where(c => db.Messages.IgnoreQueryFilters().Count(m => m.ConversationId == c.Id
                         && (c.SummarizedUntil == null || m.CreatedAt > c.SummarizedUntil)) >= RecentWindow + SummarizeBatch)
@@ -74,6 +77,7 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
                 .Select(c => (c.Id, c.TenantId)).ToList();
 
             assistantToExtract = (await db.Set<AssistantConversation>().IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => !c.HasUntrustedContent && c.UpdatedAt < idleSince && (c.MemoryExtractedAt == null || c.MemoryExtractedAt < c.UpdatedAt))
                     .OrderBy(c => c.UpdatedAt).Take(BatchPerTick)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
