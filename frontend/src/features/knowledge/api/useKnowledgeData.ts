@@ -57,7 +57,8 @@ export function useKnowledgeActions(baseId: string | null) {
         form.append("file", file);
         form.append("knowledgeBaseId", baseId ?? "");
         form.append("category", "General");
-        return apiClient.upload("/api/knowledge/upload", form);
+        // Leer e indexar un archivo grande puede tardar más que el plazo por defecto.
+        return apiClient.upload("/api/knowledge/upload", form, { timeout: 120_000 });
       },
       onSettled: refresh,
     }),

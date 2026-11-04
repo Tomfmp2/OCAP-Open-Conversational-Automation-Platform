@@ -177,7 +177,8 @@ public sealed class ChannelConversationService : IConversationResponder
                 await _conversations.SaveAsync(conversation, cancellationToken);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // Un plazo vencido del proveedor también es una cancelación, pero nadie la pidió: el cliente debe recibir respuesta.
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "El agente no respondió en {Channel}; se usa la respuesta de respaldo.", message.ChannelName);
             reply = FallbackReply;

@@ -208,7 +208,8 @@
         return poll();
       })
       .catch(function (err) {
-        render("agent", err.message);
+        // fetch rechaza con textos técnicos del navegador («Failed to fetch»): no son para el visitante.
+        render("agent", err instanceof TypeError ? "No pudimos conectar con el chat. Inténtalo de nuevo." : err.message);
       })
       .then(function () {
         status.textContent = "";
