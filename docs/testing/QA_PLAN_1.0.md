@@ -95,3 +95,29 @@ El hallazgo 6 estaba mal descrito: los modelos del panel no tenían ningún rein
 los clientes tipados.
 
 Faltan por repetir con cuota real: AI-2 con `flash-lite`, MEM-1, MEM-4, SEC-1 y AST-2.
+
+## Segunda ronda del 2026-11-04
+
+Ejecutada en `develop` (`46dc487`), con los datos `QA-` eliminados al terminar. Gasto: 5 llamadas de chat, más una extracción de memoria que Google rechazó por cuota.
+
+| Estado | Casos |
+| --- | --- |
+| Pasan | SEC-1 (inyección en WebChat), AI-2 con `flash-lite` en una prueba corta, AI-3, KB-6, cambio real de `flash` a `flash-lite`, dominios autorizados, rotación de clave, validaciones del panel, accesibilidad con axe salvo el hallazgo 17 |
+| Sin completar | MEM-1 y MEM-4: Google rechazó la extracción por cuota; la pausa de memoria solo tiene pruebas automáticas, porque la cola quedó vacía al limpiar; AST-2 y los envíos reales por Telegram, WhatsApp y SMTP |
+
+| # | Sev. | Hallazgo | Dónde |
+| --- | --- | --- | --- |
+| 10 | A | El proxy del panel trunca las subidas a 10 MB, aunque el asistente admite videos de 15 MB y peticiones de 32 MB. Un archivo de 10,5 MB da un 500 sin motivo | `frontend/next.config.ts` |
+| 11 | A | Se pueden subir documentos a una colección inexistente: quedan huérfanos pero indexados | `KnowledgeService.UploadDocumentAsync` |
+| 12 | M | La API acepta proveedores de IA inexistentes, y esa configuración puede quedar como predeterminada | `AiProviderConfigurationService.cs` |
+| 13 | M | Tarjetas y contraseñas escritas por un cliente quedan en texto plano en el historial de la conversación | `ChannelConversationService.cs` |
+| 14 | M | Un intento que vence por plazo no queda en el uso, porque se confunde con una cancelación del cliente | `UsageTrackingAiProvider.cs` |
+| 15 | M | Un nombre de colección de más de 250 caracteres da un 500 | `KnowledgeController.cs` |
+| 16 | M | Si la persona escribe un solo mensaje, no se extrae memoria aunque traiga sus datos | `ConversationMemoryBackgroundService.cs:183` |
+| 17 | B | El área de mensajes de una conversación no se puede enfocar con el teclado | `ConversationDetail.tsx` |
+| 18 | B | Colecciones duplicadas, también con doble clic | `KnowledgeController.cs` |
+| 19 | B | Se aceptan agentes con herramientas inexistentes o sin instrucciones | `AgentsController.cs` |
+| 20 | B | Los registros marcan como 500 errores que el cliente recibe como 400 o 422 | orden de middlewares |
+| 21 | B | El texto «sus 1 documentos» tiene mal la concordancia | `app/knowledge/page.tsx` |
+| 22 | B | La búsqueda de memoria usa `Take` sin `OrderBy`, y `.env` y `docker-compose.yml` conservan ajustes que van en el panel | `ConversationMemoryBackgroundService.cs`, `docker-compose.yml` |
+
