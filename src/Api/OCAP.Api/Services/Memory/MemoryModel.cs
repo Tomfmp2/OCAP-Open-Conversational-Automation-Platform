@@ -26,9 +26,11 @@ public sealed partial class MemoryModel : IMemoryModel
 
     private readonly IAiProviderConfigurationService _providers;
     private readonly ILogger<MemoryModel> _logger;
+    private readonly MemoryBackoff _backoff;
 
-    public MemoryModel(IAiProviderConfigurationService providers, ILogger<MemoryModel> logger)
+    public MemoryModel(IAiProviderConfigurationService providers, ILogger<MemoryModel> logger, MemoryBackoff backoff)
     {
+        _backoff = backoff;
         _providers = providers;
         _logger = logger;
     }
@@ -118,11 +120,13 @@ public sealed partial class MemoryModel : IMemoryModel
                 MaxTokens = maxTokens,
                 Temperature = 0.1
             }, cancellationToken);
+            _backoff.Succeeded(tenantId);
             return response.GeneratedText;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Una cuota agotada o un fallo del proveedor solo retrasa la memoria: se reintenta en el próximo ciclo.
+            // Una cuota agotada o un fallo del proveedor solo retrasa la memoria: se reintenta al terminar la pausa.
+            _backoff.Failed(tenantId, DateTime.UtcNow, (ex as AiProviderException)?.RetryAfter);
             _logger.LogWarning(ex, "El modelo no pudo procesar la memoria de la organización {TenantId}.", tenantId);
             return null;
         }

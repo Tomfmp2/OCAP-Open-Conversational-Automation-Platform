@@ -88,6 +88,9 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
     private async Task InTenantAsync(Guid tenantId, Func<IServiceProvider, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
+        // Con el modelo fallando no se gasta otra llamada: lo pendiente sigue en cola hasta que termine la pausa.
+        if (scope.ServiceProvider.GetRequiredService<MemoryBackoff>().IsPaused(tenantId, DateTime.UtcNow)) return;
+
         scope.ServiceProvider.GetRequiredService<ITenantScope>().Use(tenantId);
         try
         {
