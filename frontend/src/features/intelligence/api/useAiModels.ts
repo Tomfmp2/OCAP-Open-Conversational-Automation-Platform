@@ -93,6 +93,23 @@ export function useAiModels() {
   });
 }
 
+export interface AiModelUsage {
+  provider: string;
+  model: string;
+  requests: number;
+  failed: number;
+  tokens: number;
+}
+
+/** Llamadas de cada modelo en las últimas 24 horas, tal como las informa el proveedor. */
+export function useAiUsage() {
+  return useQuery<AiModelUsage[]>({
+    queryKey: ["aiUsage"],
+    queryFn: async () => (await apiClient.get<{ lastDay: AiModelUsage[] }>("/api/ai/usage")).lastDay,
+    refetchInterval: 60_000,
+  });
+}
+
 export function useAiModelActions() {
   const queryClient = useQueryClient();
   const refresh = () => {
