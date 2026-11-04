@@ -47,6 +47,10 @@ export function useKnowledgeActions(baseId: string | null) {
   };
 
   return {
+    removeBase: useMutation({
+      mutationFn: (id: string) => apiClient.delete(`/api/knowledge/base/${id}`),
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: BASES_KEY }),
+    }),
     createBase: useMutation({
       mutationFn: (name: string) => apiClient.post<KnowledgeBase>("/api/knowledge", { name, description: "" }),
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: BASES_KEY }),

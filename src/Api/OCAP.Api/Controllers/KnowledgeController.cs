@@ -123,6 +123,37 @@ public class KnowledgeController : ControllerBase
         return Ok(new { Message = "Knowledge base reindexed successfully." });
     }
 
+    [HttpDelete("base/{id:guid}")]
+    public async Task<ActionResult> DeleteKnowledgeBase(
+        Guid id,
+        [FromServices] OCAP.Channels.Abstractions.Contracts.IChannelConnectionManager channels,
+        [FromServices] OCAP.Agents.Application.Services.AgentService agents,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+
+        // Una lista vacía significa «todas las colecciones»: si se borrara la única elegida, ese canal o agente pasaría
+        // a consultar documentos que no debía ver. Quien administra decide primero qué usan.
+        var value = id.ToString();
+        var users = (await channels.GetTenantConnectionsAsync(tenantId, cancellationToken))
+            .Where(c => c.ConfigurationMetadata.GetValueOrDefault(OCAP.Api.Services.ChannelConversationService.KnowledgeBasesMetadataKey)
+                ?.Split(',').Contains(value, StringComparer.OrdinalIgnoreCase) == true)
+            .Select(c => c.DisplayName)
+            .Concat((await agents.GetAllAgentsAsync(cancellationToken))
+                .Where(a => a.Configuration.KnowledgeBaseIds.Contains(id))
+                .Select(a => a.Name.Value))
+            .ToList();
+        if (users.Count > 0)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Colección en uso",
+                detail: $"La usan: {string.Join(", ", users)}. Quítala de su configuración y vuelve a intentarlo.");
+        }
+
+        return await _knowledgeService.DeleteKnowledgeBaseAsync(tenantId, id, cancellationToken) ? NoContent() : NotFound();
+    }
+
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteDocument(Guid id, CancellationToken cancellationToken)
     {
