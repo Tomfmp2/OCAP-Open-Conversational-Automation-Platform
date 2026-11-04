@@ -64,7 +64,13 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
         />
       </Modal>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-4 py-4" aria-live="polite">
+      <div
+        className="focus-ring min-h-0 flex-1 space-y-3 overflow-y-auto bg-neutral-50 px-4 py-4"
+        aria-live="polite"
+        aria-label="Mensajes"
+        role="log"
+        tabIndex={0}
+      >
         {messages.isLoading && <p className="text-sm text-neutral-600">Cargando mensajes…</p>}
         <FormError error={messages.error} />
         {messages.data?.map((message) => {

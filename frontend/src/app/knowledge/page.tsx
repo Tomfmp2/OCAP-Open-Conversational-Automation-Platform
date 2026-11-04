@@ -82,7 +82,8 @@ export default function KnowledgePage() {
       <Modal open={removing && base !== null} onClose={() => setRemoving(false)} title={`¿Eliminar ${base?.name ?? "la colección"}?`}>
         <div className="space-y-5">
           <p className="text-sm text-neutral-700">
-            Se borran sus {base?.documentCount ?? 0} documentos y los agentes dejan de usarlos. No se puede deshacer.
+            {base?.documentCount === 1 ? "Se borra su documento" : `Se borran sus ${base?.documentCount ?? 0} documentos`} y los agentes
+            dejan de usarlos. No se puede deshacer.
           </p>
           <FormError error={removeBase.error} />
           <div className="flex justify-end gap-2">
