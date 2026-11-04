@@ -103,6 +103,9 @@ app.UseInternalOnlyMetrics(builder.Configuration);
 // Correlación y request IDs (X-Correlation-Id / X-Request-Id) antes del resto del pipeline.
 app.UseMiddleware<CorrelationIdMiddleware>();
 
+// Por fuera del manejo de excepciones: así registra el estado que recibe el cliente y no un 500 por cada error ya atendido.
+app.UseSerilogRequestLogging();
+
 // El middleware de manejo de excepciones captura errores de cualquier capa posterior (RFC 7807).
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -138,9 +141,6 @@ app.UseAuthentication();
 // cuenta por usuario); solo existe si RateLimiting:EnableRateLimiting es true.
 app.UseRateLimiter();
 app.UseAuthorization();
-
-// Serilog Request Logging middleware for structured HTTP logging
-app.UseSerilogRequestLogging();
 
 // Mapeo de controladores, SignalR hubs, health y métricas Prometheus.
 app.MapControllers();
