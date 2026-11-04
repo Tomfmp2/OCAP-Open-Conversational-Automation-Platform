@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,14 +20,17 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
     private readonly IAiProviderRegistry _providerRegistry;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AiProviderConfigurationService> _logger;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
     public AiProviderConfigurationService(
         OCAPDbContext dbContext,
         ICredentialVault credentialVault,
         IAiProviderRegistry providerRegistry,
         IConfiguration configuration,
-        ILogger<AiProviderConfigurationService> logger)
+        ILogger<AiProviderConfigurationService> logger,
+        IServiceScopeFactory? scopeFactory = null)
     {
+        _scopeFactory = scopeFactory;
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _credentialVault = credentialVault ?? throw new ArgumentNullException(nameof(credentialVault));
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
@@ -342,7 +346,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             }
         }
 
-        return _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
+        var provider = _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
+        return _scopeFactory is null ? provider : new UsageTrackingAiProvider(provider, tenantId, _scopeFactory, _logger);
     }
 
     /// <summary>

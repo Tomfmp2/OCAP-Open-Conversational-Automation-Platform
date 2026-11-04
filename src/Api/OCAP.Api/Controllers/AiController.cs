@@ -6,6 +6,7 @@ using OCAP.Api.Models.Dashboard;
 using OCAP.Api.Services;
 using OCAP.Intelligence.Abstractions;
 using OCAP.Infrastructure.Persistence.Context;
+using OCAP.Security.Abstractions;
 using System.Diagnostics;
 
 namespace OCAP.Api.Controllers;
@@ -53,22 +54,34 @@ public class AiController : ControllerBase
     }
 
     [HttpGet("usage")]
-    public async Task<ActionResult<AiUsageDto>> GetUsage(CancellationToken cancellationToken)
+    public async Task<ActionResult<AiUsageDto>> GetUsage([FromServices] ITenantContext tenant, CancellationToken cancellationToken)
     {
-        var logs = await _dbContext.AiExecutionLogs.ToListAsync(cancellationToken);
-        
-        var totalTokens = logs.Sum(l => l.Tokens);
-        var totalExecutions = logs.Count;
-        var avgLatency = logs.Any() ? logs.Average(l => l.ExecutionTimeMs) : 0.0;
-        var successCount = logs.Count(l => l.Success);
-        var successRate = logs.Any() ? (successCount / (double)totalExecutions) * 100.0 : 0.0;
+        var logs = _dbContext.AiExecutionLogs.AsNoTracking().Where(l => l.TenantId == tenant.TenantId);
+
+        var totals = await logs
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Tokens = g.Sum(l => (long)l.Tokens),
+                Count = g.Count(),
+                AverageMs = g.Average(l => l.ExecutionTimeMs),
+                Succeeded = g.Count(l => l.Success),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var since = DateTime.UtcNow.AddDays(-1);
+        var lastDay = await logs
+            .Where(l => l.ExecutedAt >= since)
+            .GroupBy(l => new { l.Provider, l.Model })
+            .Select(g => new AiModelUsageDto(g.Key.Provider, g.Key.Model, g.Count(), g.Count(l => !l.Success), g.Sum(l => (long)l.Tokens)))
+            .ToListAsync(cancellationToken);
 
         var dto = new AiUsageDto(
-            TotalTokensUsed: totalTokens,
-            TotalExecutionsCount: totalExecutions,
-            AverageLatencyMs: avgLatency,
-            SuccessRatePercentage: successRate
-        );
+            TotalTokensUsed: (int)Math.Min(totals?.Tokens ?? 0, int.MaxValue),
+            TotalExecutionsCount: totals?.Count ?? 0,
+            AverageLatencyMs: totals?.AverageMs ?? 0,
+            SuccessRatePercentage: totals is null ? 0 : totals.Succeeded * 100.0 / totals.Count,
+            LastDay: lastDay.OrderByDescending(m => m.Requests).ToList());
         return Ok(dto);
     }
 
