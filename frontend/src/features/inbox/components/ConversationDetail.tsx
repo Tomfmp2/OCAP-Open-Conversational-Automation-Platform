@@ -30,17 +30,14 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
 
   return (
     <section className="flex h-full min-h-0 flex-col" aria-label={`Conversación con ${conversation.contactName}`}>
-      <header className="flex items-center gap-3 border-b border-neutral-200 px-4 py-3">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-neutral-200 px-4 py-3">
         {backButton}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-48">
           <h2 className="truncate text-sm font-semibold text-neutral-950">{conversation.contactName}</h2>
           <p className="truncate text-xs text-neutral-600">
             {conversation.channel}
             {conversation.externalContactId && `, ${conversation.externalContactId}`}
           </p>
-          {conversation.handledByHuman && (
-            <p className="text-xs text-warning">Atiendes tú: el agente vuelve a responder si nadie del equipo escribe en 15 minutos.</p>
-          )}
         </div>
         {conversation.handledByHuman ? (
           <Button variant="secondary" size="sm" onClick={() => release.mutate()} loading={release.isPending}>
@@ -54,6 +51,9 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
         <Button variant="ghost" size="sm" onClick={() => setMemoryOpen(true)}>
           Memoria
         </Button>
+        {conversation.handledByHuman && (
+          <p className="w-full text-xs text-warning">Atiendes tú: el agente vuelve a responder si nadie del equipo escribe en 15 minutos.</p>
+        )}
       </header>
       <Modal open={memoryOpen} onClose={() => setMemoryOpen(false)} title={`Lo que se recuerda de ${conversation.contactName}`} className="sm:max-w-lg">
         <MemoryPanel

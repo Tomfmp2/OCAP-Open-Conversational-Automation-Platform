@@ -126,13 +126,13 @@ export function PrincipalAgentChat({
   if (hero && isEmpty) {
     return (
       <div
-        className={`relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-8 ${className}`}
+        className={`relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-2 pb-8 pt-14 sm:pt-8 ${className}`}
       >
         <div className="ocap-hero-ambient pointer-events-none absolute inset-0" aria-hidden />
         <div className="absolute right-2 top-2 z-[2]">{historyButton}</div>
         {history}
 
-        <div className="ocap-hero-enter relative z-[1] flex w-full max-w-2xl flex-col items-center text-center">
+        <div className="ocap-hero-enter relative z-[1] my-auto flex w-full max-w-2xl flex-col items-center text-center">
           <AssistantOrb size={112} state={orbState} className="ocap-mark mb-8" />
 
           <p className="text-sm font-medium text-neutral-600">
@@ -169,8 +169,8 @@ export function PrincipalAgentChat({
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
-      <header className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-3">
+      <header className="mx-auto mb-2 flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
+        <div className="flex min-w-0 items-center gap-3">
           <AssistantOrb size={36} state={orbState} />
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h1>
