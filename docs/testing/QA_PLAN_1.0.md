@@ -85,3 +85,13 @@ Tampoco se probó el envío real por Telegram, WhatsApp o SMTP, ni la conexión 
 | 9 | B | Equipo pide definir SMTP en `.env`, aunque se configura en el panel; el agente menciona «Ajustes», que en el menú se llama Organización | `/team`, formulario de agente |
 
 Una pestaña dejó de responder una vez al abrir la memoria. No se pudo reproducir.
+
+### Estado de los hallazgos
+
+Corregidos en `develop` los hallazgos 1 a 7 y 9. El 8 sigue igual a propósito: guardar la sesión de WebChat exige dejar
+datos en el navegador del visitante.
+
+El hallazgo 6 estaba mal descrito: los modelos del panel no tenían ningún reintento, porque el configurado solo cubría
+los clientes tipados.
+
+Faltan por repetir con cuota real: AI-2 con `flash-lite`, MEM-1, MEM-4, SEC-1 y AST-2.

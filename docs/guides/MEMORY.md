@@ -11,7 +11,8 @@ Los agentes recuerdan a cada persona entre conversaciones: su nombre, su ciudad,
 | Datos de la persona | Hechos con clave: `ciudad`, `alergias`, `pedido_habitual`… | Tras 10 minutos sin mensajes |
 | Conversaciones anteriores | Una o dos frases de lo que pasó en cada una | Tras 10 minutos sin mensajes |
 
-Todo ocurre en segundo plano y nunca mientras un cliente espera respuesta. Extraer la memoria cuesta una llamada al
+Todo ocurre en segundo plano y nunca mientras un cliente espera respuesta. Si el modelo falla o se queda sin cuota, la
+memoria de esa organización se pausa (de 5 minutos a 1 hora, o hasta que el proveedor indique) y lo pendiente sigue en cola. Extraer la memoria cuesta una llamada al
 modelo por conversación terminada, no una por mensaje. Un saludo suelto no genera ninguna.
 
 Al responder, el agente recibe:

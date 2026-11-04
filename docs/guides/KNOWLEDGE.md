@@ -56,6 +56,12 @@ que un documento responde lo que esperas.
 - Importar una página solo llega a direcciones públicas, revisadas al conectar y en cada redirección.
 - Cada organización ve solo su conocimiento: filtros por organización y *row-level security* en PostgreSQL.
 
+## Eliminar
+
+Cada documento se borra con su papelera. **Eliminar colección** borra además todos sus documentos. Si un canal o un
+agente la tiene elegida, no se elimina y el panel dice quién la usa: una lista vacía significa «todas las colecciones», y
+ese canal pasaría a consultar documentos que no debía ver.
+
 ## Reprocesar
 
 **Volver a procesar** recalcula los embeddings de los fragmentos existentes (por ejemplo, al cambiar de modelo). No
@@ -75,3 +81,4 @@ súbelo otra vez.
 | `GET` | `/api/knowledge/documents/{id}/content` | Fragmentos de un documento |
 | `GET` | `/api/knowledge/search?query=` | Probar una búsqueda |
 | `DELETE` | `/api/knowledge/{documentId}` | Eliminar documento |
+| `DELETE` | `/api/knowledge/base/{id}` | Eliminar colección (`409` si está en uso) |

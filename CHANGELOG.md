@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Uso de IA**: llamadas, fallos y tokens reales por modelo en las últimas 24 horas, en Modelos de IA.
+- **Otro modelo si falla**: con cuota agotada, caída o más de 60 s de espera, se intenta otro modelo activo del mismo
+  proveedor. Nunca se pasa la conversación a otra empresa.
+- **Eliminar colecciones** de Conocimiento, salvo si un canal o agente las usa.
+- **WebChat** permite elegir agente y modelo en el panel.
+
+### Fixed
+- El proxy del panel cortaba a los 30 s las respuestas lentas del modelo y el cliente se quedaba sin contestación.
+- Un plazo vencido del modelo ahora da la respuesta de respaldo en lugar de un error 500.
+- Los errores de la API se muestran con su motivo en lugar de «Error HTTP 400», y sin la respuesta cruda del proveedor.
+- Gemini declaraba siempre 120 tokens; ahora se usa lo que informa. El uso solo cuenta a la propia organización.
+- Los modelos del panel reintentan las caídas momentáneas (`502`, `503`, `504`).
+- La memoria en segundo plano se pausa cuando el modelo falla, en vez de reintentar cada minuto y gastar cuota.
+- Panel en pantallas pequeñas: inicio, cabeceras del asistente y de conversaciones, zoom de iPhone al tocar un campo y
+  enlaces táctiles.
+
 ## [1.0.0] - 2026-11-03
 
 Primer lanzamiento público. Las versiones anteriores de este archivo son hitos internos del código base que no se
