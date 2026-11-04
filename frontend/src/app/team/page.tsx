@@ -39,7 +39,7 @@ export default function TeamPage() {
           {team.data && !team.data.emailConfigured && (
             <p className="text-sm text-neutral-600">
               El servidor no tiene correo configurado: al invitar te damos un enlace para que lo compartas tú. Para enviarlo
-              por email, define SMTP_HOST y SMTP_FROM en el .env.
+              por email, configura el correo saliente en Organización.
             </p>
           )}
         </>

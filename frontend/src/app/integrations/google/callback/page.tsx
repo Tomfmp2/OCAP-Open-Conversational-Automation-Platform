@@ -47,7 +47,7 @@ function GoogleCallback() {
       </p>
       {result && (
         <Link href="/settings" className="mt-4 inline-block text-sm font-medium text-neutral-950 underline underline-offset-2">
-          Volver a Ajustes
+          Volver a Organización
         </Link>
       )}
     </Page>

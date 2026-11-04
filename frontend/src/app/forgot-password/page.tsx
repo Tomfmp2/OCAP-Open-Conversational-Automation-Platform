@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
   const [submitting, setSubmitting] = React.useState(false);
 
   const back = (
-    <Link href="/login" className="focus-ring mt-6 self-start text-sm underline underline-offset-2">
+    <Link href="/login" className="focus-ring mt-6 inline-flex min-h-6 items-center self-start text-sm underline underline-offset-2">
       Volver a iniciar sesión
     </Link>
   );

@@ -32,7 +32,7 @@ export function ConversationDetail({ conversation, backButton }: { conversation:
     <section className="flex h-full min-h-0 flex-col" aria-label={`Conversación con ${conversation.contactName}`}>
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-neutral-200 px-4 py-3">
         {backButton}
-        <div className="min-w-0 flex-1 basis-48">
+        <div className="min-w-0 flex-1 basis-40">
           <h2 className="truncate text-sm font-semibold text-neutral-950">{conversation.contactName}</h2>
           <p className="truncate text-xs text-neutral-600">
             {conversation.channel}

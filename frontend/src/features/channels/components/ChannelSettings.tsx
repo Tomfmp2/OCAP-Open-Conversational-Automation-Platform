@@ -41,12 +41,10 @@ export function ChannelSettings({ channel, open, onClose }: { channel: ChannelCo
             <PowerControl channel={channel} />
           </Group>
 
-          {channel.provider.toLowerCase() !== "webchat" && (
-            <Group title="Quién responde">
-              <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
-              <ChannelAiSelect connectionId={channel.id} aiProviderConfigId={channel.aiProviderConfigId} />
-            </Group>
-          )}
+          <Group title="Quién responde">
+            <ChannelAgentSelect connectionId={channel.id} agentId={channel.agentId} />
+            <ChannelAiSelect connectionId={channel.id} aiProviderConfigId={channel.aiProviderConfigId} />
+          </Group>
 
           <Group title="Qué usa el agente en este canal">
             <ChannelCapabilitiesForm key={`${channel.id}-${channel.tools?.join() ?? ""}-${channel.knowledgeBaseIds?.join() ?? ""}`} channel={channel} />
