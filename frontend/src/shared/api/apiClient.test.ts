@@ -57,3 +57,33 @@ describe("apiClient: sesión con cookie", () => {
     await expect(refreshSession()).resolves.toBeNull();
   });
 });
+
+describe("apiClient: mensajes de error", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function failWith(body: unknown, status = 400) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(body), { status, headers: { "content-type": "application/problem+json; charset=utf-8" } })
+      )
+    );
+    return apiClient.post("/api/x", {}, { skipAuth: true });
+  }
+
+  it("muestra el detalle de un application/problem+json", async () => {
+    await expect(failWith({ title: "Archivo no válido", detail: "El formato .xls es antiguo." })).rejects.toThrow(
+      "El formato .xls es antiguo."
+    );
+  });
+
+  it("muestra el primer error de validación antes que el título genérico", async () => {
+    await expect(
+      failWith({ title: "Validación fallida", errors: { category: ["La categoría no es válida."] } })
+    ).rejects.toThrow("La categoría no es válida.");
+  });
+
+  it("sin mensaje en el cuerpo, indica el código", async () => {
+    await expect(failWith({}, 500)).rejects.toThrow("Error HTTP 500");
+  });
+});

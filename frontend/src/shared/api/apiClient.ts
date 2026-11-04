@@ -192,7 +192,8 @@ class ApiClient {
 
   private async parseBody(response: Response): Promise<unknown> {
     const contentType = response.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
+    // Incluye application/problem+json, el formato de los errores de la API.
+    if (contentType.includes("json")) {
       try {
         return await response.json();
       } catch {
@@ -278,13 +279,25 @@ apiClient.setRefreshHandler(defaultRefreshHandler);
 export { ApiError };
 export type { ApiRequestOptions };
 
-/** Mensaje legible de una respuesta de error: ProblemDetails (detail/title) o { message } / { error }. */
+/** Mensaje legible de una respuesta de error: ProblemDetails (detail/errors/title) o { message } / { error }. */
 function errorMessage(body: unknown, status: number): string {
   if (typeof body === "object" && body !== null) {
-    for (const key of ["detail", "title", "message", "error"] as const) {
-      const value = (body as Record<string, unknown>)[key];
+    const record = body as Record<string, unknown>;
+    if (typeof record.detail === "string" && record.detail.trim()) return record.detail;
+    const validation = firstValidationError(record.errors);
+    if (validation) return validation;
+    for (const key of ["title", "message", "error"] as const) {
+      const value = record[key];
       if (typeof value === "string" && value.trim()) return value;
     }
   }
   return `Error HTTP ${status}`;
+}
+
+function firstValidationError(errors: unknown): string | null {
+  if (typeof errors !== "object" || errors === null) return null;
+  for (const messages of Object.values(errors)) {
+    if (Array.isArray(messages) && typeof messages[0] === "string") return messages[0];
+  }
+  return null;
 }
