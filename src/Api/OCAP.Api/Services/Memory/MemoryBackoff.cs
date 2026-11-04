@@ -21,7 +21,7 @@ public sealed class MemoryBackoff
     public IReadOnlyList<Guid> PausedTenants(DateTime now) =>
         _paused.Where(p => p.Value.Until > now).Select(p => p.Key).ToList();
 
-    /// <param name="retryAfter">Plazo indicado por el proveedor, si lo dio (por ejemplo, cuando se renueva la cuota).</param>
+    /// <summary>Registra un fallo; si el proveedor indicó un plazo (cuándo se renueva la cuota), se respeta.</summary>
     public void Failed(Guid tenantId, DateTime now, TimeSpan? retryAfter = null) =>
         _paused.AddOrUpdate(
             tenantId,
