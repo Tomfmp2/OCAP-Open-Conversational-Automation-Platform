@@ -14,6 +14,8 @@ public class SensitiveDataTests
     [InlineData("tarjeta 4111 1111 1111 1111 123", "tarjeta [tarjeta oculta]")] // pegada a su CVV
     [InlineData("99 4111.1111.1111.1111", "[tarjeta oculta]")] // otra cifra delante y puntos
     [InlineData("mi pin 4821", "mi pin [oculto]")]
+    [InlineData("pin: abc1", "pin: [oculto]")]
+    [InlineData("\u0664\u0661\u0661\u0661 \u0661\u0661\u0661\u0661 \u0661\u0661\u0661\u0661 \u0661\u0661\u0661\u0661", "[tarjeta oculta]")] // dígitos árabes
     [InlineData("mi cvv de 123", "mi cvv de [oculto]")]
     [InlineData("my password is Hola123", "my password is [oculto]")]
     [InlineData("password: dos palabras", "password: [oculto]")]

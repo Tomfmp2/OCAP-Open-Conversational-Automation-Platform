@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -32,7 +33,8 @@ public static partial class SensitiveData
     /// </summary>
     private static bool ContainsCard(string run)
     {
-        var digits = run.Where(char.IsDigit).Select(c => c - '0').ToArray();
+        // GetDecimalDigitValue: \d también coincide con dígitos no latinos (árabes, por ejemplo), que cuentan igual.
+        var digits = run.Where(char.IsDigit).Select(CharUnicodeInfo.GetDecimalDigitValue).ToArray();
         if (digits.Length is >= MinCardDigits and <= MaxCardDigits && PassesLuhn(digits)) return true;
 
         // Dentro de un número más largo solo se buscan los formatos habituales (Visa, Mastercard y Amex): con todos los
@@ -79,7 +81,7 @@ public static partial class SensitiveData
     private static partial Regex DigitRun();
 
     /// <summary>«contraseña: dos palabras»: con dos puntos o igual, el valor llega hasta el final de la línea.</summary>
-    [GeneratedRegex(@"\b(?<word>contraseña|contrasena|password|clave)\b(?<sep>\s*[:=]\s*)(?<value>[^\r\n]+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(?<word>contraseña|contrasena|password|clave|pin|nip|cvv|cvc)\b(?<sep>\s*[:=]\s*)(?<value>[^\r\n]+)", RegexOptions.IgnoreCase)]
     private static partial Regex LabeledSecret();
 
     /// <summary>«mi pin 4821», «cvv de 123»: un código numérico no necesita más contexto.</summary>
