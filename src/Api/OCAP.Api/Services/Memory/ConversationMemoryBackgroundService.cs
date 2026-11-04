@@ -20,6 +20,8 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
     /// <summary>Se resume cuando quedan al menos estos mensajes fuera de la ventana: evita una llamada por mensaje.</summary>
     private const int SummarizeBatch = 8;
     private const int BatchPerTick = 20;
+    /// <summary>Largo desde el que un único mensaje deja de parecer un saludo.</summary>
+    private const int MinCharsForSingleMessage = 60;
     /// <summary>Si el modelo falla tanto tiempo, se deja de reintentar esa conversación.</summary>
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromDays(1);
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
@@ -72,7 +74,7 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
                     .Where(c => c.Channel != null && c.LastActivityAt > recent)
                     .Where(c => db.Messages.IgnoreQueryFilters().Count(m => m.ConversationId == c.Id
                         && (c.SummarizedUntil == null || m.CreatedAt > c.SummarizedUntil)) >= RecentWindow + SummarizeBatch)
-                    .Take(BatchPerTick)
+                    .OrderBy(c => c.LastActivityAt).Take(BatchPerTick)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
                 .Select(c => (c.Id, c.TenantId)).ToList();
 
@@ -179,8 +181,9 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
         Action markExtracted, CancellationToken cancellationToken)
     {
         var db = services.GetRequiredService<OCAPDbContext>();
-        // Un saludo suelto no deja nada que recordar y no merece una llamada al modelo.
-        if (turns.Count(t => t.FromPerson) >= 2)
+        // Un saludo suelto no deja nada que recordar y no merece una llamada al modelo; un solo mensaje largo sí puede.
+        var fromPerson = turns.Where(t => t.FromPerson).ToList();
+        if (fromPerson.Count >= 2 || fromPerson.Sum(t => t.Text.Length) >= MinCharsForSingleMessage)
         {
             var store = services.GetRequiredService<ContactMemoryStore>();
             var known = await store.RecallAsync(ownerKind, ownerId, now, cancellationToken);

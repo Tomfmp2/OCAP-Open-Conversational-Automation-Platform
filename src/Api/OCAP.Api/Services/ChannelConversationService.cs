@@ -94,6 +94,9 @@ public sealed class ChannelConversationService : IConversationResponder
         var userId = ContactUserId(message.ChannelName, tenantId, message.ExternalUserId);
         if (!await AcceptsAsync(channelConnectionId, userId, cancellationToken)) return null;
 
+        // Antes de guardar, publicar o llamar al modelo: el dato no debe quedar en el historial ni salir a un proveedor.
+        message.Message = SensitiveData.Mask(message.Message);
+
         var isNewContact = await _users.GetByIdAsync(userId, cancellationToken) is null;
         if (isNewContact)
         {

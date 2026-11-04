@@ -42,6 +42,62 @@ public sealed class MemoryFactory : OcapApiFactory
 
 public class ContactMemoryTests
 {
+    private static async Task<(MemoryFactory Factory, Func<string, Task> Send)> SingleVisitorAsync()
+    {
+        var factory = new MemoryFactory();
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+        (await admin.PostAsJsonAsync("/api/channels/webchat/connect", new { displayName = "Sitio", widgetTitle = "Hola" })).EnsureSuccessStatusCode();
+        var key = (await admin.GetFromJsonAsync<Envelope>("/api/channels/connections"))!.Data.Single(c => c.Provider == "WebChat").ConfigurationMetadata["PublicKey"];
+        var visitor = factory.CreateClient();
+        var session = Guid.NewGuid();
+        return (factory, async text => (await visitor.PostAsJsonAsync($"/api/public/webchat/{key}/messages", new { sessionId = session, message = text })).EnsureSuccessStatusCode());
+    }
+
+    [Fact]
+    public async Task UnSoloMensajeLargo_SeExtrae()
+    {
+        var (factory, send) = await SingleVisitorAsync();
+        using (factory)
+        {
+            await send("Me llamo Ana, vivo en Medellín y necesito entregas todos los sábados.");
+
+            await factory.Services.GetRequiredService<ConversationMemoryBackgroundService>().RunOnceAsync(DateTime.UtcNow.AddMinutes(11), CancellationToken.None);
+
+            factory.Model.Extractions.Should().Be(1);
+        }
+    }
+
+    [Fact]
+    public async Task UnSaludoSuelto_NoGastaUnaLlamada()
+    {
+        var (factory, send) = await SingleVisitorAsync();
+        using (factory)
+        {
+            await send("Hola, buenas tardes");
+
+            await factory.Services.GetRequiredService<ConversationMemoryBackgroundService>().RunOnceAsync(DateTime.UtcNow.AddMinutes(11), CancellationToken.None);
+
+            factory.Model.Extractions.Should().Be(0);
+        }
+    }
+
+    [Fact]
+    public async Task LosDatosSensibles_NoQuedanEnElHistorial()
+    {
+        var (factory, send) = await SingleVisitorAsync();
+        using (factory)
+        {
+            await send("Mi tarjeta es 4111 1111 1111 1111 y mi clave es Secreta123");
+
+            var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+            var conversation = (await admin.GetFromJsonAsync<List<InboxItem>>("/api/inbox"))!.Single(c => c.Channel == "WebChat");
+            var messages = await admin.GetStringAsync($"/api/inbox/{conversation.Id}/messages");
+
+            messages.Should().Contain("[tarjeta oculta]").And.Contain("[oculto]");
+            messages.Should().NotContain("4111").And.NotContain("Secreta123");
+        }
+    }
+
     [Fact]
     public async Task AContact_IsRemembered_Updated_Forgotten_AndExpires()
     {
