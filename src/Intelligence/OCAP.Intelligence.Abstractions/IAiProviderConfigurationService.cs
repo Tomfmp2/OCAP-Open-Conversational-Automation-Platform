@@ -47,7 +47,7 @@ public interface IAiProviderConfigurationService
     /// <summary>Proveedor de una configuración concreta del tenant (p. ej. la asignada a un canal); null si no existe, está deshabilitada o no tiene key.</summary>
     Task<IAiProvider?> GetRuntimeProviderByIdAsync(Guid tenantId, Guid configurationId, CancellationToken cancellationToken = default);
 
-    /// <summary>Otro modelo activo de la organización para cuando el indicado falla; null si no hay.</summary>
+    /// <summary>Otro modelo activo del mismo proveedor para cuando el indicado falla; null si no hay. Nunca cambia de empresa.</summary>
     Task<IAiProvider?> GetFallbackProviderAsync(Guid tenantId, string failedProvider, string failedModel, CancellationToken cancellationToken = default) =>
         Task.FromResult<IAiProvider?>(null);
 }

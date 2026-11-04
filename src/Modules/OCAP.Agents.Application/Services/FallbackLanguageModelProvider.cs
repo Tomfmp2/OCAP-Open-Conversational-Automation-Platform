@@ -7,8 +7,8 @@ using OCAP.Intelligence.Domain;
 namespace OCAP.Agents.Application.Services;
 
 /// <summary>
-/// Si el modelo indicado no responde (cuota agotada, caída o plazo vencido), intenta una vez con otro modelo activo de
-/// la organización. Los dos intentos caben en el plazo del proxy del panel (130 s).
+/// Si el modelo indicado no responde (cuota agotada, caída o plazo vencido), intenta una vez con otro modelo activo del
+/// mismo proveedor. Los dos intentos caben en el plazo del proxy del panel (130 s).
 /// </summary>
 public sealed class FallbackLanguageModelProvider : ILanguageModelProvider
 {

@@ -85,6 +85,30 @@ public class AiUsageAndFallbackTests
     }
 
     [Fact]
+    public async Task NuncaPasaLaConversacionAOtraEmpresa()
+    {
+        var hosts = new System.Collections.Concurrent.ConcurrentBag<string>();
+        using var factory = new Factory(request =>
+        {
+            hosts.Add(request.RequestUri!.Host);
+            return Json(HttpStatusCode.TooManyRequests, NoQuota);
+        });
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+        var exhausted = await AddModelAsync(admin, "flash-sin-cuota");
+        (await admin.PostAsJsonAsync("/api/aiproviderconfigurations", new
+        {
+            tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            providerName = "OpenAI", displayName = "Otra empresa", modelName = "gpt-prueba", apiKey = "sk-no-real",
+        })).EnsureSuccessStatusCode();
+        var key = await ConnectWebChatAsync(admin, exhausted);
+
+        var reply = await AskAsync(factory.CreateClient(), key);
+
+        reply.Should().Contain("no está disponible");
+        hosts.Should().OnlyContain(h => h == "generativelanguage.googleapis.com");
+    }
+
+    [Fact]
     public async Task SiElProveedorNoContestaATiempo_ElClienteRecibeLaRespuestaDeRespaldo()
     {
         // Regresión: el plazo vencido se trataba como cancelación del cliente y la API devolvía 500 sin responderle.

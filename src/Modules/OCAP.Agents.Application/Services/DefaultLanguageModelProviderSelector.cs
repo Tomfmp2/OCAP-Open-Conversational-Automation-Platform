@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using OCAP.Agents.Abstractions.Providers;
 using OCAP.Intelligence.Abstractions;
 
@@ -10,13 +11,16 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
     private readonly IEnumerable<IAiProvider> _aiProviders;
     private readonly IAiProviderConfigurationService? _configurationService;
     private readonly AiDemoMode _demoMode;
+    private readonly ILogger<DefaultLanguageModelProviderSelector>? _logger;
 
     public DefaultLanguageModelProviderSelector(
         IEnumerable<ILanguageModelProvider> staticProviders,
         IEnumerable<IAiProvider> aiProviders,
         IAiProviderConfigurationService? configurationService = null,
-        AiDemoMode? demoMode = null)
+        AiDemoMode? demoMode = null,
+        ILogger<DefaultLanguageModelProviderSelector>? logger = null)
     {
+        _logger = logger;
         _staticProviders = staticProviders;
         _aiProviders = aiProviders;
         _configurationService = configurationService;
@@ -33,7 +37,7 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
                 var aiProvider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
                 if (aiProvider != null)
                 {
-                    return new FallbackLanguageModelProvider(aiProvider, tenantId, _configurationService);
+                    return new FallbackLanguageModelProvider(aiProvider, tenantId, _configurationService, _logger);
                 }
             }
             catch

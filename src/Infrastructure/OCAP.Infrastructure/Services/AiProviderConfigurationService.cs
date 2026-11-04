@@ -249,17 +249,26 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 
     public async Task<IAiProvider?> GetFallbackProviderAsync(Guid tenantId, string failedProvider, string failedModel, CancellationToken cancellationToken = default)
     {
+        // Solo otro modelo del mismo proveedor en la nube: las conversaciones no pasan sin permiso a otra empresa, ni de un
+        // servidor local o de una dirección propia a un tercero.
+        if (!CanFailOver(failedProvider)) return null;
+
         var configs = await _dbContext.AiProviderConfigurations
             .AsNoTracking()
-            .Where(c => c.TenantId == tenantId && c.IsEnabled)
+            .Where(c => c.TenantId == tenantId && c.IsEnabled && c.ProviderName == failedProvider)
             .OrderBy(c => c.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
         var other = configs.FirstOrDefault(c =>
-            !string.Equals(c.ProviderName, failedProvider, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(c.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+            string.IsNullOrWhiteSpace(ReadBaseUrl(c.SettingsJson))
+            && !string.Equals(c.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
         return other is null ? null : await BuildRuntimeProviderAsync(tenantId, other, cancellationToken);
     }
+
+    private static bool CanFailOver(string provider) =>
+        provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("Claude", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Proveedor listo para usar con la key de la configuración (vault, o .env en desarrollo).</summary>
     private async Task<IAiProvider?> BuildRuntimeProviderAsync(Guid tenantId, AiProviderConfiguration config, CancellationToken cancellationToken)
