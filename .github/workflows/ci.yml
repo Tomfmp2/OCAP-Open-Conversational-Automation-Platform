@@ -237,8 +237,8 @@ jobs:
         run: |
           ./scripts/ocap-setup.sh
           password="E2e$(openssl rand -hex 16)"
-          sed -i "s|^BOOTSTRAP_ADMIN_EMAIL=.*|BOOTSTRAP_ADMIN_EMAIL=e2e-admin@ocap.io|" .env
-          sed -i "s|^BOOTSTRAP_ADMIN_PASSWORD=.*|BOOTSTRAP_ADMIN_PASSWORD=${password}|" .env
+          echo "BOOTSTRAP_ADMIN_EMAIL=e2e-admin@ocap.io" >> .env
+          echo "BOOTSTRAP_ADMIN_PASSWORD=${password}" >> .env
           echo "::add-mask::${password}"
           echo "OCAP_ADMIN_EMAIL=e2e-admin@ocap.io" >> "$GITHUB_ENV"
           echo "OCAP_ADMIN_PASSWORD=${password}" >> "$GITHUB_ENV"

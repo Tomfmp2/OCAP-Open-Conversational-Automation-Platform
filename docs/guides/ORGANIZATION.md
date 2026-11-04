@@ -25,8 +25,8 @@ igual y los enlaces se copian a mano.
 
 - Servidor SMTP, puerto (25, 465, 587 o 2525), usuario, contraseña (cifrada), remitente y TLS.
 - **Enviar correo de prueba** lo manda a tu dirección.
-- El servidor debe ser público: el panel no sirve para alcanzar servicios de la red interna. Un relé interno se
-  configura en el servidor con `Email__Smtp__*`, que también es el respaldo si la organización no tiene uno propio.
+- El servidor debe ser público: el panel no sirve para alcanzar servicios de la red interna. Para un relé interno, que el panel no
+  admite por seguridad, define `Email__Smtp__*` en un `docker-compose.override.yml`.
 - Gestionarlo exige el permiso de seguridad, porque por ese correo pasan los enlaces de recuperación de contraseña.
 
 ## Google Workspace
@@ -41,7 +41,7 @@ acciones de Calendar y Sheets que cada canal conceda.
 
 La conexión usa un parámetro `state` firmado que caduca a los 10 minutos y está atado al usuario que la inició, para
 que un código de otra cuenta no se pueda colar (CSRF). Los tokens de Google se guardan cifrados y se renuevan solos.
-Si la organización no configura su cliente, se usa el del servidor (`Google__ClientId`, `Google__ClientSecret`).
+Sin cliente en el panel, Google Workspace queda sin conectar.
 
 ## Equipo
 

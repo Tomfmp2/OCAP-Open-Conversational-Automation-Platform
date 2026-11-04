@@ -29,22 +29,10 @@ x-api-environment: &api-environment
   Bootstrap__AdminName: ${BOOTSTRAP_ADMIN_NAME:-}
   Bootstrap__TenantName: ${BOOTSTRAP_TENANT_NAME:-}
   Bootstrap__TenantSlug: ${BOOTSTRAP_TENANT_SLUG:-}
-  # Idioma de las respuestas del asistente del panel (lo elige ocap install: es | en).
+  # Idioma inicial del asistente; se cambia en Organización.
   Assistant__Language: ${OCAP_LANGUAGE:-es}
-  Google__ClientId: ${Google__ClientId:-}
-  Google__ClientSecret: ${Google__ClientSecret:-}
-  Google__RedirectUri: ${Google__RedirectUri:-http://localhost:5000/api/integrations/Google/connect}
   # Google simulado guarda correos y eventos en memoria y los pierde al reiniciar: solo para ocap-dev.sh.
   Google__UseInMemory: "false"
-  AiProviders__OpenAI__ApiKey: ${AiProviders__OpenAI__ApiKey:-}
-  AiProviders__OpenAI__ModelName: ${AiProviders__OpenAI__ModelName:-gpt-4o}
-  AiProviders__Gemini__ApiKey: ${AiProviders__Gemini__ApiKey:-}
-  AiProviders__Gemini__ModelName: ${AiProviders__Gemini__ModelName:-gemini-1.5-flash}
-  AiProviders__Claude__ApiKey: ${AiProviders__Claude__ApiKey:-}
-  AiProviders__Claude__ModelName: ${AiProviders__Claude__ModelName:-claude-sonnet-5-5}
-  AiProviders__Ollama__BaseUrl: ${AiProviders__Ollama__BaseUrl:-http://host.docker.internal:11434}
-  AiProviders__Ollama__ModelName: ${AiProviders__Ollama__ModelName:-llama3}
-  Telegram__BotToken: ${Telegram__BotToken:-}
   # WhatsApp por QR: la API habla con Evolution por la red interna y Evolution llama al webhook de la API.
   WhatsApp__BaseUrl: http://evolution-api:8080
   WhatsApp__ApiKey: ${EVOLUTION_API_KEY:?Falta EVOLUTION_API_KEY (ejecuta ./scripts/ocap-setup.sh)}
@@ -54,13 +42,6 @@ x-api-environment: &api-environment
   Cors__AllowedOrigins__0: ${PUBLIC_PANEL_URL:-http://localhost:3000}
   # Enlaces de invitación y recuperación enviados por correo.
   App__PublicPanelUrl: ${PUBLIC_PANEL_URL:-http://localhost:3000}
-  # Correo opcional: sin SMTP_HOST los enlaces se copian desde Ajustes → Equipo.
-  Email__Smtp__Host: ${SMTP_HOST:-}
-  Email__Smtp__Port: ${SMTP_PORT:-587}
-  Email__Smtp__Username: ${SMTP_USERNAME:-}
-  Email__Smtp__Password: ${SMTP_PASSWORD:-}
-  Email__Smtp__From: ${SMTP_FROM:-}
-  Email__Smtp__UseSsl: ${SMTP_USE_SSL:-true}
 
 services:
   postgres:
