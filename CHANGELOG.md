@@ -14,7 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Eliminar colecciones** de Conocimiento, salvo si un canal o agente las usa.
 - **WebChat** permite elegir agente y modelo en el panel.
 
+### Changed
+- **Configuración en el panel:** `.env` solo guarda lo que el servidor necesita para arrancar. Salen de `.env.example` y
+  de Docker Compose las claves de IA, SMTP, Google y Telegram. `ocap install` ya no pregunta organización, administrador
+  ni clave de IA: eso se resuelve en `/setup`. El administrador por entorno sigue para instalaciones sin intervención.
+- Los números de tarjeta y las claves que escribe un cliente se ocultan antes de guardar el mensaje o enviarlo al modelo.
+- La memoria también se extrae de un único mensaje largo.
+
 ### Fixed
+- Las subidas se truncaban a 10 MB en el proxy del panel y en Nginx; ahora admiten el tope de cada función.
+- Validaciones: colección inexistente, nombres largos o repetidos, proveedores de IA inexistentes y agentes inválidos.
+- Los registros muestran el estado real de la respuesta en lugar de 500 en errores ya atendidos.
 - El proxy del panel cortaba a los 30 s las respuestas lentas del modelo y el cliente se quedaba sin contestación.
 - Un plazo vencido del modelo ahora da la respuesta de respaldo en lugar de un error 500.
 - Los errores de la API se muestran con su motivo en lugar de «Error HTTP 400», y sin la respuesta cruda del proveedor.

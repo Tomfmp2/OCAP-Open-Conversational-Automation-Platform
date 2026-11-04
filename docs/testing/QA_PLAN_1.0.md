@@ -121,3 +121,9 @@ Ejecutada en `develop` (`46dc487`), con los datos `QA-` eliminados al terminar. 
 | 21 | B | El texto «sus 1 documentos» tiene mal la concordancia | `app/knowledge/page.tsx` |
 | 22 | B | La búsqueda de memoria usa `Take` sin `OrderBy`, y `.env` y `docker-compose.yml` conservan ajustes que van en el panel | `ConversationMemoryBackgroundService.cs`, `docker-compose.yml` |
 
+### Estado de la segunda ronda
+
+Corregidos en `develop` los hallazgos 10 a 22. Tarjetas y claves se ocultan antes de guardar; cédulas y pasaportes siguen
+visibles en el historial para la atención al cliente, aunque la memoria no los guarda. Las colecciones repetidas se
+rechazan por comprobación previa, sin índice único: dos peticiones simultáneas todavía podrían crearlas.
+
