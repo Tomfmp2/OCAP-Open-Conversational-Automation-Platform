@@ -40,8 +40,9 @@ public sealed class UsageTrackingAiProvider : IAiProvider
             await RecordAsync(response.ModelName, response.TokensUsed, stopwatch.Elapsed, success: true);
             return response;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception)
         {
+            // También las cancelaciones: el plazo de un intento llega como tal y la llamada al proveedor ya se hizo.
             await RecordAsync(_inner.GetModelInformation().Model, tokens: 0, stopwatch.Elapsed, success: false);
             throw;
         }
