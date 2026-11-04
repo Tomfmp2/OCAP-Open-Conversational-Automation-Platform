@@ -243,6 +243,20 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         return config is null ? null : await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
     }
 
+    public async Task<IAiProvider?> GetFallbackProviderAsync(Guid tenantId, string failedProvider, string failedModel, CancellationToken cancellationToken = default)
+    {
+        var configs = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .Where(c => c.TenantId == tenantId && c.IsEnabled)
+            .OrderBy(c => c.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var other = configs.FirstOrDefault(c =>
+            !string.Equals(c.ProviderName, failedProvider, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(c.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+        return other is null ? null : await BuildRuntimeProviderAsync(tenantId, other, cancellationToken);
+    }
+
     /// <summary>Proveedor listo para usar con la key de la configuración (vault, o .env en desarrollo).</summary>
     private async Task<IAiProvider?> BuildRuntimeProviderAsync(Guid tenantId, AiProviderConfiguration config, CancellationToken cancellationToken)
     {

@@ -91,8 +91,8 @@ public static partial class ApiServiceExtensions
         // conectar (DNS rebinding) y no se siguen redirecciones. Ollama/Local pueden estar en la red privada.
         services.AddSingleton<IAiProviderRegistry>(sp => new AiProviderRegistry(
             sp.GetServices<IAiProvider>(),
-            new HttpClient(OCAP.Security.Abstractions.OutboundUrlGuard.CreateHandler(allowPrivateNetwork: false)) { Timeout = TimeSpan.FromSeconds(120) },
-            new HttpClient(OCAP.Security.Abstractions.OutboundUrlGuard.CreateHandler(allowPrivateNetwork: true)) { Timeout = TimeSpan.FromSeconds(120) }));
+            new HttpClient(new OCAP.Intelligence.Application.Services.TransientAiRetryHandler(OCAP.Security.Abstractions.OutboundUrlGuard.CreateHandler(allowPrivateNetwork: false))) { Timeout = TimeSpan.FromSeconds(120) },
+            new HttpClient(new OCAP.Intelligence.Application.Services.TransientAiRetryHandler(OCAP.Security.Abstractions.OutboundUrlGuard.CreateHandler(allowPrivateNetwork: true))) { Timeout = TimeSpan.FromSeconds(120) }));
         services.AddScoped<IAiProviderConfigurationService, AiProviderConfigurationService>();
 
         // Orquestador inteligente de proveedores

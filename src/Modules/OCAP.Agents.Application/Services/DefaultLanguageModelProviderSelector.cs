@@ -33,7 +33,7 @@ public class DefaultLanguageModelProviderSelector : ILanguageModelProviderSelect
                 var aiProvider = await _configurationService.GetRuntimeProviderForTenantAsync(tenantId, preferredProvider, cancellationToken);
                 if (aiProvider != null)
                 {
-                    return new LanguageModelProviderAdapter(aiProvider);
+                    return new FallbackLanguageModelProvider(aiProvider, tenantId, _configurationService);
                 }
             }
             catch

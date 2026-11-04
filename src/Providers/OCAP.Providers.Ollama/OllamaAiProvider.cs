@@ -75,7 +75,7 @@ public class OllamaAiProvider : IAiProvider
             }
 
             var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Error en respuesta HTTP de Ollama ({response.StatusCode}): {err}");
+            throw AiProviderException.FromResponse(Name, _settings.ModelName, response, err);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {

@@ -179,7 +179,7 @@ public sealed class ChannelAgentRunner
         if (request.AiProviderConfigId is { } configId && _aiConfigurations is not null)
         {
             var assigned = await _aiConfigurations.GetRuntimeProviderByIdAsync(request.TenantId, configId, cancellationToken);
-            if (assigned is not null) return new LanguageModelProviderAdapter(assigned);
+            if (assigned is not null) return new FallbackLanguageModelProvider(assigned, request.TenantId, _aiConfigurations, _logger);
             _logger.LogWarning("El proveedor de IA {ConfigId} del canal no está disponible; se usa el de la organización.", configId);
         }
         return await _providers.GetProviderAsync(request.TenantId, _configuration["AiProviders:PreferredProvider"], cancellationToken);
