@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     // Las peticiones a /api pasan por este proxy (30 s por defecto). Debe superar el plazo de la API para los modelos
     // de IA: si no, corta respuestas lentas y el cliente recibe un 500 sin motivo.
     proxyTimeout: 130_000,
+    // Por defecto trunca las subidas a 10 MB. Debe cubrir el tope de la API para adjuntos del asistente (32 MB).
+    proxyClientMaxBodySize: "33mb",
   },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
