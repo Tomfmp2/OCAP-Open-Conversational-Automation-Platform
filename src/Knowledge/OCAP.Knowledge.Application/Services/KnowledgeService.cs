@@ -92,7 +92,11 @@ public class KnowledgeService
 
         // 2. Verificar pertenencia de la KnowledgeBase al Tenant
         var kb = await _knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
-        if (kb != null && kb.TenantId != tenantId)
+        if (kb is null)
+        {
+            throw new KeyNotFoundException($"La colección {knowledgeBaseId} no existe.");
+        }
+        if (kb.TenantId != tenantId)
         {
             _logger.LogWarning("Acceso no autorizado a Knowledge Base {KbId} por Tenant {TenantId}", knowledgeBaseId, tenantId);
             throw new UnauthorizedAccessException("Acceso denegado a la Base de Conocimiento de otro Tenant.");

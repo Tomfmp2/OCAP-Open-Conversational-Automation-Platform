@@ -14,6 +14,8 @@ namespace OCAP.Api.Controllers;
 [Authorize(Policy = OcapPermissions.KnowledgeManage)]
 public class KnowledgeController : ControllerBase
 {
+    private const int MaxCollectionNameLength = 100;
+
     private readonly KnowledgeService _knowledgeService;
     private readonly ITenantContext _tenantContext;
 
@@ -82,7 +84,14 @@ public class KnowledgeController : ControllerBase
         if (dto == null || string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name is required for KnowledgeBase.");
 
         var tenantId = _tenantContext.TenantId;
-        var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, dto.Name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
+        var name = dto.Name.Trim();
+        if (name.Length > MaxCollectionNameLength)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"El nombre admite hasta {MaxCollectionNameLength} caracteres.");
+        var existing = await _knowledgeService.GetKnowledgeBasesAsync(tenantId, cancellationToken);
+        if (existing.Any(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase)))
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: $"Ya hay una colección llamada «{name}».");
+
+        var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
         return Ok(kb);
     }
 

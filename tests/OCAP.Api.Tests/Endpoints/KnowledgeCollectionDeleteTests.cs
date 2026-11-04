@@ -61,3 +61,54 @@ public class KnowledgeCollectionDeleteTests
         (await admin.DeleteAsync($"/api/knowledge/base/{Guid.NewGuid()}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }
+
+public class ConfigurationValidationTests
+{
+    private static readonly Guid Tenant = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    [Fact]
+    public async Task UnDocumentoNoSeSubeAUnaColeccionInexistente()
+    {
+        using var factory = new OcapApiFactory();
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+
+        var response = await admin.PostAsJsonAsync("/api/knowledge/text", new { knowledgeBaseId = Guid.NewGuid(), title = "Nota", content = "Texto" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task UnNombreDeColeccion_NoPuedeSerLargoNiRepetirse()
+    {
+        using var factory = new OcapApiFactory();
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+
+        (await admin.PostAsJsonAsync("/api/knowledge", new { name = new string('x', 300), description = "" })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await admin.PostAsJsonAsync("/api/knowledge", new { name = "Precios", description = "" })).EnsureSuccessStatusCode();
+        (await admin.PostAsJsonAsync("/api/knowledge", new { name = " precios ", description = "" })).StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task UnProveedorInexistente_SeRechaza()
+    {
+        using var factory = new OcapApiFactory();
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+
+        var response = await admin.PostAsJsonAsync("/api/aiproviderconfigurations", new { tenantId = Tenant, providerName = "Inventado", displayName = "X", modelName = "m", apiKey = "k" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Theory]
+    [InlineData("", new string[0])]
+    [InlineData("Instrucciones", new[] { "borrar_todo" })]
+    public async Task UnAgenteInvalido_SeRechaza(string systemPrompt, string[] allowedTools)
+    {
+        using var factory = new OcapApiFactory();
+        var admin = TestAuthHelper.CreateAuthenticatedClient(factory);
+
+        var response = await admin.PostAsJsonAsync("/api/agents", new { name = "Prueba", description = "", systemPrompt, allowedTools });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+}

@@ -15,6 +15,11 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 {
     public const string OpenAiCompatible = "OpenAICompatible";
 
+    private static readonly HashSet<string> BuiltInProviders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "OpenAI", OpenAiCompatible, "Gemini", "Claude", "Anthropic", "Ollama", "Local",
+    };
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IAiProviderRegistry _providerRegistry;
@@ -44,6 +49,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         if (string.IsNullOrWhiteSpace(dto.ProviderName)) throw new ArgumentException("ProviderName is required.", nameof(dto.ProviderName));
 
         var normalizedProvider = dto.ProviderName.Trim();
+        if (!IsKnownProvider(normalizedProvider))
+        {
+            throw new ArgumentException($"El proveedor «{normalizedProvider}» no existe en OCAP.");
+        }
 
         // Puede haber varias configuraciones del mismo proveedor (otra clave, otro modelo, otra API compatible); el nombre
         // visible las distingue (índice único). Se avisa antes de dejar un secreto huérfano en el vault.
@@ -210,7 +219,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
                 : await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
         }
 
-        config ??= await query.FirstOrDefaultAsync(cancellationToken);
+        // El más antiguo: sin orden, el predeterminado podría cambiar entre una petición y otra.
+        config ??= await query.OrderBy(c => c.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken);
 
         if (config == null)
         {
@@ -264,6 +274,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             && !string.Equals(c.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
         return other is null ? null : await BuildRuntimeProviderAsync(tenantId, other, cancellationToken);
     }
+
+    private bool IsKnownProvider(string provider) =>
+        BuiltInProviders.Contains(provider)
+        || _providerRegistry.GetRegisteredProviderNames().Contains(provider, StringComparer.OrdinalIgnoreCase);
 
     private static bool CanFailOver(string provider) =>
         provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase)
