@@ -125,5 +125,5 @@ Ejecutada en `develop` (`46dc487`), con los datos `QA-` eliminados al terminar. 
 
 Corregidos en `develop` los hallazgos 10 a 22. Tarjetas y claves se ocultan antes de guardar; cédulas y pasaportes siguen
 visibles en el historial para la atención al cliente, aunque la memoria no los guarda. Las colecciones repetidas se
-rechazan por comprobación previa, sin índice único: dos peticiones simultáneas todavía podrían crearlas.
+rechazan también con un índice único en la base.
 

@@ -22,9 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ni clave de IA: eso se resuelve en `/setup`. El administrador por entorno sigue para instalaciones sin intervención.
 - Los números de tarjeta y las claves que escribe un cliente se ocultan antes de guardar el mensaje o enviarlo al modelo.
 - La memoria también se extrae de un único mensaje largo.
+- La memoria procesa como mucho 5 conversaciones por organización en cada pasada, para que una sola no gaste la cuota.
+- WebChat avisa en el panel cuando un canal no tiene sitios autorizados.
 
 ### Fixed
 - Las subidas se truncaban a 10 MB en el proxy del panel y en Nginx; ahora admiten el tope de cada función.
+- Dos peticiones simultáneas ya no crean colecciones repetidas: hay un índice único. Las que ya estuvieran repetidas se
+  renombran al actualizar («Precios (2)»).
 - Validaciones: colección inexistente, nombres largos o repetidos, proveedores de IA inexistentes y agentes inválidos.
 - Los registros muestran el estado real de la respuesta en lugar de 500 en errores ya atendidos.
 - El proxy del panel cortaba a los 30 s las respuestas lentas del modelo y el cliente se quedaba sin contestación.
