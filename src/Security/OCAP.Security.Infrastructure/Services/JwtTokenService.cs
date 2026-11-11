@@ -11,8 +11,11 @@ namespace OCAP.Security.Infrastructure.Services;
 // Servicio de emisión y validación de tokens JWT estructurados con Claims de seguridad.
 public class JwtTokenService : IJwtTokenService
 {
-    /// <summary>Permiso de quien administra la instalación; lo exige la política <c>System.Manage</c> de la API.</summary>
-    public const string SystemAdminPermission = "System.Manage";
+    /// <summary>
+    /// Marca de quien administra la instalación. Es un tipo de claim propio y no un permiso: los permisos salen del rol,
+    /// que cualquier administrador puede editar, y con eso se habría podido dar el sistema a sí mismo.
+    /// </summary>
+    public const string SystemAdminClaim = "system_admin";
 
     private readonly string _secretKey;
     private readonly string _issuer;
@@ -70,7 +73,7 @@ public class JwtTokenService : IJwtTokenService
         // Va en la cuenta y no en el rol: invitar a otro administrador no le da la instalación.
         if (user.IsSystemAdmin)
         {
-            claims.Add(new Claim("permission", SystemAdminPermission));
+            claims.Add(new Claim(SystemAdminClaim, "true"));
         }
 
         var tokenDescriptor = new SecurityTokenDescriptor

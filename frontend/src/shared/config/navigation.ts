@@ -1,4 +1,5 @@
 import { BookOpen, Bot, Cpu, Inbox, MessageSquare, Settings, SlidersHorizontal, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { SYSTEM_MANAGE } from "@/shared/api/jwt";
 
 export interface NavItem {
   href: string;
@@ -7,9 +8,6 @@ export interface NavItem {
   /** Permiso del rol (el mismo código que exige la API); sin él, cualquier sesión. */
   permission?: string;
 }
-
-/** Ajustes de toda la instalación: lo lleva una sola cuenta y ningún rol lo incluye. */
-export const SYSTEM_MANAGE = "System.Manage";
 
 /** Pantallas sin sesión y sin el marco del panel. */
 export const PUBLIC_ROUTES = ["/login", "/setup", "/accept", "/forgot-password"];

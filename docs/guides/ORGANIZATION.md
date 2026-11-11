@@ -55,8 +55,9 @@ por minuto), cada cuánto se comprueba la sesión y qué dominios pueden llamar 
 guardar, sin reiniciar. Un campo vacío usa el valor del servidor.
 
 Solo la ve la cuenta que instaló OCAP. El permiso va en esa cuenta y no en el rol: invitar a otro administrador no se lo
-da, y esa cuenta no se puede desactivar ni pasar a operador. Todavía no se puede traspasar a otra persona desde el
-panel.
+da. Otro administrador no puede desactivarla, bloquearla, pasarla a operador ni generar su enlace de contraseña. Si
+olvida la contraseña, la recupera por correo con «Olvidé mi contraseña», así que conviene tener el correo saliente
+configurado. Todavía no se puede traspasar a otra persona desde el panel.
 
 Los dominios definidos en el servidor (`PUBLIC_PANEL_URL`) valen siempre, aunque se borren los del panel.
 

@@ -3,6 +3,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using OCAP.Infrastructure.Persistence.Context;
 using OCAP.Api.Tests.Infrastructure;
 
 namespace OCAP.Api.Tests.Endpoints;
@@ -77,6 +80,47 @@ public class SystemSettingsTests
         var demote = await second.PutAsJsonAsync($"/api/team/{ownerId}/role", new { role = "Operator" });
         demote.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await demote.Content.ReadAsStringAsync()).Should().Contain("administra el sistema");
+    }
+
+    [Fact]
+    public async Task ARoleEditedToClaimTheSystem_StillCannotOpenIt()
+    {
+        using var factory = new OcapApiFactory();
+        var owner = await LoginAsync(factory, AdminEmail, AdminPassword);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
+            foreach (var role in await db.Roles.IgnoreQueryFilters().ToListAsync())
+            {
+                role.AddPermission("System.Manage");
+                role.AddPermission("system_admin");
+            }
+            await db.SaveChangesAsync();
+        }
+
+        var second = await InviteAdminAsync(factory, owner, "segundo@ocap.io");
+
+        (await second.GetAsync(Url)).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AnotherAdministrator_CannotTakeOverOrBlockTheSystemAccount()
+    {
+        using var factory = new OcapApiFactory();
+        var owner = await LoginAsync(factory, AdminEmail, AdminPassword);
+        var second = await InviteAdminAsync(factory, owner, "segundo@ocap.io");
+        var ownerId = (await second.GetFromJsonAsync<TeamList>("/api/team"))!.Members.Single(m => m.Email == AdminEmail).Id;
+
+        var link = await second.PostAsync($"/api/team/{ownerId}/password-link", null);
+        link.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await link.Content.ReadAsStringAsync()).Should().Contain("administra el sistema").And.NotContain("token=");
+
+        (await second.PostAsync($"/api/users/{ownerId}/lock", null)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await second.PostAsync($"/api/users/{ownerId}/deactivate", null)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await second.PostAsJsonAsync("/api/users/reset-password", new { email = AdminEmail })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        (await Login(factory.CreateClient(), AdminEmail, AdminPassword)).StatusCode.Should().Be(HttpStatusCode.OK, "la cuenta sigue intacta");
+        (await owner.PostAsync($"/api/team/{ownerId}/password-link", null)).StatusCode.Should().Be(HttpStatusCode.OK, "su dueño sí puede renovar su enlace");
     }
 
     [Fact]

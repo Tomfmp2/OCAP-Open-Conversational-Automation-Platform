@@ -11,8 +11,7 @@ import { clearAuthSession, setAuthSession } from "@/shared/api/tokenStorage";
 import type { StoredUser } from "@/shared/api/types";
 import { apiClient, refreshSession } from "@/shared/api/apiClient";
 import { redirectToLogin } from "@/shared/api/sessionRedirect";
-import { permissionsFromToken } from "@/shared/api/jwt";
-import { SYSTEM_MANAGE } from "@/shared/config/navigation";
+import { permissionsFromToken, SYSTEM_MANAGE } from "@/shared/api/jwt";
 
 // El access token dura 15 minutos: se renueva un poco antes con la cookie del refresh token.
 const REFRESH_INTERVAL_MS = 14 * 60 * 1000;

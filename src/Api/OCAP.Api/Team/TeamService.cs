@@ -110,6 +110,8 @@ public sealed class TeamService
     {
         var user = await _db.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
         if (user is null) return null;
+        // Con el enlace se define la contraseña: otro administrador se quedaría con la cuenta del sistema.
+        if (userId != actingUserId) EnsureNotSystemAdmin(user, "generar su enlace de contraseña");
 
         var link = await IssueLinkAsync(user, user.IsEmailVerified ? ResetLifetime : InvitationLifetime, !user.IsEmailVerified, cancellationToken);
         await _audit.LogSecurityEventAsync(tenantId, actingUserId, "Team.PasswordLink", $"Enlace de contraseña para {user.Email}", "TeamService", true, cancellationToken);

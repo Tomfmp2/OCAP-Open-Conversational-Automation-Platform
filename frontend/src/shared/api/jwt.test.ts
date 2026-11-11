@@ -13,6 +13,11 @@ describe("permissionsFromToken", () => {
     expect(permissionsFromToken(token({ permission: "Security.Manage" }))).toEqual(["Security.Manage"]);
   });
 
+  it("el sistema solo sale de la marca de la cuenta, nunca de un permiso de rol", () => {
+    expect(permissionsFromToken(token({ permission: ["Admin.Full", "System.Manage"] }))).toEqual(["Admin.Full"]);
+    expect(permissionsFromToken(token({ permission: "Admin.Full", system_admin: "true" }))).toEqual(["Admin.Full", "System.Manage"]);
+  });
+
   it("sin token válido no concede nada", () => {
     expect(permissionsFromToken(null)).toEqual([]);
     expect(permissionsFromToken("no-es-un-jwt")).toEqual([]);

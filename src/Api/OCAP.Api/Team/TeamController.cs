@@ -46,11 +46,8 @@ public sealed class TeamController : ControllerBase
     }
 
     [HttpPost("{id:guid}/password-link")]
-    public async Task<IActionResult> PasswordLink(Guid id, CancellationToken cancellationToken)
-    {
-        var link = await _team.CreatePasswordLinkAsync(TenantId, UserId, id, cancellationToken);
-        return link is null ? NotFound() : Ok(link);
-    }
+    public Task<IActionResult> PasswordLink(Guid id, CancellationToken cancellationToken) =>
+        Rule(async () => await _team.CreatePasswordLinkAsync(TenantId, UserId, id, cancellationToken) is { } link ? Ok(link) : NotFound());
 
     [HttpPut("{id:guid}/role")]
     public Task<IActionResult> ChangeRole(Guid id, [FromBody] ChangeMemberRoleRequest request, CancellationToken cancellationToken) =>
