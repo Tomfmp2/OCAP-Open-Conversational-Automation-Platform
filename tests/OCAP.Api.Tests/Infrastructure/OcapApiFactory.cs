@@ -100,6 +100,7 @@ public class OcapApiFactory : WebApplicationFactory<Program>
             salt,
             "Test Administrator");
         admin.VerifyEmail();
+        admin.GrantSystemAdmin(); // como el administrador que crea la configuración inicial
 
         db.Tenants.Add(tenant);
         db.Roles.Add(role);

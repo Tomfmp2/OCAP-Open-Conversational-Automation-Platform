@@ -48,6 +48,18 @@ Sin cliente en el panel, Google Workspace queda sin conectar.
 En **Equipo** invitas personas por correo, o copias el enlace si no hay correo configurado, y eliges su rol. Cada
 invitado define su contraseña con un enlace de un solo uso.
 
+## Sistema
+
+**Sistema** reúne los ajustes de toda la instalación: límites de uso (peticiones, intentos de inicio de sesión y WebChat
+por minuto), cada cuánto se comprueba la sesión y qué dominios pueden llamar a la API desde un navegador. Se aplican al
+guardar, sin reiniciar. Un campo vacío usa el valor del servidor.
+
+Solo la ve la cuenta que instaló OCAP. El permiso va en esa cuenta y no en el rol: invitar a otro administrador no se lo
+da, y esa cuenta no se puede desactivar ni pasar a operador. Todavía no se puede traspasar a otra persona desde el
+panel.
+
+Los dominios definidos en el servidor (`PUBLIC_PANEL_URL`) valen siempre, aunque se borren los del panel.
+
 ## Permisos
 
 | Acción | Permiso |
@@ -56,5 +68,6 @@ invitado define su contraseña con un enlace de un solo uso.
 | Dirección del panel y correo saliente | `Security.Manage` |
 | Google Workspace | `OAuth.Manage` |
 | Equipo | `Security.Manage` |
+| Sistema | `System.Manage`, solo la cuenta que instaló |
 
 Los cambios quedan en el registro de auditoría.

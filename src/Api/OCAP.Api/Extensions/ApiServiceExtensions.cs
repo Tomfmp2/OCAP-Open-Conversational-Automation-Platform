@@ -134,41 +134,46 @@ public static partial class ApiServiceExtensions
         var corsSettings = configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
             ?? new CorsSettings();
 
-        services.AddCors(options =>
-        {
-            options.AddPolicy("OcapCorsPolicy", policy =>
+        services.AddCors();
+        services.AddOptions<Microsoft.AspNetCore.Cors.Infrastructure.CorsOptions>()
+            .Configure<SystemSettingsStore>((options, system) =>
             {
-                if (corsSettings.AllowedOrigins.Length > 0)
+                // Los del servidor valen siempre: son la vía de rescate si alguien borra en el panel el dominio del
+                // propio panel. Los del panel se consultan en cada petición, sin reiniciar.
+                var fromServer = new HashSet<string>(corsSettings.AllowedOrigins, StringComparer.OrdinalIgnoreCase);
+
+                options.AddPolicy("OcapCorsPolicy", policy =>
                 {
-                    policy.WithOrigins(corsSettings.AllowedOrigins)
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
+                    policy.SetIsOriginAllowed(origin =>
+                            fromServer.Contains(origin)
+                            || system.Current.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase))
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
 
                     if (corsSettings.AllowCredentials)
                     {
                         policy.AllowCredentials();
                     }
-                }
-                else
-                {
-                    policy.SetIsOriginAllowed(_ => false);
-                }
-            });
+                });
 
-            // Widget de WebChat incrustado en sitios de clientes: cualquier origen puede llamarlo (sin cookies) y el
-            // controlador limita cada canal a sus dominios permitidos.
-            options.AddPolicy(PublicWidgetCorsPolicy, policy => policy
-                .AllowAnyOrigin()
-                .WithMethods("GET", "POST")
-                .WithHeaders("Content-Type"));
-        });
+                // Widget de WebChat incrustado en sitios de clientes: cualquier origen puede llamarlo (sin cookies) y el
+                // controlador limita cada canal a sus dominios permitidos.
+                options.AddPolicy(PublicWidgetCorsPolicy, policy => policy
+                    .AllowAnyOrigin()
+                    .WithMethods("GET", "POST")
+                    .WithHeaders("Content-Type"));
+            });
     }
 
     private static void AddRateLimiting(IServiceCollection services)
     {
-        // Los límites se leen en cada petición (IOptions): así respetan la configuración final del host.
-        static RateLimitingSettings Settings(HttpContext context) =>
-            context.RequestServices.GetRequiredService<IOptions<RateLimitingSettings>>().Value;
+        // Los límites se leen en cada petición: primero lo definido en el panel y, si falta, la configuración del host.
+        static RateLimitingSettings Settings(HttpContext context)
+        {
+            var configured = context.RequestServices.GetRequiredService<IOptions<RateLimitingSettings>>().Value;
+            var system = context.RequestServices.GetRequiredService<SystemSettingsStore>().Current;
+            return RateLimitingSettings.WithOverrides(configured, system);
+        }
 
         services.AddRateLimiter(options =>
         {
@@ -192,7 +197,7 @@ public static partial class ApiServiceExtensions
                 var limit = Settings(context).AuthPermitLimit;
                 return limit <= 0
                     ? RateLimitPartition.GetNoLimiter("auth-off")
-                    : RateLimitPartition.GetFixedWindowLimiter($"auth:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
+                    : RateLimitPartition.GetFixedWindowLimiter($"auth:{limit}:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = limit,
                         Window = TimeSpan.FromMinutes(1),
@@ -214,7 +219,8 @@ public static partial class ApiServiceExtensions
                     return RateLimitPartition.GetNoLimiter("global-off");
 
                 var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                var key = userId is not null ? $"user:{userId}" : $"ip:{ClientKey(context)}";
+                var owner = userId is not null ? $"user:{userId}" : $"ip:{ClientKey(context)}";
+                var key = $"{settings.PermitLimit}:{owner}";
                 return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = settings.PermitLimit,
@@ -225,10 +231,12 @@ public static partial class ApiServiceExtensions
         });
     }
 
+    // El límite forma parte de la clave: el contador se crea con el valor vigente, y sin esto un cambio hecho en el
+    // panel no aplicaría a quien ya tiene contador.
     private static RateLimitPartition<string> PerIpPerMinute(HttpContext context, string prefix, int limit) =>
         limit <= 0
             ? RateLimitPartition.GetNoLimiter($"{prefix}-off")
-            : RateLimitPartition.GetFixedWindowLimiter($"{prefix}:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
+            : RateLimitPartition.GetFixedWindowLimiter($"{prefix}:{limit}:{ClientKey(context)}", _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = limit,
                 Window = TimeSpan.FromMinutes(1),

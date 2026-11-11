@@ -27,6 +27,12 @@ public static class OcapPermissions
     public const string SecurityManage = "Security.Manage";
     public const string ChannelManage = "Channel.Manage";
 
+    /// <summary>
+    /// Ajustes de toda la instalación. Lo lleva la cuenta marcada como administradora del sistema, no un rol, y
+    /// <see cref="FullAccess"/> no lo cumple: afecta a todas las organizaciones.
+    /// </summary>
+    public const string SystemManage = OCAP.Security.Infrastructure.Services.JwtTokenService.SystemAdminPermission;
+
     /// <summary>Todos los permisos: los tiene el rol Admin.</summary>
     public static readonly IReadOnlyList<string> All =
     [
@@ -51,6 +57,7 @@ public static class OcapPermissions
                     c.Type == ClaimType && (c.Value == permission || c.Value == FullAccess))));
         }
 
+        options.AddPolicy(SystemManage, policy => policy.RequireAuthenticatedUser().RequireClaim(ClaimType, SystemManage));
         options.AddPolicy(FullAccess, policy => policy.RequireAuthenticatedUser().RequireClaim(ClaimType, FullAccess));
 
         return options;

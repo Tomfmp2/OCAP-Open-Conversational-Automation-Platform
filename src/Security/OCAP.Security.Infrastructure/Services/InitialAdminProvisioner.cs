@@ -67,6 +67,8 @@ public sealed class InitialAdminProvisioner
         var role = new Role(Guid.NewGuid(), tenant.Id, "Admin", "Administrador del tenant", AdminPermissions);
         var user = new UserIdentity(Guid.NewGuid(), tenant.Id, request.Email.Trim().ToLowerInvariant(), hash, salt, request.DisplayName.Trim());
         user.VerifyEmail();
+        // Quien instala administra también la instalación: límites de uso, dominios y duración de sesión.
+        user.GrantSystemAdmin();
 
         _db.Roles.Add(role);
         _db.UserIdentities.Add(user);

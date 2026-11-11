@@ -1,4 +1,4 @@
-import { BookOpen, Bot, Cpu, Inbox, MessageSquare, Settings, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, Cpu, Inbox, MessageSquare, Settings, SlidersHorizontal, Sparkles, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -7,6 +7,9 @@ export interface NavItem {
   /** Permiso del rol (el mismo código que exige la API); sin él, cualquier sesión. */
   permission?: string;
 }
+
+/** Ajustes de toda la instalación: lo lleva una sola cuenta y ningún rol lo incluye. */
+export const SYSTEM_MANAGE = "System.Manage";
 
 /** Pantallas sin sesión y sin el marco del panel. */
 export const PUBLIC_ROUTES = ["/login", "/setup", "/accept", "/forgot-password"];
@@ -28,6 +31,7 @@ export const MAIN_NAV: NavItem[] = [
 export const ADMIN_NAV: NavItem[] = [
   { href: "/team", label: "Equipo", icon: Users, permission: "Security.Manage" },
   { href: "/settings", label: "Organización", icon: Settings, permission: "Settings.Manage" },
+  { href: "/system", label: "Sistema", icon: SlidersHorizontal, permission: SYSTEM_MANAGE },
 ];
 
 export function isActive(pathname: string, href: string): boolean {

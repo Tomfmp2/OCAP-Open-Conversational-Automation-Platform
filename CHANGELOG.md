@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   proveedor. Nunca se pasa la conversación a otra empresa.
 - **Eliminar colecciones** de Conocimiento, salvo si un canal o agente las usa.
 - **WebChat** permite elegir agente y modelo en el panel.
+- **Sistema**: límites de uso, comprobación de sesión y dominios de la API se ajustan en el panel, sin reiniciar. Solo
+  para la cuenta que instaló; en una instalación existente es el administrador más antiguo.
 
 ### Changed
 - **Configuración en el panel:** `.env` solo guarda lo que el servidor necesita para arrancar. Salen de `.env.example` y

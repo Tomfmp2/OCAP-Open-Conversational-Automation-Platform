@@ -106,6 +106,9 @@ public static class InfrastructureServiceExtensions
             }
         });
 
+        services.AddSingleton<OCAP.Infrastructure.Services.SystemSettingsStore>();
+        services.AddHostedService<OCAP.Infrastructure.Services.SystemSettingsRefreshService>();
+
         services.AddSingleton<OCAP.Core.Events.Distributed.IEventSerializer, OCAP.Infrastructure.Events.Distributed.JsonEventSerializer>();
         services.AddSingleton<OCAP.Core.Events.Distributed.IMessageRetryPolicy, OCAP.Infrastructure.Events.Distributed.ExponentialBackoffRetryPolicy>();
         services.AddSingleton<OCAP.Core.Events.Distributed.IEventTransport>(sp =>

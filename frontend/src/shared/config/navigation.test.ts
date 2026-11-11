@@ -8,6 +8,7 @@ describe("requiredPermissionFor", () => {
     expect(requiredPermissionFor("/channels")).toBe("Channel.Manage");
     expect(requiredPermissionFor("/team")).toBe("Security.Manage");
     expect(requiredPermissionFor("/settings")).toBe("Settings.Manage");
+    expect(requiredPermissionFor("/system")).toBe("System.Manage");
   });
 
   it("Mi cuenta solo pide sesión", () => {
