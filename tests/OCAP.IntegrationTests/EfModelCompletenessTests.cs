@@ -30,7 +30,7 @@ public class EfModelCompletenessTests
             .Select(p => p.PropertyType.GetGenericArguments()[0])
             .ToList();
 
-        dbSetEntityTypes.Should().HaveCount(54);
+        dbSetEntityTypes.Should().HaveCount(55);
 
         foreach (var clrType in dbSetEntityTypes)
         {
