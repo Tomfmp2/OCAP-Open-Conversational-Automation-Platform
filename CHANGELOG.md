@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Los modelos del panel reintentan las caídas momentáneas (`502`, `503`, `504`).
 - La memoria en segundo plano se pausa cuando el modelo falla, en vez de reintentar cada minuto y gastar cuota.
 - El asistente mostraba los símbolos de Markdown (`**negrita**`) en vez de dar formato a la respuesta.
+- Si Calendar, Gmail o Sheets fallan, el asistente dice qué revisar en Google en vez de culpar al modelo de IA.
 - Panel en pantallas pequeñas: inicio, cabeceras del asistente y de conversaciones, zoom de iPhone al tocar un campo y
   enlaces táctiles.
 
