@@ -91,8 +91,16 @@ public class KnowledgeController : ControllerBase
         if (existing.Any(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase)))
             return Problem(statusCode: StatusCodes.Status409Conflict, title: $"Ya hay una colección llamada «{name}».");
 
-        var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
-        return Ok(kb);
+        try
+        {
+            var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
+            return Ok(kb);
+        }
+        // Dos peticiones a la vez pasan la comprobación anterior; la segunda la frena el índice único de la base.
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: $"Ya hay una colección llamada «{name}».");
+        }
     }
 
     [HttpPost("upload")]
