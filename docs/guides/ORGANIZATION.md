@@ -43,6 +43,9 @@ La conexión usa un parámetro `state` firmado que caduca a los 10 minutos y est
 que un código de otra cuenta no se pueda colar (CSRF). Los tokens de Google se guardan cifrados y se renuevan solos.
 Sin cliente en el panel, Google Workspace queda sin conectar.
 
+Conectar la cuenta no basta: en el mismo proyecto de Google Cloud hay que activar cada API que se use (Google Calendar,
+Gmail, Google Sheets) en **APIs y servicios → Biblioteca**. El panel enlaza a las tres.
+
 ## Equipo
 
 En **Equipo** invitas personas por correo, o copias el enlace si no hay correo configurado, y eliges su rol. Cada

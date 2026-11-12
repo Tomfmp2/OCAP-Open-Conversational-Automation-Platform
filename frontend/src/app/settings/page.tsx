@@ -312,11 +312,41 @@ function GoogleSection() {
         <div className="max-w-md space-y-6">
           <GoogleClientForm key={settings.data.clientId ?? "none"} clientId={settings.data.clientId} usesServer={settings.data.usesServer} />
           {configured && <GoogleConnection connected={!!connection.data?.isConnected} loading={connection.isLoading} />}
+          <GoogleApisHint />
         </div>
       ) : (
         <div className="h-40 animate-pulse rounded-lg bg-neutral-100 motion-reduce:animate-none" role="status" aria-label="Cargando" />
       )}
     </Section>
+  );
+}
+
+const GOOGLE_APIS = [
+  { name: "Google Calendar", id: "calendar-json.googleapis.com" },
+  { name: "Gmail", id: "gmail.googleapis.com" },
+  { name: "Google Sheets", id: "sheets.googleapis.com" },
+];
+
+/** Conectar la cuenta no basta: cada API se activa aparte en Google Cloud, y sin eso Google rechaza la acción. */
+function GoogleApisHint() {
+  return (
+    <p className="text-sm text-neutral-600">
+      Además del cliente, activa en tu proyecto de Google Cloud las API que vayas a usar:{" "}
+      {GOOGLE_APIS.map((api, i) => (
+        <React.Fragment key={api.id}>
+          {i > 0 && ", "}
+          <a
+            href={`https://console.cloud.google.com/apis/library/${api.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-neutral-900 underline underline-offset-2"
+          >
+            {api.name}
+          </a>
+        </React.Fragment>
+      ))}
+      . Sin eso el asistente no podrá crear eventos, enviar correos ni escribir en hojas.
+    </p>
   );
 }
 
