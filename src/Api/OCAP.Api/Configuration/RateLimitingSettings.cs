@@ -28,6 +28,19 @@ public class RateLimitingSettings
     // Tamaño de la ventana deslizante en segundos.
     public int WindowSeconds { get; set; } = 60;
 
+    // Lo definido en el panel (sección Sistema) gana a la configuración del host; lo que el panel deja vacío no cambia.
+    public static RateLimitingSettings WithOverrides(RateLimitingSettings configured, OCAP.Infrastructure.Services.SystemSettingsSnapshot system) => new()
+    {
+        EnableRateLimiting = system.RateLimitingEnabled ?? configured.EnableRateLimiting,
+        PermitLimit = system.RequestsPerMinute ?? configured.PermitLimit,
+        AuthPermitLimit = system.AuthAttemptsPerMinute ?? configured.AuthPermitLimit,
+        WidgetMessagesPermitLimit = system.WidgetMessagesPerMinute ?? configured.WidgetMessagesPermitLimit,
+        WidgetReadPermitLimit = system.WidgetReadsPerMinute ?? configured.WidgetReadPermitLimit,
+        // Los límites del panel son por minuto: con uno definido, la ventana deja de seguir la del host.
+        WindowSeconds = system.RequestsPerMinute is null ? configured.WindowSeconds : 60,
+        QueueLimit = configured.QueueLimit
+    };
+
     // Sin uso: el límite global responde 429 al momento en vez de encolar. Se mantiene para no romper appsettings.
     public int QueueLimit { get; set; }
 }

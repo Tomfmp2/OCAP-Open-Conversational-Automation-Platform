@@ -68,7 +68,8 @@ public class UserManagementService : IUserManagementService
     public async Task<bool> LockUserAsync(Guid tenantId, Guid userId, TimeSpan? duration = null, CancellationToken cancellationToken = default)
     {
         var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
-        if (user == null || user.IsLocked) return false;
+        // La cuenta del sistema no se bloquea, desactiva ni restablece desde otra: es la única que ajusta la instalación.
+        if (user == null || user.IsLocked || user.IsSystemAdmin) return false;
 
         user.Lock(duration);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -104,7 +105,7 @@ public class UserManagementService : IUserManagementService
     public async Task<bool> DeactivateUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
     {
         var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
-        if (user == null || !user.IsActive) return false;
+        if (user == null || !user.IsActive || user.IsSystemAdmin) return false;
 
         user.Deactivate();
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -118,7 +119,7 @@ public class UserManagementService : IUserManagementService
         if (request == null || string.IsNullOrWhiteSpace(request.Email)) return false;
 
         var user = await _dbContext.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Email == request.Email.ToLowerInvariant(), cancellationToken);
-        if (user == null) return false;
+        if (user == null || user.IsSystemAdmin) return false;
 
         // Solo se guarda el hash: el enlace para usarlo lo genera el equipo (POST /api/team/{id}/password-link).
         var resetToken = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(

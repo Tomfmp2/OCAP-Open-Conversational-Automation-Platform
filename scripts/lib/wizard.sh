@@ -89,45 +89,6 @@ ask_language() {
   export OCAP_LANGUAGE
 }
 
-_ask_admin() {
-  _section "$(t section_admin)"
-  W_ADMIN_NAME="$(clean_text "$(_ask "$(t ask_admin_name "$(t default_admin_name)")")")"
-  [[ -z "$W_ADMIN_NAME" ]] && W_ADMIN_NAME="$(t default_admin_name)"
-
-  while :; do
-    W_ADMIN_EMAIL="$(clean_text "$(_ask "$(t ask_email)")")"
-    valid_email "$W_ADMIN_EMAIL" && break
-    t bad_email > /dev/tty; echo > /dev/tty
-  done
-
-  local again
-  while :; do
-    W_ADMIN_PASSWORD="$(_ask_secret "$(t ask_password)")"
-    if [[ "$W_ADMIN_PASSWORD" == *"'"* ]]; then t quote_password "'" > /dev/tty; echo > /dev/tty; continue; fi
-    if ! strong_password "$W_ADMIN_PASSWORD"; then t weak_password > /dev/tty; echo > /dev/tty; continue; fi
-    again="$(_ask_secret "$(t ask_password_again)")"
-    [[ "$again" == "$W_ADMIN_PASSWORD" ]] && break
-    t password_mismatch > /dev/tty; echo > /dev/tty
-  done
-}
-
-_ask_ai() {
-  _section "$(t section_ai)"
-  local choice
-  choice="$(_ask "$(t ask_ai)")"
-  case "$choice" in
-    1) W_AI_PROVIDER=Gemini ;;
-    2) W_AI_PROVIDER=OpenAI ;;
-    3) W_AI_PROVIDER=Claude ;;
-    *) W_AI_PROVIDER=""; W_AI_KEY=""; return ;;
-  esac
-  W_AI_KEY="$(clean_text "$(_ask_secret "$(t ask_ai_key "$W_AI_PROVIDER")")")"
-  if [[ -z "$W_AI_KEY" ]]; then
-    W_AI_PROVIDER=""
-    t empty_key > /dev/tty; echo > /dev/tty
-  fi
-}
-
 _ask_prefs() {
   _section "$(t section_prefs)"
   if ask_yes_no "$(t ask_lan)" n; then W_BIND=0.0.0.0; t lan_warning > /dev/tty; echo > /dev/tty; else W_BIND=127.0.0.1; fi
@@ -167,15 +128,12 @@ _row() {
 }
 
 _summary() {
-  local ai="${W_AI_PROVIDER:-$(t summary_demo)}" access panel
+  local access panel
   if [[ "$W_BIND" == "0.0.0.0" ]]; then access="$(t summary_lan)"; else access="$(t summary_local)"; fi
   panel="http://localhost:$(_port_of FRONTEND_HOST_PORT)"
   {
     _section "$(t summary)"
     if [[ "$OCAP_LANGUAGE" == en ]]; then _row "$(t summary_lang)" English; else _row "$(t summary_lang)" Español; fi
-    [[ -n "${W_ORG:-}" ]] && _row "$(t summary_org)" "$W_ORG"
-    [[ -n "${W_ADMIN_EMAIL:-}" ]] && _row "$(t summary_admin)" "$W_ADMIN_EMAIL ($W_ADMIN_NAME)"
-    _row "$(t summary_ai)" "$ai"
     _row "$(t summary_access)" "$access"
     _row "$(t summary_browser)" "$(_yes_no "$W_BROWSER" true)"
     _row "$(t summary_autostart)" "$(_yes_no "$W_AUTOSTART" 1)"
@@ -187,12 +145,13 @@ _summary() {
 # wizard_run install|config ENV_FILE — pregunta (o toma variables) y deja las respuestas en W_*.
 wizard_run() {
   local mode="$1" env_file="$2"
-  W_ORG=""; W_ADMIN_NAME=""; W_ADMIN_EMAIL=""; W_ADMIN_PASSWORD=""; W_AI_PROVIDER=""; W_AI_KEY=""
+  W_ORG=""; W_ADMIN_NAME=""; W_ADMIN_EMAIL=""; W_ADMIN_PASSWORD=""
   W_BIND="$(env_get "$env_file" OCAP_BIND_ADDRESS)"; W_BIND="${W_BIND:-127.0.0.1}"
   W_BROWSER="$(env_get "$env_file" OCAP_OPEN_BROWSER)"; W_BROWSER="${W_BROWSER:-true}"
   W_AUTOSTART=0; autostart_is_enabled && W_AUTOSTART=1
 
   if ! interactive; then
+    # Instalación sin nadie delante: es la única que crea el administrador por entorno; las demás usan /setup.
     if [[ "$mode" == "install" ]]; then
       W_ORG="$(clean_text "${OCAP_ORG_NAME:-}")"
       W_ADMIN_NAME="$(clean_text "${OCAP_ADMIN_NAME:-}")"
@@ -206,14 +165,7 @@ wizard_run() {
   fi
 
   while :; do
-    if [[ "$mode" == "install" ]]; then
-      t welcome > /dev/tty; echo > /dev/tty
-      _section "$(t section_org)"
-      W_ORG="$(clean_text "$(_ask "$(t ask_org "$(t default_org)")")")"
-      [[ -z "$W_ORG" ]] && W_ORG="$(t default_org)"
-      _ask_admin
-    fi
-    _ask_ai
+    [[ "$mode" == "install" ]] && { t welcome > /dev/tty; echo > /dev/tty; }
     _ask_prefs
     _resolve_ports "$env_file"
     _summary
@@ -240,8 +192,5 @@ wizard_apply() {
     env_set "$env_file" BOOTSTRAP_ADMIN_NAME "$W_ADMIN_NAME" 1
     env_set "$env_file" BOOTSTRAP_ADMIN_EMAIL "$W_ADMIN_EMAIL" 1
     env_set "$env_file" BOOTSTRAP_ADMIN_PASSWORD "$W_ADMIN_PASSWORD" 1
-  fi
-  if [[ -n "${W_AI_PROVIDER:-}" ]]; then
-    env_set "$env_file" "AiProviders__${W_AI_PROVIDER}__ApiKey" "$W_AI_KEY" 1
   fi
 }

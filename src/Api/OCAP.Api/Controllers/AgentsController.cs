@@ -46,8 +46,10 @@ public class AgentsController : ControllerBase
 
     [HttpPost]
     [Authorize(Policy = OcapPermissions.AgentWrite)]
-    public async Task<ActionResult<AgentDto>> CreateAgent([FromBody] CreateAgentRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AgentDto>> CreateAgent([FromBody] CreateAgentRequest request, [FromServices] IToolRegistry tools, CancellationToken cancellationToken)
     {
+        if (InvalidDefinition(request.SystemPrompt, request.AllowedTools, tools) is { } invalid) return invalid;
+
         var agent = await _agentService.CreateAgentAsync(
             request.Name, 
             request.Description, 
@@ -64,8 +66,10 @@ public class AgentsController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Policy = OcapPermissions.AgentWrite)]
-    public async Task<IActionResult> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateAgent(Guid id, [FromBody] UpdateAgentRequest request, [FromServices] IToolRegistry tools, CancellationToken cancellationToken)
     {
+        if (InvalidDefinition(request.SystemPrompt, request.AllowedTools, tools) is { } invalid) return invalid;
+
         try
         {
             await _agentService.UpdateAgentAsync(id, request.Name, request.Description, request.SystemPrompt, request.AllowedTools ?? new List<string>(), cancellationToken, request.KnowledgeBaseIds, request.RememberContacts);
@@ -154,6 +158,18 @@ public class AgentsController : ControllerBase
     }
 
     /// <summary>Herramientas que se le pueden habilitar a un agente de canal (solo las seguras frente a contactos externos).</summary>
+    private ObjectResult? InvalidDefinition(string? systemPrompt, IEnumerable<string>? allowedTools, IToolRegistry tools)
+    {
+        if (string.IsNullOrWhiteSpace(systemPrompt))
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: "Escribe las instrucciones del agente.");
+
+        var known = tools.GetAllTools().Select(t => t.Definition.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknown = (allowedTools ?? []).Where(t => !known.Contains(t)).ToList();
+        return unknown.Count == 0
+            ? null
+            : Problem(statusCode: StatusCodes.Status400BadRequest, title: $"Acción desconocida: {string.Join(", ", unknown)}.");
+    }
+
     [HttpGet("tools")]
     public ActionResult<IEnumerable<AgentToolDto>> GetTools([FromServices] IToolRegistry tools) =>
         Ok(tools.GetAllTools()

@@ -25,6 +25,8 @@ export interface KnowledgeSearchResult {
 const BASES_KEY = ["knowledge", "bases"];
 const documentsKey = (baseId: string) => ["knowledge", "documents", baseId];
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 export function useKnowledgeBases() {
   return useQuery<KnowledgeBase[]>({ queryKey: BASES_KEY, queryFn: () => apiClient.get<KnowledgeBase[]>("/api/knowledge") });
 }
@@ -47,17 +49,24 @@ export function useKnowledgeActions(baseId: string | null) {
   };
 
   return {
+    removeBase: useMutation({
+      mutationFn: (id: string) => apiClient.delete(`/api/knowledge/base/${id}`),
+      onSuccess: () => void queryClient.invalidateQueries({ queryKey: BASES_KEY }),
+    }),
     createBase: useMutation({
       mutationFn: (name: string) => apiClient.post<KnowledgeBase>("/api/knowledge", { name, description: "" }),
       onSuccess: () => void queryClient.invalidateQueries({ queryKey: BASES_KEY }),
     }),
     upload: useMutation({
       mutationFn: (file: File) => {
+        // Se avisa antes de enviar: un archivo grande tardaría en subir solo para ser rechazado.
+        if (file.size > MAX_UPLOAD_BYTES) return Promise.reject(new Error(`«${file.name}» supera los 10 MB.`));
         const form = new FormData();
         form.append("file", file);
         form.append("knowledgeBaseId", baseId ?? "");
         form.append("category", "General");
-        return apiClient.upload("/api/knowledge/upload", form);
+        // Leer e indexar un archivo grande puede tardar más que el plazo por defecto.
+        return apiClient.upload("/api/knowledge/upload", form, { timeout: 120_000 });
       },
       onSettled: refresh,
     }),

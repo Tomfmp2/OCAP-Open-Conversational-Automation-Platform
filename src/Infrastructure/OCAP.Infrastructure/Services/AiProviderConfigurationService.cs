@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,19 +15,27 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
 {
     public const string OpenAiCompatible = "OpenAICompatible";
 
+    private static readonly HashSet<string> BuiltInProviders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "OpenAI", OpenAiCompatible, "Gemini", "Claude", "Anthropic", "Ollama", "Local",
+    };
+
     private readonly OCAPDbContext _dbContext;
     private readonly ICredentialVault _credentialVault;
     private readonly IAiProviderRegistry _providerRegistry;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AiProviderConfigurationService> _logger;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
     public AiProviderConfigurationService(
         OCAPDbContext dbContext,
         ICredentialVault credentialVault,
         IAiProviderRegistry providerRegistry,
         IConfiguration configuration,
-        ILogger<AiProviderConfigurationService> logger)
+        ILogger<AiProviderConfigurationService> logger,
+        IServiceScopeFactory? scopeFactory = null)
     {
+        _scopeFactory = scopeFactory;
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _credentialVault = credentialVault ?? throw new ArgumentNullException(nameof(credentialVault));
         _providerRegistry = providerRegistry ?? throw new ArgumentNullException(nameof(providerRegistry));
@@ -40,6 +49,10 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
         if (string.IsNullOrWhiteSpace(dto.ProviderName)) throw new ArgumentException("ProviderName is required.", nameof(dto.ProviderName));
 
         var normalizedProvider = dto.ProviderName.Trim();
+        if (!IsKnownProvider(normalizedProvider))
+        {
+            throw new ArgumentException($"El proveedor «{normalizedProvider}» no existe en OCAP.");
+        }
 
         // Puede haber varias configuraciones del mismo proveedor (otra clave, otro modelo, otra API compatible); el nombre
         // visible las distingue (índice único). Se avisa antes de dejar un secreto huérfano en el vault.
@@ -206,7 +219,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
                 : await query.FirstOrDefaultAsync(c => c.ProviderName.ToLower() == preferredProvider.Trim().ToLower(), cancellationToken);
         }
 
-        config ??= await query.FirstOrDefaultAsync(cancellationToken);
+        // El más antiguo: sin orden, el predeterminado podría cambiar entre una petición y otra.
+        config ??= await query.OrderBy(c => c.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken);
 
         if (config == null)
         {
@@ -242,6 +256,33 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Id == configurationId && c.IsEnabled, cancellationToken);
         return config is null ? null : await BuildRuntimeProviderAsync(tenantId, config, cancellationToken);
     }
+
+    public async Task<IAiProvider?> GetFallbackProviderAsync(Guid tenantId, string failedProvider, string failedModel, CancellationToken cancellationToken = default)
+    {
+        // Solo otro modelo del mismo proveedor en la nube: las conversaciones no pasan sin permiso a otra empresa, ni de un
+        // servidor local o de una dirección propia a un tercero.
+        if (!CanFailOver(failedProvider)) return null;
+
+        var configs = await _dbContext.AiProviderConfigurations
+            .AsNoTracking()
+            .Where(c => c.TenantId == tenantId && c.IsEnabled && c.ProviderName == failedProvider)
+            .OrderBy(c => c.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var other = configs.FirstOrDefault(c =>
+            string.IsNullOrWhiteSpace(ReadBaseUrl(c.SettingsJson))
+            && !string.Equals(c.ModelName, failedModel, StringComparison.OrdinalIgnoreCase));
+        return other is null ? null : await BuildRuntimeProviderAsync(tenantId, other, cancellationToken);
+    }
+
+    private bool IsKnownProvider(string provider) =>
+        BuiltInProviders.Contains(provider)
+        || _providerRegistry.GetRegisteredProviderNames().Contains(provider, StringComparer.OrdinalIgnoreCase);
+
+    private static bool CanFailOver(string provider) =>
+        provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase)
+        || provider.Equals("Claude", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Proveedor listo para usar con la key de la configuración (vault, o .env en desarrollo).</summary>
     private async Task<IAiProvider?> BuildRuntimeProviderAsync(Guid tenantId, AiProviderConfiguration config, CancellationToken cancellationToken)
@@ -328,7 +369,8 @@ public class AiProviderConfigurationService : IAiProviderConfigurationService
             }
         }
 
-        return _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
+        var provider = _providerRegistry.CreateDynamicProvider(config.ProviderName, modelName, apiKey, baseUrl);
+        return _scopeFactory is null ? provider : new UsageTrackingAiProvider(provider, tenantId, _scopeFactory, _logger);
     }
 
     /// <summary>

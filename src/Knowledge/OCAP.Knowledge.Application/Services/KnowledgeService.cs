@@ -92,7 +92,11 @@ public class KnowledgeService
 
         // 2. Verificar pertenencia de la KnowledgeBase al Tenant
         var kb = await _knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
-        if (kb != null && kb.TenantId != tenantId)
+        if (kb is null)
+        {
+            throw new KeyNotFoundException($"La colección {knowledgeBaseId} no existe.");
+        }
+        if (kb.TenantId != tenantId)
         {
             _logger.LogWarning("Acceso no autorizado a Knowledge Base {KbId} por Tenant {TenantId}", knowledgeBaseId, tenantId);
             throw new UnauthorizedAccessException("Acceso denegado a la Base de Conocimiento de otro Tenant.");
@@ -187,6 +191,20 @@ public class KnowledgeService
         await _documentRepository.DeleteAsync(documentId, tenantId, cancellationToken);
 
         _logger.LogInformation("Documento {DocumentId} eliminado correctamente para Tenant {TenantId}", documentId, tenantId);
+    }
+
+    /// <summary>Elimina una colección con sus documentos y vectores. Devuelve false si no es de la organización.</summary>
+    public async Task<bool> DeleteKnowledgeBaseAsync(Guid tenantId, Guid knowledgeBaseId, CancellationToken cancellationToken = default)
+    {
+        var knowledgeBase = await _knowledgeBaseRepository.GetByIdAsync(knowledgeBaseId, cancellationToken);
+        if (knowledgeBase is null || knowledgeBase.TenantId != tenantId) return false;
+
+        foreach (var document in await _documentRepository.GetByKnowledgeBaseAsync(knowledgeBaseId, tenantId, cancellationToken))
+        {
+            await DeleteDocumentAsync(tenantId, document.Id, cancellationToken);
+        }
+        await _knowledgeBaseRepository.DeleteAsync(knowledgeBaseId, tenantId, cancellationToken);
+        return true;
     }
 
     public async Task ReindexAsync(Guid tenantId, Guid knowledgeBaseId, CancellationToken cancellationToken = default)

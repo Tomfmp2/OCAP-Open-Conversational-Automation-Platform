@@ -13,8 +13,12 @@ public record AiUsageDto(
     int TotalTokensUsed,
     int TotalExecutionsCount,
     double AverageLatencyMs,
-    double SuccessRatePercentage
+    double SuccessRatePercentage,
+    IReadOnlyList<AiModelUsageDto> LastDay
 );
+
+/// <summary>Uso de un modelo en las últimas 24 horas.</summary>
+public record AiModelUsageDto(string Provider, string Model, int Requests, int Failed, long Tokens);
 
 // DTO con detalles e información de capacidades de un modelo de IA.
 public record AiModelInfoDto(

@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using System.Security.Cryptography;
 using System.Text;
 using OCAP.Agents.Application.Services;
@@ -94,6 +95,9 @@ public sealed class ChannelConversationService : IConversationResponder
         var userId = ContactUserId(message.ChannelName, tenantId, message.ExternalUserId);
         if (!await AcceptsAsync(channelConnectionId, userId, cancellationToken)) return null;
 
+        // Antes de guardar, publicar o llamar al modelo: el dato no debe quedar en el historial ni salir a un proveedor.
+        message.Message = SensitiveData.Mask(message.Message);
+
         var isNewContact = await _users.GetByIdAsync(userId, cancellationToken) is null;
         if (isNewContact)
         {
@@ -177,7 +181,8 @@ public sealed class ChannelConversationService : IConversationResponder
                 await _conversations.SaveAsync(conversation, cancellationToken);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // Un plazo vencido del proveedor también es una cancelación, pero nadie la pidió: el cliente debe recibir respuesta.
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "El agente no respondió en {Channel}; se usa la respuesta de respaldo.", message.ChannelName);
             reply = FallbackReply;

@@ -36,16 +36,16 @@ public class CreateCalendarEventTool : ITool
 
         var description = context.Parameters.TryGetValue("Description", out var descObj) ? descObj?.ToString() ?? string.Empty : string.Empty;
         
-        var startDate = DateTime.UtcNow;
-        if (context.Parameters.TryGetValue("StartDate", out var startObj) && startObj != null)
+        // Sin fecha válida no se crea nada: antes se agendaba «ahora» en silencio.
+        if (!context.Parameters.TryGetValue("StartDate", out var startObj) || !TryParseUtc(startObj, out var startDate))
         {
-            _ = DateTime.TryParse(startObj.ToString(), out startDate);
+            return ToolResult.Fail("INVALID_PARAMETER", "Falta la fecha y hora del evento o no se entiende.");
         }
 
         var endDate = startDate.AddHours(1);
-        if (context.Parameters.TryGetValue("EndDate", out var endObj) && endObj != null)
+        if (context.Parameters.TryGetValue("EndDate", out var endObj) && TryParseUtc(endObj, out var parsedEnd) && parsedEnd > startDate)
         {
-            _ = DateTime.TryParse(endObj.ToString(), out endDate);
+            endDate = parsedEnd;
         }
 
         var attendees = new List<string>();
@@ -66,4 +66,11 @@ public class CreateCalendarEventTool : ITool
         var created = await _calendarProvider.CreateEventAsync(calendarEvent, cancellationToken);
         return ToolResult.Ok(created, "Evento de calendario creado con éxito.");
     }
+
+    private static bool TryParseUtc(object? value, out DateTime utc) =>
+        DateTime.TryParse(
+            value?.ToString(),
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+            out utc);
 }

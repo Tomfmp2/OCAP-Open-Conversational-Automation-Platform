@@ -20,6 +20,12 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
     /// <summary>Se resume cuando quedan al menos estos mensajes fuera de la ventana: evita una llamada por mensaje.</summary>
     private const int SummarizeBatch = 8;
     private const int BatchPerTick = 20;
+    // Una organización con mucha cola no acapara la pasada ni gasta de golpe su cuota de IA: se miran más
+    // conversaciones de las que se procesan y de cada organización salen pocas.
+    private const int PerTenantPerTick = 5;
+    private const int DiscoveryWindow = BatchPerTick * 5;
+    /// <summary>Largo desde el que un único mensaje deja de parecer un saludo.</summary>
+    private const int MinCharsForSingleMessage = 60;
     /// <summary>Si el modelo falla tanto tiempo, se deja de reintentar esa conversación.</summary>
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromDays(1);
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
@@ -57,27 +63,31 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
             // Sin organización en el scope: el descubrimiento ve todas (bypass); cada conversación se procesa en la suya.
             var db = scope.ServiceProvider.GetRequiredService<OCAPDbContext>();
             var idleSince = now - IdleBeforeExtraction;
+            var paused = scope.ServiceProvider.GetRequiredService<MemoryBackoff>().PausedTenants(DateTime.UtcNow);
 
             toExtract = (await db.Conversations.IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => c.Channel != null && c.LastActivityAt < idleSince && (c.MemoryExtractedAt == null || c.MemoryExtractedAt < c.LastActivityAt))
-                    .OrderBy(c => c.LastActivityAt).Take(BatchPerTick)
+                    .OrderBy(c => c.LastActivityAt).Take(DiscoveryWindow)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
-                .Select(c => (c.Id, c.TenantId)).ToList();
+                .Select(c => (c.Id, c.TenantId)).ToList().FairBatch(PerTenantPerTick, BatchPerTick);
 
             var recent = now.AddDays(-1);
             toSummarize = (await db.Conversations.IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => c.Channel != null && c.LastActivityAt > recent)
                     .Where(c => db.Messages.IgnoreQueryFilters().Count(m => m.ConversationId == c.Id
                         && (c.SummarizedUntil == null || m.CreatedAt > c.SummarizedUntil)) >= RecentWindow + SummarizeBatch)
-                    .Take(BatchPerTick)
+                    .OrderBy(c => c.LastActivityAt).Take(DiscoveryWindow)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
-                .Select(c => (c.Id, c.TenantId)).ToList();
+                .Select(c => (c.Id, c.TenantId)).ToList().FairBatch(PerTenantPerTick, BatchPerTick);
 
             assistantToExtract = (await db.Set<AssistantConversation>().IgnoreQueryFilters()
+                    .Where(c => !paused.Contains(c.TenantId))
                     .Where(c => !c.HasUntrustedContent && c.UpdatedAt < idleSince && (c.MemoryExtractedAt == null || c.MemoryExtractedAt < c.UpdatedAt))
-                    .OrderBy(c => c.UpdatedAt).Take(BatchPerTick)
+                    .OrderBy(c => c.UpdatedAt).Take(DiscoveryWindow)
                     .Select(c => new { c.Id, c.TenantId }).ToListAsync(cancellationToken))
-                .Select(c => (c.Id, c.TenantId)).ToList();
+                .Select(c => (c.Id, c.TenantId)).ToList().FairBatch(PerTenantPerTick, BatchPerTick);
         }
 
         foreach (var (id, tenantId) in toSummarize) await InTenantAsync(tenantId, (sp, ct) => SummarizeAsync(sp, id, ct), cancellationToken);
@@ -88,6 +98,9 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
     private async Task InTenantAsync(Guid tenantId, Func<IServiceProvider, CancellationToken, Task> work, CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
+        // Con el modelo fallando no se gasta otra llamada: lo pendiente sigue en cola hasta que termine la pausa.
+        if (scope.ServiceProvider.GetRequiredService<MemoryBackoff>().IsPaused(tenantId, DateTime.UtcNow)) return;
+
         scope.ServiceProvider.GetRequiredService<ITenantScope>().Use(tenantId);
         try
         {
@@ -172,8 +185,9 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
         Action markExtracted, CancellationToken cancellationToken)
     {
         var db = services.GetRequiredService<OCAPDbContext>();
-        // Un saludo suelto no deja nada que recordar y no merece una llamada al modelo.
-        if (turns.Count(t => t.FromPerson) >= 2)
+        // Un saludo suelto no deja nada que recordar y no merece una llamada al modelo; un solo mensaje largo sí puede.
+        var fromPerson = turns.Where(t => t.FromPerson).ToList();
+        if (fromPerson.Count >= 2 || fromPerson.Sum(t => t.Text.Length) >= MinCharsForSingleMessage)
         {
             var store = services.GetRequiredService<ContactMemoryStore>();
             var known = await store.RecallAsync(ownerKind, ownerId, now, cancellationToken);
@@ -203,5 +217,24 @@ public sealed class ConversationMemoryBackgroundService : BackgroundService
             return true;
         var agent = await services.GetRequiredService<OCAP.Agents.Abstractions.Ports.IAgentRepository>().GetByIdAsync(agentId, cancellationToken);
         return agent?.Configuration.RemembersContacts ?? true;
+    }
+}
+
+internal static class MemoryBatching
+{
+    /// <summary>Hasta <paramref name="perTenant"/> por organización y <paramref name="total"/> en conjunto, en el orden recibido.</summary>
+    public static List<(Guid Id, Guid TenantId)> FairBatch(this List<(Guid Id, Guid TenantId)> candidates, int perTenant, int total)
+    {
+        var taken = new Dictionary<Guid, int>();
+        var batch = new List<(Guid Id, Guid TenantId)>();
+        foreach (var candidate in candidates)
+        {
+            if (batch.Count == total) break;
+            var count = taken.GetValueOrDefault(candidate.TenantId);
+            if (count == perTenant) continue;
+            taken[candidate.TenantId] = count + 1;
+            batch.Add(candidate);
+        }
+        return batch;
     }
 }

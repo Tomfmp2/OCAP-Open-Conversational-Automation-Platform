@@ -110,6 +110,8 @@ public sealed class TeamService
     {
         var user = await _db.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
         if (user is null) return null;
+        // Con el enlace se define la contraseña: otro administrador se quedaría con la cuenta del sistema.
+        if (userId != actingUserId) EnsureNotSystemAdmin(user, "generar su enlace de contraseña");
 
         var link = await IssueLinkAsync(user, user.IsEmailVerified ? ResetLifetime : InvitationLifetime, !user.IsEmailVerified, cancellationToken);
         await _audit.LogSecurityEventAsync(tenantId, actingUserId, "Team.PasswordLink", $"Enlace de contraseña para {user.Email}", "TeamService", true, cancellationToken);
@@ -121,6 +123,7 @@ public sealed class TeamService
         var user = await _db.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
         if (user is null) return false;
         if (role == TeamRole.Operator) await EnsureAnotherAdminAsync(tenantId, actingUserId, userId, "quitarle el rol de administrador", cancellationToken);
+        if (role == TeamRole.Operator) EnsureNotSystemAdmin(user, "quitarle el rol de administrador");
 
         var target = await EnsureRoleAsync(tenantId, role, cancellationToken);
         _db.UserRoles.RemoveRange(await _db.UserRoles.Where(r => r.TenantId == tenantId && r.UserId == userId).ToListAsync(cancellationToken));
@@ -136,6 +139,7 @@ public sealed class TeamService
         var user = await _db.UserIdentities.FirstOrDefaultAsync(u => u.TenantId == tenantId && u.Id == userId, cancellationToken);
         if (user is null) return false;
         if (!active) await EnsureAnotherAdminAsync(tenantId, actingUserId, userId, "desactivarlo", cancellationToken);
+        if (!active) EnsureNotSystemAdmin(user, "desactivarlo");
 
         if (active) user.Activate();
         else user.Deactivate();
@@ -221,6 +225,12 @@ public sealed class TeamService
         }
 
         return new PasswordLinkDto(path, expires, emailed);
+    }
+
+    // Es la única cuenta que puede abrir la sección Sistema: sin ella la instalación se queda sin quien la ajuste.
+    private static void EnsureNotSystemAdmin(UserIdentity user, string action)
+    {
+        if (user.IsSystemAdmin) throw new TeamRuleException($"Esta cuenta administra el sistema: no se puede {action}.");
     }
 
     private async Task EnsureAnotherAdminAsync(Guid tenantId, Guid actingUserId, Guid userId, string action, CancellationToken cancellationToken)

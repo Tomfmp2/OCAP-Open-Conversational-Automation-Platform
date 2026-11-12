@@ -48,7 +48,16 @@ Así, quitar o deshabilitar el modelo de un canal no lo deja sin respuesta.
 
 ## Consumo
 
-- Un `429` (cuota agotada) no se reintenta: solo gastaría otra petición. Se reintentan fallos de red y `5xx`.
+- **Modelos de IA → Uso en las últimas 24 horas** muestra llamadas, fallos y tokens reales de cada modelo, sumando
+  canales, asistente, memoria y pruebas. No incluye los embeddings de Conocimiento. `GET /api/ai/usage` da lo mismo.
+- Un `429` (cuota agotada) no se reintenta: solo gastaría otra petición. Los `502`, `503`, `504` y los fallos de red se
+  reintentan dos veces (1 s y 3 s).
+- Si un modelo agota su cuota, cae o tarda más de 60 s, canales y asistente intentan una vez con **otro modelo activo
+  del mismo proveedor**. Nunca pasan la conversación a otra empresa, ni usan esta vía con Ollama, Local o direcciones
+  propias. Para tener respaldo, agrega un segundo modelo del proveedor: en Gemini, cada modelo tiene su propia cuota
+  diaria.
+- La capa gratuita de Gemini puede ser muy baja (se han visto 20 peticiones al día por modelo). Cada conversación
+  terminada gasta además una llamada de memoria.
 - Sin documentos indexados no se llama a la API de embeddings.
 - La memoria y los resúmenes se procesan en segundo plano, una vez por conversación terminada
   ([MEMORY.md](../guides/MEMORY.md)).

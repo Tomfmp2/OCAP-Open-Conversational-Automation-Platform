@@ -11,13 +11,22 @@ namespace OCAP.Security.Infrastructure.Services;
 // Servicio de emisión y validación de tokens JWT estructurados con Claims de seguridad.
 public class JwtTokenService : IJwtTokenService
 {
+    /// <summary>
+    /// Marca de quien administra la instalación. Es un tipo de claim propio y no un permiso: los permisos salen del rol,
+    /// que cualquier administrador puede editar, y con eso se habría podido dar el sistema a sí mismo.
+    /// </summary>
+    public const string SystemAdminClaim = "system_admin";
+
     private readonly string _secretKey;
     private readonly string _issuer;
     private readonly string _audience;
     private readonly int _accessTokenExpiryMinutes;
+    private readonly Func<int?>? _sessionMinutesOverride;
 
-    public JwtTokenService(JwtOptions options)
+    /// <param name="sessionMinutesOverride">Duración definida en el panel; null usa la de la configuración.</param>
+    public JwtTokenService(JwtOptions options, Func<int?>? sessionMinutesOverride = null)
     {
+        _sessionMinutesOverride = sessionMinutesOverride;
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
 
@@ -61,10 +70,16 @@ public class JwtTokenService : IJwtTokenService
             claims.Add(new Claim("permission", perm));
         }
 
+        // Va en la cuenta y no en el rol: invitar a otro administrador no le da la instalación.
+        if (user.IsSystemAdmin)
+        {
+            claims.Add(new Claim(SystemAdminClaim, "true"));
+        }
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
-            Expires = DateTime.UtcNow.AddMinutes(_accessTokenExpiryMinutes),
+            Expires = DateTime.UtcNow.AddMinutes(_sessionMinutesOverride?.Invoke() is > 0 and var minutes ? minutes : _accessTokenExpiryMinutes),
             Issuer = _issuer,
             Audience = _audience,
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

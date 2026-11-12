@@ -286,3 +286,12 @@
     }
   }
 }
+
+/* Safari en iPhone amplía la página al enfocar un campo con letra menor de 16 px. Va fuera de las capas para ganar a text-sm. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"], [type="radio"], [type="file"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

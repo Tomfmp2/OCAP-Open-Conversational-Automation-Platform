@@ -11,7 +11,7 @@ import { clearAuthSession, setAuthSession } from "@/shared/api/tokenStorage";
 import type { StoredUser } from "@/shared/api/types";
 import { apiClient, refreshSession } from "@/shared/api/apiClient";
 import { redirectToLogin } from "@/shared/api/sessionRedirect";
-import { permissionsFromToken } from "@/shared/api/jwt";
+import { permissionsFromToken, SYSTEM_MANAGE } from "@/shared/api/jwt";
 
 // El access token dura 15 minutos: se renueva un poco antes con la cookie del refresh token.
 const REFRESH_INTERVAL_MS = 14 * 60 * 1000;
@@ -125,7 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
  const hasPermission = React.useCallback(
  (permission: string) => {
  if (!user) return false;
- return user.permissions.includes(permission) || user.permissions.includes(FULL_ACCESS);
+ if (user.permissions.includes(permission)) return true;
+ // El acceso total es de una organización; el sistema es de la instalación y la API lo exige aparte.
+ return permission !== SYSTEM_MANAGE && user.permissions.includes(FULL_ACCESS);
  },
  [user]
  );

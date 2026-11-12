@@ -27,16 +27,7 @@ Detalle en [`docs/deployment/FIRST_RUN_SETUP.md`](../deployment/FIRST_RUN_SETUP.
 
 ## Datos opcionales (IA real)
 
-Edita `.env` en la raíz y rellena **solo lo que tengas**:
-
-| Variable | Dónde obtenerla |
-| --- | --- |
-| `AiProviders__OpenAI__ApiKey` | https://platform.openai.com/api-keys |
-| `AiProviders__Gemini__ApiKey` | https://aistudio.google.com/apikey |
-| `AiProviders__Claude__ApiKey` | https://console.anthropic.com/ |
-| Ollama | Instalar Ollama; dejar `AiProviders__Ollama__BaseUrl=http://localhost:11434` |
-
-Sin keys, `AiProviders__EnableMock=true` responde en local.
+Agrega el modelo en **Modelos de IA**, en el panel. Sin ninguno, OCAP responde en modo demostración.
 
 ## Telegram / WhatsApp (opcional)
 

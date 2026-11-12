@@ -44,6 +44,11 @@ export function WebChatWidgetForm({ channel, widget }: { channel: ChannelConnect
           onChange={(e) => setOrigins(e.target.value)}
           className="font-mono"
         />
+        {widget.allowedOrigins.length === 0 && (
+          <p role="status" className="rounded-md border border-warning/30 bg-warning-subtle px-3 py-2 text-sm text-warning">
+            Sin sitios guardados, cualquier página que tenga tu código puede usar este chat y gastar tu cuota de IA.
+          </p>
+        )}
         <FormError error={configure.error} />
         <div className="flex items-center gap-3">
           <Button type="submit" variant="secondary" loading={configure.isPending} disabled={unchanged}>

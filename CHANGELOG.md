@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Uso de IA**: llamadas, fallos y tokens reales por modelo en las últimas 24 horas, en Modelos de IA.
+- **Otro modelo si falla**: con cuota agotada, caída o más de 60 s de espera, se intenta otro modelo activo del mismo
+  proveedor. Nunca se pasa la conversación a otra empresa.
+- **Eliminar colecciones** de Conocimiento, salvo si un canal o agente las usa.
+- **WebChat** permite elegir agente y modelo en el panel.
+- **Sistema**: límites de uso, comprobación de sesión y dominios de la API se ajustan en el panel, sin reiniciar. Solo
+  para la cuenta que instaló; en una instalación existente es el administrador más antiguo.
+
+### Changed
+- **Configuración en el panel:** `.env` solo guarda lo que el servidor necesita para arrancar. Salen de `.env.example` y
+  de Docker Compose las claves de IA, SMTP, Google y Telegram. `ocap install` ya no pregunta organización, administrador
+  ni clave de IA: eso se resuelve en `/setup`. El administrador por entorno sigue para instalaciones sin intervención.
+- Los números de tarjeta y las claves que escribe un cliente se ocultan antes de guardar el mensaje o enviarlo al modelo.
+- La memoria también se extrae de un único mensaje largo.
+- La memoria procesa como mucho 5 conversaciones por organización en cada pasada, para que una sola no gaste la cuota.
+- WebChat avisa en el panel cuando un canal no tiene sitios autorizados.
+
+### Fixed
+- Las subidas se truncaban a 10 MB en el proxy del panel y en Nginx; ahora admiten el tope de cada función.
+- Dos peticiones simultáneas ya no crean colecciones repetidas: hay un índice único. Las que ya estuvieran repetidas se
+  renombran al actualizar («Precios (2)»).
+- Validaciones: colección inexistente, nombres largos o repetidos, proveedores de IA inexistentes y agentes inválidos.
+- Los registros muestran el estado real de la respuesta en lugar de 500 en errores ya atendidos.
+- El proxy del panel cortaba a los 30 s las respuestas lentas del modelo y el cliente se quedaba sin contestación.
+- Un plazo vencido del modelo ahora da la respuesta de respaldo en lugar de un error 500.
+- Los errores de la API se muestran con su motivo en lugar de «Error HTTP 400», y sin la respuesta cruda del proveedor.
+- Gemini declaraba siempre 120 tokens; ahora se usa lo que informa. El uso solo cuenta a la propia organización.
+- Los modelos del panel reintentan las caídas momentáneas (`502`, `503`, `504`).
+- La memoria en segundo plano se pausa cuando el modelo falla, en vez de reintentar cada minuto y gastar cuota.
+- El asistente mostraba los símbolos de Markdown (`**negrita**`) en vez de dar formato a la respuesta.
+- Si Calendar, Gmail o Sheets fallan, el asistente dice qué revisar en Google en vez de culpar al modelo de IA.
+- Las citas del asistente quedaban en UTC, a otra hora de la pedida. Ahora la hora se interpreta en la zona de la
+  organización; sin zona definida no se agenda, y el asistente propone usar la del equipo si la persona acepta.
+- Una cita sin fecha válida ya no se crea «ahora» en silencio.
+- Panel en pantallas pequeñas: inicio, cabeceras del asistente y de conversaciones, zoom de iPhone al tocar un campo y
+  enlaces táctiles.
+
 ## [1.0.0] - 2026-11-03
 
 Primer lanzamiento público. Las versiones anteriores de este archivo son hitos internos del código base que no se

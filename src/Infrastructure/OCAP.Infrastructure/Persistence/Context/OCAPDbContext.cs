@@ -48,6 +48,7 @@ public class OCAPDbContext : DbContext
     public DbSet<OCAP.Agents.Domain.Entities.Agent> Agents => Set<OCAP.Agents.Domain.Entities.Agent>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<OCAP.Security.Domain.Entities.Permission> Permissions => Set<OCAP.Security.Domain.Entities.Permission>();

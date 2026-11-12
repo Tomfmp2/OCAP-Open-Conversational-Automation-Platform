@@ -20,6 +20,8 @@ public class UserIdentity
     public DateTime? PasswordResetTokenExpiresUtc { get; private set; }
     public string? InviteToken { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
+    /// <summary>Administra la instalación entera (sección Sistema del panel), no solo su organización.</summary>
+    public bool IsSystemAdmin { get; private set; }
 
     private UserIdentity() { } // Constructor privado para el ORM.
 
@@ -101,6 +103,8 @@ public class UserIdentity
     {
         IsEmailVerified = true;
     }
+
+    public void GrantSystemAdmin() => IsSystemAdmin = true;
 
     /// <summary>Guarda el hash de un enlace para definir la contraseña; reemplaza cualquier enlace anterior.</summary>
     public void IssuePasswordSetup(string tokenHash, DateTime expiresUtc)

@@ -23,12 +23,16 @@ public interface IMemoryModel
 public sealed partial class MemoryModel : IMemoryModel
 {
     private const int MaxFacts = 10;
+    /// <summary>Tope del texto enviado al modelo: una conversación enorme no debe costar una llamada enorme.</summary>
+    private const int MaxTranscriptChars = 40_000;
 
     private readonly IAiProviderConfigurationService _providers;
     private readonly ILogger<MemoryModel> _logger;
+    private readonly MemoryBackoff _backoff;
 
-    public MemoryModel(IAiProviderConfigurationService providers, ILogger<MemoryModel> logger)
+    public MemoryModel(IAiProviderConfigurationService providers, ILogger<MemoryModel> logger, MemoryBackoff backoff)
     {
+        _backoff = backoff;
         _providers = providers;
         _logger = logger;
     }
@@ -103,7 +107,10 @@ public sealed partial class MemoryModel : IMemoryModel
     private static partial Regex SecretWords();
 
     private static string Transcript(IReadOnlyList<MemoryTurn> turns) =>
-        "<conversacion>\n" + string.Join("\n", turns.Select(t => $"{(t.FromPerson ? "Persona" : "Asistente")}: {t.Text}")) + "\n</conversacion>";
+        "<conversacion>\n" + LastChars(string.Join("\n", turns.Select(t => $"{(t.FromPerson ? "Persona" : "Asistente")}: {t.Text}"))) + "\n</conversacion>";
+
+    private static string LastChars(string text) =>
+        text.Length <= MaxTranscriptChars ? text : text[^MaxTranscriptChars..];
 
     private async Task<string?> AskAsync(Guid tenantId, string instructions, string content, int maxTokens, CancellationToken cancellationToken)
     {
@@ -118,11 +125,15 @@ public sealed partial class MemoryModel : IMemoryModel
                 MaxTokens = maxTokens,
                 Temperature = 0.1
             }, cancellationToken);
+            _backoff.Succeeded(tenantId);
             return response.GeneratedText;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Una cuota agotada o un fallo del proveedor solo retrasa la memoria: se reintenta en el próximo ciclo.
+            // Una cuota agotada o un fallo del proveedor solo retrasa la memoria: se reintenta al terminar la pausa.
+            // Un error de esta petición (un 400, por ejemplo) no dice nada del modelo: no detiene a toda la organización.
+            if (ex is not AiProviderException { OtherModelMayWork: false })
+                _backoff.Failed(tenantId, DateTime.UtcNow, (ex as AiProviderException)?.RetryAfter);
             _logger.LogWarning(ex, "El modelo no pudo procesar la memoria de la organización {TenantId}.", tenantId);
             return null;
         }

@@ -97,6 +97,16 @@ public class AiExecutionLogConfiguration : IEntityTypeConfiguration<AiExecutionL
     }
 }
 
+public class SystemSettingsConfiguration : IEntityTypeConfiguration<SystemSettings>
+{
+    public void Configure(EntityTypeBuilder<SystemSettings> builder)
+    {
+        builder.ToTable("SystemSettings");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
+    }
+}
+
 public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
     public void Configure(EntityTypeBuilder<Tenant> builder)

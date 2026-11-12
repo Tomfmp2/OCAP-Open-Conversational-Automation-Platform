@@ -149,14 +149,13 @@ cd ocap
 ### Qué pregunta el instalador
 
 1. **Idioma**: español o inglés (instalador, comando `ocap` y asistente).
-2. **Organización**: el nombre de tu empresa o proyecto.
-3. **Cuenta de administrador**: nombre, correo y contraseña (mínimo 12 caracteres, con letras y números).
-4. **Proveedor de IA** (opcional): puedes omitirlo y agregarlo luego en el panel.
-5. **Acceso desde tu red**, **abrir el navegador** al arrancar e **inicio automático** con el equipo.
+2. **Acceso desde tu red**, **abrir el navegador** al arrancar e **inicio automático** con el equipo.
 
 Después revisa los puertos (propone otros si alguno está ocupado), instala lo que falte (Docker, git, curl), genera
-el `.env` con secretos aleatorios, construye las imágenes y deja el comando `ocap` disponible. La contraseña del
-administrador se borra del `.env` en cuanto la cuenta queda creada.
+el `.env` con secretos aleatorios, construye las imágenes y deja el comando `ocap` disponible.
+
+Lo demás se hace en el panel: al abrirlo por primera vez, `/setup` pide el código que muestra `ocap` y crea la
+organización, tu cuenta de administrador y, si quieres, el modelo de IA.
 
 > Agregar tu usuario al grupo `docker` equivale a darle permisos de administrador del sistema. El instalador lo
 > hace para que `ocap` funcione sin `sudo`.
@@ -223,13 +222,12 @@ servidor ([referencia completa](.env.example)):
 
 | Variable | Para qué sirve | Por defecto |
 | --- | --- | --- |
-| `OCAP_LANGUAGE` | Idioma del instalador, de `ocap` y del asistente (`es` / `en`) | `es` |
+| `OCAP_LANGUAGE` | Idioma del instalador y de `ocap`, e inicial del asistente (`es` / `en`) | `es` |
 | `OCAP_BIND_ADDRESS` | `127.0.0.1` solo este equipo; `0.0.0.0` también tu red | `127.0.0.1` |
 | `FRONTEND_HOST_PORT` / `API_HOST_PORT` / `NGINX_HOST_PORT` | Puertos del panel, la API y Nginx | `3000` / `5000` / `80` |
 | `PUBLIC_PANEL_URL` | URL pública del panel (enlaces, CORS) | `http://localhost:3000` |
 | `OCAP_DOMAIN` / `OCAP_ACME_EMAIL` | HTTPS público: Caddy obtiene el certificado de Let's Encrypt para tu dominio | vacías |
 | `POSTGRES_PASSWORD`, `OCAP_DB_APP_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_PASSWORD`, `JWT_SECRET_KEY`, `VAULT_MASTER_KEY`, `EVOLUTION_API_KEY` | Secretos; se generan solos | aleatorios |
-| `Email__Smtp__*`, `Google__*`, `WhatsAppCloud__*` | Opcionales: valores del servidor que se usan cuando una organización no configuró los suyos en el panel | vacías |
 
 > No compartas el `.env` ni lo subas al repositorio. Cambiar `VAULT_MASTER_KEY` deja ilegibles las claves ya
 > guardadas.

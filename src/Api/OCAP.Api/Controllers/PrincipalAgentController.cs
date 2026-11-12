@@ -1,3 +1,4 @@
+using OCAP.Intelligence.Abstractions;
 using OCAP.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -218,7 +219,9 @@ public class PrincipalAgentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error en chat del agente principal.");
-            var friendly = ex is NotSupportedException
+            var friendly = OCAP.Api.Services.GoogleErrorMessages.Describe(ex) is { } google
+                ? google
+                : ex is NotSupportedException or AiProviderException
                 ? ex.Message
                 : ex is OperationCanceledException || ex is TaskCanceledException
                 ? "El modelo de IA no respondió a tiempo. Pruébalo en Modelos de IA; si falla igual, revisa la clave y la conexión."

@@ -18,6 +18,8 @@ export default function KnowledgePage() {
   const bases = useKnowledgeBases();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [removing, setRemoving] = React.useState(false);
+  const { removeBase } = useKnowledgeActions(null);
   const base = bases.data?.find((b) => b.id === selectedId) ?? bases.data?.[0] ?? null;
 
   return (
@@ -46,21 +48,66 @@ export default function KnowledgePage() {
         />
       ) : (
         <>
-          {bases.data!.length > 1 && (
-            <div className="max-w-xs">
-              <Select label="Colección" value={base.id} onChange={(e) => setSelectedId(e.target.value)}>
-                {bases.data!.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            {bases.data!.length > 1 ? (
+                <div className="w-full max-w-xs">
+                  <Select label="Colección" value={base.id} onChange={(e) => setSelectedId(e.target.value)}>
+                    {bases.data!.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+            ) : (
+              <p className="text-sm font-medium text-neutral-800">{base.name}</p>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger hover:bg-danger-subtle hover:text-danger"
+              onClick={() => {
+                removeBase.reset();
+                setRemoving(true);
+              }}
+            >
+              Eliminar colección
+            </Button>
+          </div>
           <Documents key={base.id} baseId={base.id} />
           <SearchTry />
         </>
       )}
+
+      <Modal open={removing && base !== null} onClose={() => setRemoving(false)} title={`¿Eliminar ${base?.name ?? "la colección"}?`}>
+        <div className="space-y-5">
+          <p className="text-sm text-neutral-700">
+            {base?.documentCount === 1 ? "Se borra su documento" : `Se borran sus ${base?.documentCount ?? 0} documentos`} y los agentes
+            dejan de usarlos. No se puede deshacer.
+          </p>
+          <FormError error={removeBase.error} />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setRemoving(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              loading={removeBase.isPending}
+              onClick={() =>
+                base &&
+                removeBase.mutate(base.id, {
+                  onSuccess: () => {
+                    setSelectedId(null);
+                    setRemoving(false);
+                  },
+                })
+              }
+            >
+              Eliminar colección
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <CreateCollection
         open={creating}

@@ -6,6 +6,8 @@ interface TypewriterTextProps {
   text: string;
   /** Se llama cuando el texto termina de aparecer (o de inmediato con movimiento reducido). */
   onDone?: () => void;
+  /** Cómo dibujar el texto ya revelado; sin él, tal cual. */
+  render?: (text: string) => React.ReactNode;
 }
 
 /** Duración máxima del efecto: una respuesta larga no debe hacer esperar al usuario. */
@@ -17,7 +19,7 @@ function prefersReducedMotion() {
 }
 
 /** Muestra la respuesta palabra por palabra, mientras el orbe "habla". */
-export function TypewriterText({ text, onDone }: TypewriterTextProps) {
+export function TypewriterText({ text, onDone, render }: TypewriterTextProps) {
   const words = React.useMemo(() => text.split(/(\s+)/), [text]);
   const [shown, setShown] = React.useState(() => (prefersReducedMotion() ? words.length : 0));
   const doneRef = React.useRef(onDone);
@@ -39,7 +41,7 @@ export function TypewriterText({ text, onDone }: TypewriterTextProps) {
     <>
       {/* Para lectores de pantalla, la respuesta completa de una vez. */}
       <span className="sr-only">{text}</span>
-      <span aria-hidden>{words.slice(0, shown).join("")}</span>
+      <div aria-hidden>{render ? render(words.slice(0, shown).join("")) : words.slice(0, shown).join("")}</div>
     </>
   );
 }

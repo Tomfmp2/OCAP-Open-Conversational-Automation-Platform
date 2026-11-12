@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using OCAP.Core.Entities;
 using OCAP.Core.Events;
 using OCAP.Core.Ports;
@@ -37,7 +38,8 @@ public class ReceiveMessageUseCase
         CancellationToken cancellationToken = default)
     {
         // 1. Validar mensaje
-        var content = new MessageContent(messageContent);
+        // Punto común de todos los canales: lo que se guarde ya va sin tarjetas ni claves.
+        var content = new MessageContent(SensitiveData.Mask(messageContent));
         var identifier = new UserIdentifier(userId.ToString(), provider);
 
         // 2. Buscar usuario

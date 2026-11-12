@@ -14,6 +14,8 @@ namespace OCAP.Api.Controllers;
 [Authorize(Policy = OcapPermissions.KnowledgeManage)]
 public class KnowledgeController : ControllerBase
 {
+    private const int MaxCollectionNameLength = 100;
+
     private readonly KnowledgeService _knowledgeService;
     private readonly ITenantContext _tenantContext;
 
@@ -82,8 +84,23 @@ public class KnowledgeController : ControllerBase
         if (dto == null || string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name is required for KnowledgeBase.");
 
         var tenantId = _tenantContext.TenantId;
-        var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, dto.Name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
-        return Ok(kb);
+        var name = dto.Name.Trim();
+        if (name.Length > MaxCollectionNameLength)
+            return Problem(statusCode: StatusCodes.Status400BadRequest, title: $"El nombre admite hasta {MaxCollectionNameLength} caracteres.");
+        var existing = await _knowledgeService.GetKnowledgeBasesAsync(tenantId, cancellationToken);
+        if (existing.Any(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase)))
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: $"Ya hay una colección llamada «{name}».");
+
+        try
+        {
+            var kb = await _knowledgeService.CreateKnowledgeBaseAsync(tenantId, name, dto.Description, dto.Strategy, dto.VectorDbProvider, cancellationToken);
+            return Ok(kb);
+        }
+        // Dos peticiones a la vez pasan la comprobación anterior; la segunda la frena el índice único de la base.
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: $"Ya hay una colección llamada «{name}».");
+        }
     }
 
     [HttpPost("upload")]
@@ -121,6 +138,37 @@ public class KnowledgeController : ControllerBase
         var tenantId = _tenantContext.TenantId;
         await _knowledgeService.ReindexAsync(tenantId, request.KnowledgeBaseId, cancellationToken);
         return Ok(new { Message = "Knowledge base reindexed successfully." });
+    }
+
+    [HttpDelete("base/{id:guid}")]
+    public async Task<ActionResult> DeleteKnowledgeBase(
+        Guid id,
+        [FromServices] OCAP.Channels.Abstractions.Contracts.IChannelConnectionManager channels,
+        [FromServices] OCAP.Agents.Application.Services.AgentService agents,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = _tenantContext.TenantId;
+
+        // Una lista vacía significa «todas las colecciones»: si se borrara la única elegida, ese canal o agente pasaría
+        // a consultar documentos que no debía ver. Quien administra decide primero qué usan.
+        var value = id.ToString();
+        var users = (await channels.GetTenantConnectionsAsync(tenantId, cancellationToken))
+            .Where(c => c.ConfigurationMetadata.GetValueOrDefault(OCAP.Api.Services.ChannelConversationService.KnowledgeBasesMetadataKey)
+                ?.Split(',').Contains(value, StringComparer.OrdinalIgnoreCase) == true)
+            .Select(c => c.DisplayName)
+            .Concat((await agents.GetAllAgentsAsync(cancellationToken))
+                .Where(a => a.Configuration.KnowledgeBaseIds.Contains(id))
+                .Select(a => a.Name.Value))
+            .ToList();
+        if (users.Count > 0)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Colección en uso",
+                detail: $"La usan: {string.Join(", ", users)}. Quítala de su configuración y vuelve a intentarlo.");
+        }
+
+        return await _knowledgeService.DeleteKnowledgeBaseAsync(tenantId, id, cancellationToken) ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id}")]

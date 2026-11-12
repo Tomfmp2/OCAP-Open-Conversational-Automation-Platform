@@ -1,6 +1,9 @@
 import type { ChatLine } from "../api/usePrincipalAgentChat";
 import { AssistantOrb } from "./AssistantOrb";
+import { MarkdownText } from "./MarkdownText";
 import { TypewriterText } from "./TypewriterText";
+
+const renderMarkdown = (text: string) => <MarkdownText text={text} />;
 
 interface ChatMessagesProps {
   lines: ChatLine[];
@@ -23,9 +26,13 @@ export function ChatMessages({ lines, pending, revealingId, onRevealDone }: Chat
         ) : (
           <li key={line.id} className="flex items-start gap-3">
             <AssistantOrb size={28} state={line.id === revealingId ? "speaking" : "idle"} className="mt-0.5" />
-            <p className="min-w-0 flex-1 whitespace-pre-wrap pt-0.5 text-[15px] leading-relaxed text-neutral-900">
-              {line.id === revealingId ? <TypewriterText text={line.text} onDone={onRevealDone} /> : line.text}
-            </p>
+            <div className="min-w-0 flex-1 break-words pt-0.5 text-[15px] leading-relaxed text-neutral-900">
+              {line.id === revealingId ? (
+                <TypewriterText text={line.text} onDone={onRevealDone} render={renderMarkdown} />
+              ) : (
+                <MarkdownText text={line.text} />
+              )}
+            </div>
           </li>
         )
       )}

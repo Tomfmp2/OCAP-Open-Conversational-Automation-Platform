@@ -1,3 +1,4 @@
+using OCAP.Core.Privacy;
 using Microsoft.Extensions.Logging;
 using OCAP.Application.UseCases;
 using OCAP.Channels.Abstractions.Contracts;
@@ -43,7 +44,7 @@ public class WhatsAppMessageReceiver : IMessageReceiver
 
             if (_eventBus != null)
             {
-                await _eventBus.PublishAsync(new MessageReceivedEvent("WhatsApp", message.ExternalUserId, message.Message ?? string.Empty, Guid.Empty), cancellationToken);
+                await _eventBus.PublishAsync(new MessageReceivedEvent("WhatsApp", message.ExternalUserId, SensitiveData.Mask(message.Message ?? string.Empty), Guid.Empty), cancellationToken);
             }
 
             await _receiveMessageUseCase.ExecuteAsync(userId, message.Message ?? string.Empty, "WhatsApp", cancellationToken);

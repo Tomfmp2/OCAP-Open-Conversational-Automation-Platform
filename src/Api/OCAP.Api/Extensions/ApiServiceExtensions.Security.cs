@@ -32,7 +32,11 @@ public static partial class ApiServiceExtensions
         });
 
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddSingleton<IJwtTokenService>(_ => new JwtTokenService(jwtOptions));
+        services.AddSingleton<IJwtTokenService>(sp =>
+        {
+            var system = sp.GetRequiredService<OCAP.Infrastructure.Services.SystemSettingsStore>();
+            return new JwtTokenService(jwtOptions, () => system.Current.SessionMinutes);
+        });
         services.AddScoped<IApiKeyService, ApiKeyService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IUserAuthenticationQuery, EfUserAuthenticationQuery>();

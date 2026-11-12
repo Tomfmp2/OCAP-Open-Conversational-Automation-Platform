@@ -9,6 +9,7 @@ import {
   PROVIDER_MODEL_PRESETS,
   useAiModelActions,
   useAiModels,
+  useAiUsage,
   useProviderModels,
   usesBaseUrl,
   type AiModel,
@@ -50,8 +51,50 @@ export default function AiModelsPage() {
         </ul>
       )}
 
+      {models.data?.length ? <UsageSummary /> : null}
+
       <AddModel open={adding} onClose={() => setAdding(false)} existingNames={models.data?.map((m) => m.displayName) ?? []} />
     </Page>
+  );
+}
+
+const numberFormat = new Intl.NumberFormat("es");
+
+function UsageSummary() {
+  const usage = useAiUsage();
+
+  return (
+    <section className="space-y-3" aria-labelledby="usage-title">
+      <div>
+        <h2 id="usage-title" className="text-sm font-semibold text-neutral-950">
+          Uso en las últimas 24 horas
+        </h2>
+        <p className="text-sm text-neutral-600">
+          Llamadas hechas por canales, asistente, memoria y pruebas. No incluye las búsquedas en Conocimiento.
+        </p>
+      </div>
+      {usage.isLoading ? (
+        <ListSkeleton label="Cargando uso" rows={1} />
+      ) : usage.isError ? (
+        <ErrorState message={usage.error instanceof Error ? usage.error.message : undefined} onRetry={() => void usage.refetch()} />
+      ) : !usage.data?.length ? (
+        <p className="rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-600">Sin llamadas todavía.</p>
+      ) : (
+        <ul className="divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
+          {usage.data.map((row) => (
+            <li key={`${row.provider}/${row.model}`} className="px-4 py-3">
+              <p className="break-words text-sm font-medium text-neutral-950">
+                {row.provider}, {row.model}
+              </p>
+              <p className="mt-0.5 text-sm tabular-nums text-neutral-600">
+                {numberFormat.format(row.requests)} llamadas, {numberFormat.format(row.failed)} fallidas,{" "}
+                {numberFormat.format(row.tokens)} tokens
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

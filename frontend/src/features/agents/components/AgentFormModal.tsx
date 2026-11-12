@@ -86,7 +86,7 @@ function AgentForm({ agent, onDone, onDelete }: { agent: Agent | null; onDone: (
         <input type="checkbox" className="mt-0.5 h-4 w-4 accent-neutral-950" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
         <span>
           <span className="block font-medium text-neutral-800">Recordar a los clientes</span>
-          <span className="block text-xs text-neutral-600">Nombre, preferencias y lo que hablaron antes, durante el plazo de Ajustes.</span>
+          <span className="block text-xs text-neutral-600">Nombre, preferencias y lo que hablaron antes, durante el plazo fijado en Organización.</span>
         </span>
       </label>
 

@@ -221,11 +221,11 @@ public sealed class ClaudeAiProvider : IAiProvider
         }
     }
 
-    private static void EnsureSuccess(HttpResponseMessage response, string body)
+    private void EnsureSuccess(HttpResponseMessage response, string body)
     {
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"Error en Anthropic API ({response.StatusCode}): {body}");
+            throw AiProviderException.FromResponse(Name, _settings.ModelName, response, body);
         }
     }
 

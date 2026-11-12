@@ -1,4 +1,5 @@
-import { BookOpen, Bot, Cpu, Inbox, MessageSquare, Settings, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, Cpu, Inbox, MessageSquare, Settings, SlidersHorizontal, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { SYSTEM_MANAGE } from "@/shared/api/jwt";
 
 export interface NavItem {
   href: string;
@@ -28,6 +29,7 @@ export const MAIN_NAV: NavItem[] = [
 export const ADMIN_NAV: NavItem[] = [
   { href: "/team", label: "Equipo", icon: Users, permission: "Security.Manage" },
   { href: "/settings", label: "Organización", icon: Settings, permission: "Settings.Manage" },
+  { href: "/system", label: "Sistema", icon: SlidersHorizontal, permission: SYSTEM_MANAGE },
 ];
 
 export function isActive(pathname: string, href: string): boolean {

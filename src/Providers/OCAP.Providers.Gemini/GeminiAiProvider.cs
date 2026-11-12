@@ -93,7 +93,7 @@ public class GeminiAiProvider : IAiProvider
                 return new AiResponse
                 {
                     GeneratedText = content,
-                    TokensUsed = 120,
+                    TokensUsed = TotalTokens(doc.RootElement),
                     ModelName = model,
                     ProviderName = Name,
                     Metadata = new Dictionary<string, object>
@@ -103,7 +103,7 @@ public class GeminiAiProvider : IAiProvider
                 };
             }
 
-            lastError = new InvalidOperationException($"Error en Gemini API ({response.StatusCode}) modelo={model}: {body}");
+            lastError = AiProviderException.FromResponse(Name, model, response, body);
 
             // Reintentar solo si el modelo no está disponible para esta key / época.
             var shouldFallback =
@@ -277,6 +277,13 @@ public class GeminiAiProvider : IAiProvider
                && !string.Equals(key, "mock-key", StringComparison.OrdinalIgnoreCase)
                && key is not ("***" or "redacted" or "REDACTED");
     }
+
+    private static int TotalTokens(JsonElement root) =>
+        root.TryGetProperty("usageMetadata", out var usage)
+        && usage.TryGetProperty("totalTokenCount", out var total)
+        && total.TryGetInt32(out var tokens)
+            ? tokens
+            : 0;
 
     private IEnumerable<string> ResolveModelCandidates()
     {

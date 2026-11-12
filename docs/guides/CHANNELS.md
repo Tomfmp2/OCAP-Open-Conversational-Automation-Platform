@@ -57,7 +57,7 @@ Cuando Telegram rechaza una respuesta, el log de `ocap-api` muestra el motivo (b
 2. En **Configurar → Chat en tu sitio web**, autoriza los dominios de tu web y copia el `<script>`; pégalo antes de
    `</body>`.
 
-Solo los dominios autorizados pueden usar el widget. Si alguien copia el código, **genera una clave nueva** y la
+Con dominios autorizados, solo ellos pueden usar el widget; sin ninguno, funciona en cualquier sitio. Si alguien copia el código, **genera una clave nueva** y la
 anterior deja de funcionar. El widget no guarda nada en el navegador del visitante.
 
 ## Conversaciones y personas del equipo

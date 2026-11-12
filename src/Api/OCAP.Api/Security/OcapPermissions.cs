@@ -27,6 +27,12 @@ public static class OcapPermissions
     public const string SecurityManage = "Security.Manage";
     public const string ChannelManage = "Channel.Manage";
 
+    /// <summary>
+    /// Política de los ajustes de toda la instalación. No es un permiso de rol: exige la marca que solo lleva la cuenta
+    /// administradora del sistema, así que ni <see cref="FullAccess"/> ni un rol editado la cumplen.
+    /// </summary>
+    public const string SystemManage = "System.Manage";
+
     /// <summary>Todos los permisos: los tiene el rol Admin.</summary>
     public static readonly IReadOnlyList<string> All =
     [
@@ -51,6 +57,9 @@ public static class OcapPermissions
                     c.Type == ClaimType && (c.Value == permission || c.Value == FullAccess))));
         }
 
+        options.AddPolicy(SystemManage, policy => policy
+            .RequireAuthenticatedUser()
+            .RequireClaim(OCAP.Security.Infrastructure.Services.JwtTokenService.SystemAdminClaim, "true"));
         options.AddPolicy(FullAccess, policy => policy.RequireAuthenticatedUser().RequireClaim(ClaimType, FullAccess));
 
         return options;

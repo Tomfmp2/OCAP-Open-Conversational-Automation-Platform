@@ -8,6 +8,7 @@ import { AssistantOrb, type OrbState } from "./AssistantOrb";
 import { ChatComposer } from "./ChatComposer";
 import { ChatMessages } from "./ChatMessages";
 import { ConversationHistory } from "./ConversationHistory";
+import { TimeZonePrompt } from "./TimeZonePrompt";
 
 function greetingForHour(hour: number) {
   if (hour < 12) return "Buenos días";
@@ -126,13 +127,13 @@ export function PrincipalAgentChat({
   if (hero && isEmpty) {
     return (
       <div
-        className={`relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-8 ${className}`}
+        className={`relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-2 pb-8 pt-14 sm:pt-8 ${className}`}
       >
         <div className="ocap-hero-ambient pointer-events-none absolute inset-0" aria-hidden />
         <div className="absolute right-2 top-2 z-[2]">{historyButton}</div>
         {history}
 
-        <div className="ocap-hero-enter relative z-[1] flex w-full max-w-2xl flex-col items-center text-center">
+        <div className="ocap-hero-enter relative z-[1] my-auto flex w-full max-w-2xl flex-col items-center text-center">
           <AssistantOrb size={112} state={orbState} className="ocap-mark mb-8" />
 
           <p className="text-sm font-medium text-neutral-600">
@@ -145,7 +146,10 @@ export function PrincipalAgentChat({
             Pregúntame por tus conversaciones, canales, correo o documentos.
           </p>
 
-          <div className="mt-8 w-full">{composer}</div>
+          <div className="mt-8 w-full space-y-3">
+            <TimeZonePrompt />
+            {composer}
+          </div>
           {errorBox && <div className="mt-3 w-full">{errorBox}</div>}
 
           <ul className="mt-5 flex flex-wrap items-center justify-center gap-2" aria-label="Sugerencias">
@@ -169,8 +173,8 @@ export function PrincipalAgentChat({
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col ${className}`}>
-      <header className="mx-auto mb-2 flex w-full max-w-3xl items-center justify-between gap-3 px-1">
-        <div className="flex items-center gap-3">
+      <header className="mx-auto mb-2 flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-1">
+        <div className="flex min-w-0 items-center gap-3">
           <AssistantOrb size={36} state={orbState} />
           <div>
             <h1 className="text-sm font-semibold tracking-tight text-neutral-950">{title}</h1>
@@ -201,6 +205,7 @@ export function PrincipalAgentChat({
 
       <div className="mx-auto w-full max-w-3xl space-y-2 pb-2 pt-3">
         {errorBox}
+        <TimeZonePrompt />
         {composer}
       </div>
     </div>

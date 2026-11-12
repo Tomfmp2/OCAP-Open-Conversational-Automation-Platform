@@ -60,7 +60,7 @@ public class OpenAiProvider : IAiProvider
         if (!response.IsSuccessStatusCode)
         {
             var err = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new InvalidOperationException($"Error en OpenAI API ({response.StatusCode}): {err}");
+            throw AiProviderException.FromResponse(Name, _settings.ModelName ?? string.Empty, response, err);
         }
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
