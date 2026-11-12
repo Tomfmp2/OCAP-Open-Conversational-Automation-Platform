@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - La memoria en segundo plano se pausa cuando el modelo falla, en vez de reintentar cada minuto y gastar cuota.
 - El asistente mostraba los símbolos de Markdown (`**negrita**`) en vez de dar formato a la respuesta.
 - Si Calendar, Gmail o Sheets fallan, el asistente dice qué revisar en Google en vez de culpar al modelo de IA.
+- Las citas del asistente quedaban en UTC, a otra hora de la pedida. Ahora la hora se interpreta en la zona de la
+  organización; sin zona definida no se agenda, y el asistente propone usar la del equipo si la persona acepta.
+- Una cita sin fecha válida ya no se crea «ahora» en silencio.
 - Panel en pantallas pequeñas: inicio, cabeceras del asistente y de conversaciones, zoom de iPhone al tocar un campo y
   enlaces táctiles.
 
